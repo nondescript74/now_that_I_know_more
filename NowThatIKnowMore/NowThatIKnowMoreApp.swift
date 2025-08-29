@@ -6,12 +6,25 @@
 //
 
 import SwiftUI
+import OSLog
 
 @main
 struct NowThatIKnowMoreApp: App {
+    @Environment(\.colorScheme) var colorScheme
+    @State private var store: RecipeStore = RecipeStore()
     var body: some Scene {
         WindowGroup {
-            Extract()
+            TabView {
+                RecipeList()
+                    .tabItem {
+                        Label("Recipes", systemImage: "list.bullet")
+                    }
+                Extract()
+                    .tabItem {
+                        Label("Extract", systemImage: "square.and.arrow.down")
+                    }
+            }
+            .environment(store)
         }
     }
 }

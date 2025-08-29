@@ -14,8 +14,8 @@
 import Foundation
 
 // MARK: - Welcome
-struct Recipe: Codable, Sendable {
-    let uuid: UUID = UUID()
+struct Recipe: Codable, Sendable, Identifiable {
+    let uuid: UUID
     let id: Int?
     let image: String?
     let imageType, title: String?
@@ -43,12 +43,96 @@ struct Recipe: Codable, Sendable {
     let spoonacularSourceURL: String?
 
     enum CodingKeys: String, CodingKey {
-        case uuid, id, image, imageType, title, readyInMinutes, servings
+        case id, image, imageType, title, readyInMinutes, servings
         case sourceURL = "sourceUrl"
         case vegetarian, vegan, glutenFree, dairyFree, veryHealthy, cheap, veryPopular, sustainable, lowFodmap, weightWatcherSmartPoints, gaps, preparationMinutes, cookingMinutes, aggregateLikes, healthScore, creditsText, license, sourceName, pricePerServing, extendedIngredients, summary, cuisines, dishTypes, diets, occasions, instructions, analyzedInstructions
         case originalID = "originalId"
         case spoonacularScore
         case spoonacularSourceURL = "spoonacularSourceUrl"
+    }
+
+    // UUID is always generated during decode and not stored in JSON.
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = try container.decodeIfPresent(Int.self, forKey: .id)
+        self.image = try container.decodeIfPresent(String.self, forKey: .image)
+        self.imageType = try container.decodeIfPresent(String.self, forKey: .imageType)
+        self.title = try container.decodeIfPresent(String.self, forKey: .title)
+        self.readyInMinutes = try container.decodeIfPresent(JSONNull.self, forKey: .readyInMinutes)
+        self.servings = try container.decodeIfPresent(Int.self, forKey: .servings)
+        self.sourceURL = try container.decodeIfPresent(String.self, forKey: .sourceURL)
+        self.vegetarian = try container.decodeIfPresent(Bool.self, forKey: .vegetarian)
+        self.vegan = try container.decodeIfPresent(Bool.self, forKey: .vegan)
+        self.glutenFree = try container.decodeIfPresent(Bool.self, forKey: .glutenFree)
+        self.dairyFree = try container.decodeIfPresent(Bool.self, forKey: .dairyFree)
+        self.veryHealthy = try container.decodeIfPresent(Bool.self, forKey: .veryHealthy)
+        self.cheap = try container.decodeIfPresent(Bool.self, forKey: .cheap)
+        self.veryPopular = try container.decodeIfPresent(Bool.self, forKey: .veryPopular)
+        self.sustainable = try container.decodeIfPresent(Bool.self, forKey: .sustainable)
+        self.lowFodmap = try container.decodeIfPresent(Bool.self, forKey: .lowFodmap)
+        self.weightWatcherSmartPoints = try container.decodeIfPresent(Int.self, forKey: .weightWatcherSmartPoints)
+        self.gaps = try container.decodeIfPresent(String.self, forKey: .gaps)
+        self.preparationMinutes = try container.decodeIfPresent(JSONNull.self, forKey: .preparationMinutes)
+        self.cookingMinutes = try container.decodeIfPresent(JSONNull.self, forKey: .cookingMinutes)
+        self.aggregateLikes = try container.decodeIfPresent(Int.self, forKey: .aggregateLikes)
+        self.healthScore = try container.decodeIfPresent(Int.self, forKey: .healthScore)
+        self.creditsText = try container.decodeIfPresent(String.self, forKey: .creditsText)
+        self.license = try container.decodeIfPresent(JSONNull.self, forKey: .license)
+        self.sourceName = try container.decodeIfPresent(String.self, forKey: .sourceName)
+        self.pricePerServing = try container.decodeIfPresent(Int.self, forKey: .pricePerServing)
+        self.extendedIngredients = try container.decodeIfPresent([ExtendedIngredient].self, forKey: .extendedIngredients)
+        self.summary = try container.decodeIfPresent(String.self, forKey: .summary)
+        self.cuisines = try container.decodeIfPresent([JSONAny].self, forKey: .cuisines)
+        self.dishTypes = try container.decodeIfPresent([JSONAny].self, forKey: .dishTypes)
+        self.diets = try container.decodeIfPresent([JSONAny].self, forKey: .diets)
+        self.occasions = try container.decodeIfPresent([JSONAny].self, forKey: .occasions)
+        self.instructions = try container.decodeIfPresent(String.self, forKey: .instructions)
+        self.analyzedInstructions = try container.decodeIfPresent([AnalyzedInstruction].self, forKey: .analyzedInstructions)
+        self.originalID = try container.decodeIfPresent(JSONNull.self, forKey: .originalID)
+        self.spoonacularScore = try container.decodeIfPresent(Int.self, forKey: .spoonacularScore)
+        self.spoonacularSourceURL = try container.decodeIfPresent(String.self, forKey: .spoonacularSourceURL)
+        self.uuid = UUID()
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(id, forKey: .id)
+        try container.encodeIfPresent(image, forKey: .image)
+        try container.encodeIfPresent(imageType, forKey: .imageType)
+        try container.encodeIfPresent(title, forKey: .title)
+        try container.encodeIfPresent(readyInMinutes, forKey: .readyInMinutes)
+        try container.encodeIfPresent(servings, forKey: .servings)
+        try container.encodeIfPresent(sourceURL, forKey: .sourceURL)
+        try container.encodeIfPresent(vegetarian, forKey: .vegetarian)
+        try container.encodeIfPresent(vegan, forKey: .vegan)
+        try container.encodeIfPresent(glutenFree, forKey: .glutenFree)
+        try container.encodeIfPresent(dairyFree, forKey: .dairyFree)
+        try container.encodeIfPresent(veryHealthy, forKey: .veryHealthy)
+        try container.encodeIfPresent(cheap, forKey: .cheap)
+        try container.encodeIfPresent(veryPopular, forKey: .veryPopular)
+        try container.encodeIfPresent(sustainable, forKey: .sustainable)
+        try container.encodeIfPresent(lowFodmap, forKey: .lowFodmap)
+        try container.encodeIfPresent(weightWatcherSmartPoints, forKey: .weightWatcherSmartPoints)
+        try container.encodeIfPresent(gaps, forKey: .gaps)
+        try container.encodeIfPresent(preparationMinutes, forKey: .preparationMinutes)
+        try container.encodeIfPresent(cookingMinutes, forKey: .cookingMinutes)
+        try container.encodeIfPresent(aggregateLikes, forKey: .aggregateLikes)
+        try container.encodeIfPresent(healthScore, forKey: .healthScore)
+        try container.encodeIfPresent(creditsText, forKey: .creditsText)
+        try container.encodeIfPresent(license, forKey: .license)
+        try container.encodeIfPresent(sourceName, forKey: .sourceName)
+        try container.encodeIfPresent(pricePerServing, forKey: .pricePerServing)
+        try container.encodeIfPresent(extendedIngredients, forKey: .extendedIngredients)
+        try container.encodeIfPresent(summary, forKey: .summary)
+        try container.encodeIfPresent(cuisines, forKey: .cuisines)
+        try container.encodeIfPresent(dishTypes, forKey: .dishTypes)
+        try container.encodeIfPresent(diets, forKey: .diets)
+        try container.encodeIfPresent(occasions, forKey: .occasions)
+        try container.encodeIfPresent(instructions, forKey: .instructions)
+        try container.encodeIfPresent(analyzedInstructions, forKey: .analyzedInstructions)
+        try container.encodeIfPresent(originalID, forKey: .originalID)
+        try container.encodeIfPresent(spoonacularScore, forKey: .spoonacularScore)
+        try container.encodeIfPresent(spoonacularSourceURL, forKey: .spoonacularSourceURL)
     }
 }
 

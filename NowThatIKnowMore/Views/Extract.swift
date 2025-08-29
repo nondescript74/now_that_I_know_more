@@ -6,8 +6,10 @@
 //
 
 import SwiftUI
+import Combine
 
 struct Extract: View {
+    @Environment(RecipeStore.self) private var recipeStore
     @State private var urlString = ""
     @State private var resultText = ""
     
@@ -47,8 +49,9 @@ struct Extract: View {
         
         do {
             let (data, _) = try await URLSession.shared.data(for: request)
-            let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
-            self.resultText = json?["title"] as? String ?? "No title found"
+            let recipe = try JSONDecoder().decode(Recipe.self, from: data)
+            recipeStore.add(recipe)
+            self.resultText = "Saved: \(recipe.title ?? "No title")"
         } catch {
             self.resultText = error.localizedDescription
         }
@@ -56,5 +59,5 @@ struct Extract: View {
 }
 
 #Preview {
-    Extract()
+    Extract().environment(RecipeStore())
 }
