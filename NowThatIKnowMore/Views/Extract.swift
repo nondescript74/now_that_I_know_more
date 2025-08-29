@@ -7,11 +7,13 @@
 
 import SwiftUI
 import Combine
+import OSLog
 
 struct Extract: View {
     @Environment(RecipeStore.self) private var recipeStore
     @State private var urlString = ""
     @State private var resultText = ""
+    let logger: Logger = .init(subsystem: "com.headydiscy.NowThatIKnowMore", category: "Extract")
     
     var body: some View {
         VStack(spacing: 20) {
@@ -46,12 +48,14 @@ struct Extract: View {
         }
         
         let request = URLRequest(url: url)
+        logger.info("\(url, privacy: .public)")
         
         do {
             let (data, _) = try await URLSession.shared.data(for: request)
             let recipe = try JSONDecoder().decode(Recipe.self, from: data)
             recipeStore.add(recipe)
             self.resultText = "Saved: \(recipe.title ?? "No title")"
+            logger.info("\(self.resultText, privacy: .public)")
         } catch {
             self.resultText = error.localizedDescription
         }
