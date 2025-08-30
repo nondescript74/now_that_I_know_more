@@ -3,4 +3,66 @@
    uuid = "023E6A3C-1A65-4525-80C8-7E6DBEDD01CE"
    type = "1"
    version = "2.0">
+   <Breakpoints>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "80FB8442-87FD-465F-A986-F2E46D0D1E90"
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "NowThatIKnowMore/Views/Extract.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "73"
+            endingLineNumber = "73"
+            landmarkName = "extractRecipe()"
+            landmarkType = "7">
+            <Locations>
+               <Location
+                  uuid = "80FB8442-87FD-465F-A986-F2E46D0D1E90 - 66a3a1eaae95c6ba"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(1) suspend resume partial function for NowThatIKnowMore.Extract.extractRecipe() async -&gt; ()"
+                  moduleName = "NowThatIKnowMore.debug.dylib"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/zp/Documents/Documents/Developer_swift/NowThatIKnowMore/NowThatIKnowMore/Views/Extract.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "74"
+                  endingLineNumber = "74">
+               </Location>
+               <Location
+                  uuid = "80FB8442-87FD-465F-A986-F2E46D0D1E90 - 29db01c9e80a06a9"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(2) await resume partial function for NowThatIKnowMore.Extract.extractRecipe() async -&gt; ()"
+                  moduleName = "NowThatIKnowMore.debug.dylib"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/zp/Documents/Documents/Developer_swift/NowThatIKnowMore/NowThatIKnowMore/Views/Extract.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "74"
+                  endingLineNumber = "74">
+               </Location>
+               <Location
+                  uuid = "80FB8442-87FD-465F-A986-F2E46D0D1E90 - 503bff0b85a5d0b9"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(4) suspend resume partial function for NowThatIKnowMore.Extract.extractRecipe() async -&gt; ()"
+                  moduleName = "NowThatIKnowMore.debug.dylib"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/zp/Documents/Documents/Developer_swift/NowThatIKnowMore/NowThatIKnowMore/Views/Extract.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "74"
+                  endingLineNumber = "74">
+               </Location>
+            </Locations>
+         </BreakpointContent>
+      </BreakpointProxy>
+   </Breakpoints>
 </Bucket>
