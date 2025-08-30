@@ -14,6 +14,8 @@ struct Extract: View {
     @State private var urlString = ""
     @State private var resultText = ""
     @State private var showingAPIKeyEntry = false
+    @State private var extractedRecipe: Recipe?
+    @State private var showingRecipeSheet = false
     let logger: Logger = .init(subsystem: "com.headydiscy.NowThatIKnowMore", category: "Extract")
     
     var body: some View {
@@ -25,9 +27,19 @@ struct Extract: View {
                 recipeStore.clear()
             }
             
-            TextField("Paste recipe URL", text: $urlString)
-                .textFieldStyle(.roundedBorder)
-                .padding(.horizontal)
+            HStack {
+                TextField("Paste recipe URL", text: $urlString)
+                    .textFieldStyle(.roundedBorder)
+                if !urlString.isEmpty {
+                    Button(action: { urlString = "" }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundColor(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Clear URL")
+                }
+            }
+            .padding(.horizontal)
             
             Button("Extract Recipe") {
                 Task {
@@ -36,17 +48,60 @@ struct Extract: View {
             }
             .disabled(urlString.isEmpty)
             
-            Text(resultText)
-                .padding()
-                .multilineTextAlignment(.center)
+            ScrollView {
+                if let recipe = extractedRecipe {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text(recipe.title ?? "No Title")
+                            .font(.title)
+                            .bold()
+                        
+                        if let summary = recipe.summary {
+                            Text(stripHTML(from: summary))
+                                .font(.body)
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        if let ingredients = recipe.extendedIngredients, !ingredients.isEmpty {
+                            Text("Ingredients:")
+                                .font(.headline)
+                            ForEach(ingredients, id: \.original) { ing in
+                                Text("• \(ing.original ?? "")")
+                            }
+                        }
+                        
+                        if let steps = recipe.analyzedInstructions?.flatMap({ $0.steps ?? [] }), !steps.isEmpty {
+                            Text("Instructions:")
+                                .font(.headline)
+                            ForEach(steps) { step in
+                                Text("\(step.number ?? 0). \(step.step ?? "")")
+                            }
+                        }
+                    }
+                    .padding()
+                } else {
+                    Text(resultText)
+                        .padding()
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .monospaced()
+                        .textSelection(.enabled)
+                }
+            }
+            .frame(minHeight: 150, maxHeight: 400)
+            .padding(.horizontal)
         }
         .sheet(isPresented: $showingAPIKeyEntry) {
             APIKeyEntryView()
+        }
+        .sheet(isPresented: $showingRecipeSheet) {
+            if let recipe = extractedRecipe {
+                RecipeDetail(recipe: recipe)
+            }
         }
     }
     
     private func extractRecipe() async {
         resultText = "Loading..."
+        extractedRecipe = nil
         let endpoint = "https://api.spoonacular.com/recipes/extract"
         
         let apiKey = UserDefaults.standard.string(forKey: "spoonacularAPIKey") ?? ""
@@ -60,7 +115,6 @@ struct Extract: View {
             URLQueryItem(name: "url", value: urlString),
             URLQueryItem(name: "apiKey", value: apiKey)
         ]
-        // components.query = "url=\(urlString)&\(apiKey)"  // original line commented out
         
         guard let url = components.url else {
             resultText = "Invalid URL"
@@ -73,21 +127,27 @@ struct Extract: View {
         do {
             let (data, _) = try await URLSession.shared.data(for: request)
             
-            let jsonObject = try JSONSerialization.jsonObject(with: data, options: [])
-            if let dict = jsonObject as? [String: Any] {
-                if let title = dict["title"] as? String {
-                    self.resultText = "Title: \(title)\n\n" + ((try? prettyPrinted(dict)) ?? String(describing: dict))
-                } else {
-                    self.resultText = (try? prettyPrinted(dict)) ?? String(describing: dict)
+            let decoder = JSONDecoder()
+            decoder.keyDecodingStrategy = .convertFromSnakeCase
+            
+            if let recipe = try? decoder.decode(Recipe.self, from: data) {
+                extractedRecipe = recipe
+                showingRecipeSheet = true
+                resultText = ""
+            } else {
+                let jsonObject = try JSONSerialization.jsonObject(with: data, options: [])
+                if let dict = jsonObject as? [String: Any] {
+                    if let title = dict["title"] as? String {
+                        self.resultText = "Title: \(title)\n\n" + ((try? prettyPrinted(dict)) ?? String(describing: dict))
+                    } else {
+                        self.resultText = (try? prettyPrinted(dict)) ?? String(describing: dict)
+                    }
+                } else if let arr = jsonObject as? [Any] {
+                    self.resultText = (try? prettyPrinted(arr)) ?? String(describing: arr)
                 }
-            } else if let arr = jsonObject as? [Any] {
-                self.resultText = (try? prettyPrinted(arr)) ?? String(describing: arr)
             }
             
             // Commented out Recipe decoding and storage:
-            // let decoder = JSONDecoder()
-            // decoder.keyDecodingStrategy = .convertFromSnakeCase
-            // let recipe = try decoder.decode(Recipe.self, from: data)
             // recipeStore.add(recipe)
             // self.resultText = "Saved: \(recipe.title ?? "No title")"
             // logger.info("\(self.resultText, privacy: .public)")
@@ -100,6 +160,17 @@ struct Extract: View {
     private func prettyPrinted(_ object: Any) throws -> String {
         let data = try JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted, .sortedKeys])
         return String(data: data, encoding: .utf8) ?? String(describing: object)
+    }
+    
+    private func stripHTML(from string: String) -> String {
+        guard let data = string.data(using: .utf8) else { return string }
+        if let attributed = try? NSAttributedString(data: data,
+                                                    options: [.documentType: NSAttributedString.DocumentType.html,
+                                                              .characterEncoding: String.Encoding.utf8.rawValue],
+                                                    documentAttributes: nil) {
+            return attributed.string
+        }
+        return string
     }
 }
 
