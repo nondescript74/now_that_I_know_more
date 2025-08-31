@@ -6,8 +6,10 @@
 //
 
 import SwiftUI
+import OSLog
 
 struct RecipeList: View {
+    let logger:Logger = .init(subsystem: "com.example.NowThatIKnowMore", category: "RecipeList")
     @Environment(RecipeStore.self) private var recipeStore
     var body: some View {
         NavigationStack {
@@ -17,6 +19,9 @@ struct RecipeList: View {
                 }
             }
             .navigationTitle("Recipes")
+        }
+        .onAppear {
+            logger.info("\(recipeStore.recipes.isEmpty ? "No Recipes" : "Found Recipes" + recipeStore.recipes.count.description)")
         }
     }
 }
