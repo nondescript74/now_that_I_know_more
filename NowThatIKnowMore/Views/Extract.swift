@@ -132,6 +132,7 @@ struct Extract: View {
             
             if let recipe = try? decoder.decode(Recipe.self, from: data) {
                 extractedRecipe = recipe
+                recipeStore.add(recipe)
                 showingRecipeSheet = true
                 resultText = ""
             } else {
@@ -142,6 +143,8 @@ struct Extract: View {
                     } else {
                         self.resultText = (try? prettyPrinted(dict)) ?? String(describing: dict)
                     }
+                    recipeStore.add(jsonObject as! Recipe)
+                    logger.info("\(self.resultText, privacy: .public)")
                 } else if let arr = jsonObject as? [Any] {
                     self.resultText = (try? prettyPrinted(arr)) ?? String(describing: arr)
                 }
@@ -150,7 +153,7 @@ struct Extract: View {
             // Commented out Recipe decoding and storage:
             // recipeStore.add(recipe)
             // self.resultText = "Saved: \(recipe.title ?? "No title")"
-            // logger.info("\(self.resultText, privacy: .public)")
+            logger.info("\(self.resultText, privacy: .public)")
             
         } catch {
             self.resultText = error.localizedDescription

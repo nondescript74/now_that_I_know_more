@@ -11,7 +11,6 @@ struct APIKeyEntryView: View {
             Form {
                 Section(header: Text("Spoonacular API Key")) {
                     SecureField("Enter API Key", text: $tempKey)
-                        .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                 }
                 Section {
