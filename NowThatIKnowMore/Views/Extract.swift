@@ -53,7 +53,11 @@ struct Extract: View {
             Button("Extract Recipe") {
                 Task {
                     await extractRecipe()
-                    logger.info("extractedRecipe: \(String(describing: extractedRecipe))")
+                    if extractedRecipe == nil {
+                        logger.info("createdRecipe: \(String(describing: createdRecipe))")
+                    } else {
+                        logger.info("extractedRecipe: \(String(describing: extractedRecipe))")
+                    }
                 }
             }
             .disabled(urlString.isEmpty)
