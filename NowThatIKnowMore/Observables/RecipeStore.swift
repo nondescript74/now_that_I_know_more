@@ -8,46 +8,42 @@ import Combine
 
 @Observable class RecipeStore {
     private(set) var recipes: [Recipe] = []
-    
+        
     private var recipesFileURL: URL {
         FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("recipes.json")
     }
 
     init() {
-        loadRecipes()
+        loadAll()
     }
-
-    // Adds a new recipe if it does not already exist (by UUID)
+    
     func add(_ recipe: Recipe) {
         guard !recipes.contains(where: { $0.uuid == recipe.uuid }) else { return }
         recipes.append(recipe)
-        saveRecipes()
+        saveAll()
     }
     
-    // Remove a recipe by UUID
     func remove(_ recipe: Recipe) {
         recipes.removeAll { $0.uuid == recipe.uuid }
-        saveRecipes()
+        saveAll()
     }
     
-    // Get a recipe by UUID
     func recipe(with uuid: UUID) -> Recipe? {
         recipes.first { $0.uuid == uuid }
     }
     
-    // Replace all recipes
     func set(_ newRecipes: [Recipe]) {
         recipes = newRecipes
-        saveRecipes()
+        saveAll()
     }
     
-    // Clear all recipes
     func clear() {
         recipes.removeAll()
-        saveRecipes()
+        saveAll()
     }
 
-    private func saveRecipes() {
+    
+    private func saveAll() {
         do {
             let data = try JSONEncoder().encode(recipes)
             try data.write(to: recipesFileURL, options: .atomic)
@@ -55,8 +51,8 @@ import Combine
             print("Failed to save recipes: \(error)")
         }
     }
-
-    private func loadRecipes() {
+    
+    private func loadAll() {
         let url = recipesFileURL
         guard FileManager.default.fileExists(atPath: url.path) else { return }
         do {
