@@ -134,16 +134,162 @@ struct Recipe: Codable, Sendable, Identifiable {
         try container.encodeIfPresent(spoonacularScore, forKey: .spoonacularScore)
         try container.encodeIfPresent(spoonacularSourceURL, forKey: .spoonacularSourceURL)
     }
+
+    // Convenience failable initializer for Recipe from [String: Any] dictionary
+    init?(from dict: [String: Any]) {
+        self.uuid = dict["uuid"] as? UUID ?? UUID()
+        self.id = dict["id"] as? Int
+        self.image = dict["image"] as? String
+        self.imageType = dict["imageType"] as? String
+        self.title = dict["title"] as? String
+        self.readyInMinutes = dict["readyInMinutes"] as? JSONNull
+        self.servings = dict["servings"] as? Int
+        self.sourceURL = dict["sourceUrl"] as? String ?? dict["sourceURL"] as? String
+        self.vegetarian = dict["vegetarian"] as? Bool
+        self.vegan = dict["vegan"] as? Bool
+        self.glutenFree = dict["glutenFree"] as? Bool
+        self.dairyFree = dict["dairyFree"] as? Bool
+        self.veryHealthy = dict["veryHealthy"] as? Bool
+        self.cheap = dict["cheap"] as? Bool
+        self.veryPopular = dict["veryPopular"] as? Bool
+        self.sustainable = dict["sustainable"] as? Bool
+        self.lowFodmap = dict["lowFodmap"] as? Bool
+        self.weightWatcherSmartPoints = dict["weightWatcherSmartPoints"] as? Int
+        self.gaps = dict["gaps"] as? String
+        self.preparationMinutes = dict["preparationMinutes"] as? JSONNull
+        self.cookingMinutes = dict["cookingMinutes"] as? JSONNull
+        self.aggregateLikes = dict["aggregateLikes"] as? Int
+        self.healthScore = dict["healthScore"] as? Int
+        self.creditsText = dict["creditsText"] as? String
+        self.license = dict["license"] as? JSONNull
+        self.sourceName = dict["sourceName"] as? String
+        self.pricePerServing = dict["pricePerServing"] as? Int
+
+        if let extArray = dict["extendedIngredients"] as? [[String: Any]] {
+            self.extendedIngredients = extArray.compactMap { dict in
+                guard let data = try? JSONSerialization.data(withJSONObject: dict),
+                      let decoded = try? JSONDecoder().decode(ExtendedIngredient.self, from: data) else { return nil }
+                return decoded
+            }
+        } else {
+            self.extendedIngredients = nil
+        }
+        self.summary = dict["summary"] as? String
+        self.cuisines = (dict["cuisines"] as? [Any])?.compactMap { JSONAny.wrap($0) }
+        self.dishTypes = (dict["dishTypes"] as? [Any])?.compactMap { JSONAny.wrap($0) }
+        self.diets = (dict["diets"] as? [Any])?.compactMap { JSONAny.wrap($0) }
+        self.occasions = (dict["occasions"] as? [Any])?.compactMap { JSONAny.wrap($0) }
+        self.instructions = dict["instructions"] as? String
+        if let instArray = dict["analyzedInstructions"] as? [[String: Any]] {
+            self.analyzedInstructions = instArray.compactMap { d in
+                guard let data = try? JSONSerialization.data(withJSONObject: d),
+                      let decoded = try? JSONDecoder().decode(AnalyzedInstruction.self, from: data) else { return nil }
+                return decoded
+            }
+        } else {
+            self.analyzedInstructions = nil
+        }
+        self.originalID = dict["originalId"] as? JSONNull
+        self.spoonacularScore = dict["spoonacularScore"] as? Int
+        self.spoonacularSourceURL = dict["spoonacularSourceUrl"] as? String ?? dict["spoonacularSourceURL"] as? String
+    }
+}
+
+extension Recipe: Equatable {
+    static func == (lhs: Recipe, rhs: Recipe) -> Bool {
+        return lhs.uuid == rhs.uuid &&
+            lhs.id == rhs.id &&
+            lhs.image == rhs.image &&
+            lhs.imageType == rhs.imageType &&
+            lhs.title == rhs.title &&
+            (lhs.readyInMinutes == nil) == (rhs.readyInMinutes == nil) &&
+            lhs.servings == rhs.servings &&
+            lhs.sourceURL == rhs.sourceURL &&
+            lhs.vegetarian == rhs.vegetarian &&
+            lhs.vegan == rhs.vegan &&
+            lhs.glutenFree == rhs.glutenFree &&
+            lhs.dairyFree == rhs.dairyFree &&
+            lhs.veryHealthy == rhs.veryHealthy &&
+            lhs.cheap == rhs.cheap &&
+            lhs.veryPopular == rhs.veryPopular &&
+            lhs.sustainable == rhs.sustainable &&
+            lhs.lowFodmap == rhs.lowFodmap &&
+            lhs.weightWatcherSmartPoints == rhs.weightWatcherSmartPoints &&
+            lhs.gaps == rhs.gaps &&
+            (lhs.preparationMinutes == nil) == (rhs.preparationMinutes == nil) &&
+            (lhs.cookingMinutes == nil) == (rhs.cookingMinutes == nil) &&
+            lhs.aggregateLikes == rhs.aggregateLikes &&
+            lhs.healthScore == rhs.healthScore &&
+            lhs.creditsText == rhs.creditsText &&
+            (lhs.license == nil) == (rhs.license == nil) &&
+            lhs.sourceName == rhs.sourceName &&
+            lhs.pricePerServing == rhs.pricePerServing &&
+            lhs.extendedIngredients == rhs.extendedIngredients &&
+            lhs.summary == rhs.summary &&
+            (lhs.cuisines?.count ?? 0) == (rhs.cuisines?.count ?? 0) &&
+            (lhs.dishTypes?.count ?? 0) == (rhs.dishTypes?.count ?? 0) &&
+            (lhs.diets?.count ?? 0) == (rhs.diets?.count ?? 0) &&
+            (lhs.occasions?.count ?? 0) == (rhs.occasions?.count ?? 0) &&
+            lhs.instructions == rhs.instructions &&
+            lhs.analyzedInstructions == rhs.analyzedInstructions &&
+            (lhs.originalID == nil) == (rhs.originalID == nil) &&
+            lhs.spoonacularScore == rhs.spoonacularScore &&
+            lhs.spoonacularSourceURL == rhs.spoonacularSourceURL
+    }
+}
+
+extension Recipe: Hashable {
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(uuid)
+        hasher.combine(id)
+        hasher.combine(image)
+        hasher.combine(imageType)
+        hasher.combine(title)
+        hasher.combine(servings)
+        hasher.combine(sourceURL)
+        hasher.combine(vegetarian)
+        hasher.combine(vegan)
+        hasher.combine(glutenFree)
+        hasher.combine(dairyFree)
+        hasher.combine(veryHealthy)
+        hasher.combine(cheap)
+        hasher.combine(veryPopular)
+        hasher.combine(sustainable)
+        hasher.combine(lowFodmap)
+        hasher.combine(weightWatcherSmartPoints)
+        hasher.combine(gaps)
+        hasher.combine(aggregateLikes)
+        hasher.combine(healthScore)
+        hasher.combine(creditsText)
+        hasher.combine(sourceName)
+        hasher.combine(pricePerServing)
+        hasher.combine(extendedIngredients)
+        hasher.combine(summary)
+        hasher.combine(instructions)
+        hasher.combine(analyzedInstructions)
+        hasher.combine(spoonacularScore)
+        hasher.combine(spoonacularSourceURL)
+        // For optionals that are not Hashable (JSONNull, JSONAny arrays), hash their nil-ness or count
+        hasher.combine(readyInMinutes != nil)
+        hasher.combine(preparationMinutes != nil)
+        hasher.combine(cookingMinutes != nil)
+        hasher.combine(license != nil)
+        hasher.combine(originalID != nil)
+        hasher.combine(cuisines?.count ?? 0)
+        hasher.combine(dishTypes?.count ?? 0)
+        hasher.combine(diets?.count ?? 0)
+        hasher.combine(occasions?.count ?? 0)
+    }
 }
 
 // MARK: - AnalyzedInstruction
-struct AnalyzedInstruction: Codable, Sendable {
+struct AnalyzedInstruction: Codable, Sendable, Equatable, Hashable {
     let name: String?
     let steps: [Step]?
 }
 
 // MARK: - Step
-struct Step: Codable, Sendable {
+struct Step: Codable, Sendable, Equatable, Hashable {
     let number: Int?
     let step: String?
     let ingredients, equipment: [Ent]?
@@ -151,7 +297,7 @@ struct Step: Codable, Sendable {
 }
 
 // MARK: - Ent
-struct Ent: Codable, Sendable {
+struct Ent: Codable, Sendable, Equatable, Hashable {
     let id: Int?
     let name, localizedName: String?
     let image: String?
@@ -159,13 +305,13 @@ struct Ent: Codable, Sendable {
 }
 
 // MARK: - Length
-struct Length: Codable, Sendable {
+struct Length: Codable, Sendable, Equatable, Hashable {
     let number: Int?
     let unit: String?
 }
 
 // MARK: - ExtendedIngredient
-struct ExtendedIngredient: Codable, Sendable {
+struct ExtendedIngredient: Codable, Sendable, Equatable, Hashable {
     let id: Int?
     let aisle, image: String?
     let consistency: Consistency?
@@ -176,18 +322,18 @@ struct ExtendedIngredient: Codable, Sendable {
     let measures: Measures?
 }
 
-enum Consistency: String, Codable, Sendable {
+enum Consistency: String, Codable, Sendable, Equatable, Hashable {
     case liquid = "LIQUID"
     case solid = "SOLID"
 }
 
 // MARK: - Measures
-struct Measures: Codable, Sendable {
+struct Measures: Codable, Sendable, Equatable, Hashable {
     let us, metric: Metric?
 }
 
 // MARK: - Metric
-struct Metric: Codable, Sendable {
+struct Metric: Codable, Sendable, Equatable, Hashable {
     let amount: Double?
     let unitShort, unitLong: String?
 }
@@ -243,6 +389,7 @@ class JSONCodingKey: CodingKey {
 class JSONAny: Codable {
 
     let value: Any
+    init(_ value: Any) { self.value = value }
 
     static func decodingError(forCodingPath codingPath: [CodingKey]) -> DecodingError {
             let context = DecodingError.Context(codingPath: codingPath, debugDescription: "Cannot decode JSONAny")
@@ -252,6 +399,13 @@ class JSONAny: Codable {
     static func encodingError(forValue value: Any, codingPath: [CodingKey]) -> EncodingError {
             let context = EncodingError.Context(codingPath: codingPath, debugDescription: "Cannot encode JSONAny")
             return EncodingError.invalidValue(value, context)
+    }
+    
+    static func wrap(_ value: Any) -> JSONAny? {
+        if value is NSNull {
+            return JSONAny(JSONNull())
+        }
+        return JSONAny(value)
     }
 
     static func decode(from container: SingleValueDecodingContainer) throws -> Any {

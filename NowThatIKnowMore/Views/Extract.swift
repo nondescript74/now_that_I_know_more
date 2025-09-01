@@ -9,12 +9,21 @@ import SwiftUI
 import Combine
 import OSLog
 
+extension JSONAny {
+    static func wrap(_ value: Any) -> JSONAny {
+        // Encodes the value as JSON and decodes as JSONAny
+        let data = try! JSONSerialization.data(withJSONObject: [value], options: [])
+        return try! JSONDecoder().decode([JSONAny].self, from: data)[0]
+    }
+}
+
 struct Extract: View {
     @Environment(RecipeStore.self) private var recipeStore
     @State private var urlString = ""
     @State private var resultText = ""
     @State private var showingAPIKeyEntry = false
     @State private var extractedRecipe: Recipe?
+    @State private var createdRecipe: Recipe?
     @State private var showingRecipeSheet = false
     let logger: Logger = .init(subsystem: "com.headydiscy.NowThatIKnowMore", category: "Extract")
     
@@ -44,58 +53,18 @@ struct Extract: View {
             Button("Extract Recipe") {
                 Task {
                     await extractRecipe()
+                    logger.info("extractedRecipe: \(String(describing: extractedRecipe))")
                 }
             }
             .disabled(urlString.isEmpty)
             
-            ScrollView {
-                if let recipe = extractedRecipe {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text(recipe.title ?? "No Title")
-                            .font(.title)
-                            .bold()
-                        
-                        if let summary = recipe.summary {
-                            Text(stripHTML(from: summary))
-                                .font(.body)
-                                .foregroundColor(.secondary)
-                        }
-                        
-                        if let ingredients = recipe.extendedIngredients, !ingredients.isEmpty {
-                            Text("Ingredients:")
-                                .font(.headline)
-                            ForEach(ingredients, id: \.original) { ing in
-                                Text("• \(ing.original ?? "")")
-                            }
-                        }
-                        
-                        if let steps = recipe.analyzedInstructions?.flatMap({ $0.steps ?? [] }), !steps.isEmpty {
-                            Text("Instructions:")
-                                .font(.headline)
-                            ForEach(steps) { step in
-                                Text("\(step.number ?? 0). \(step.step ?? "")")
-                            }
-                        }
-                    }
-                    .padding()
-                } else {
-                    Text(resultText)
-                        .padding()
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .monospaced()
-                        .textSelection(.enabled)
-                }
-            }
-            .frame(minHeight: 150, maxHeight: 400)
-            .padding(.horizontal)
+            Spacer()
+            
+            Text(resultText)
+                .padding()
         }
         .sheet(isPresented: $showingAPIKeyEntry) {
             APIKeyEntryView()
-        }
-        .sheet(isPresented: $showingRecipeSheet) {
-            if let recipe = extractedRecipe {
-                RecipeDetail(recipe: recipe)
-            }
         }
     }
     
@@ -138,25 +107,48 @@ struct Extract: View {
             } else {
                 let jsonObject = try JSONSerialization.jsonObject(with: data, options: [])
                 if let dict = jsonObject as? [String: Any] {
-                    if let title = dict["title"] as? String {
-                        self.resultText = "Title: \(title)\n\n" + ((try? prettyPrinted(dict)) ?? String(describing: dict))
+                    // Attempt fallback decode by re-encoding dict to data and decoding Recipe
+                    if let dictData = try? JSONSerialization.data(withJSONObject: dict),
+                       let fallbackRecipe = try? decoder.decode(Recipe.self, from: dictData) {
+                        self.extractedRecipe = fallbackRecipe
+                        self.createdRecipe = nil
+                        recipeStore.add(fallbackRecipe)
+                        self.showingRecipeSheet = true
+                        self.resultText = ""
                     } else {
-                        self.resultText = (try? prettyPrinted(dict)) ?? String(describing: dict)
+                        if let title = dict["title"] as? String {
+                            // create a Recipe and save it to the extractedRecipe
+                            if createRecipeFromDictionary(dict) == nil {
+                                self.resultText = "Title: \(title)\n\n" + ((try? prettyPrinted(dict)) ?? String(describing: dict))
+                                logger.info("can't parse dictionary to Recipe")
+                            }
+                            self.createdRecipe = createRecipeFromDictionary(dict)
+                            recipeStore.add(self.createdRecipe!)
+                            self.extractedRecipe = nil
+                            self.showingRecipeSheet = true
+                            self.resultText = "Title: \(title)"
+                        } else {
+                            self.resultText = (try? prettyPrinted(dict)) ?? String(describing: dict)
+                        }
                     }
-                    recipeStore.add(jsonObject as! Recipe)
-                    logger.info("\(self.resultText, privacy: .public)")
+                    // Recipe was not saved due to type mismatch or fallback decode failed.
                 } else if let arr = jsonObject as? [Any] {
-                    self.resultText = (try? prettyPrinted(arr)) ?? String(describing: arr)
+                    self.resultText = try prettyPrinted(arr)
                 }
             }
-            
-            // Commented out Recipe decoding and storage:
-            // recipeStore.add(recipe)
-            // self.resultText = "Saved: \(recipe.title ?? "No title")"
             logger.info("\(self.resultText, privacy: .public)")
             
         } catch {
             self.resultText = error.localizedDescription
+        }
+    }
+    
+    private func createRecipeFromDictionary(_ dict: [String: Any]) -> Recipe? {
+        // Uses new Recipe(from:) initializer for dynamic dictionary input
+        if let recipe = Recipe(from: dict) {
+            return recipe
+        } else {
+            return nil
         }
     }
     
