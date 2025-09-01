@@ -56,7 +56,7 @@ struct RecipeDetail: View {
                 }
                 
                 if let summary = recipe.summary, !summary.isEmpty {
-                    Text(attributedSummary(from: summary))
+                    Text(summary.strippedHTML)
                         .font(.body)
                         .foregroundColor(.secondary)
                 }
@@ -70,13 +70,6 @@ struct RecipeDetail: View {
             .padding(.horizontal)
         }
     }
-    
-    private func attributedSummary(from html: String) -> AttributedString {
-        var text = html.replacingOccurrences(of: "<b>", with: "\n   ")
-        text = text.replacingOccurrences(of: "</b>", with: "\n   ")
-        text = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        return AttributedString(text)
-    }
 }
 
 private struct IngredientListView: View {
@@ -88,7 +81,7 @@ private struct IngredientListView: View {
                 .font(.headline)
                 .padding(.bottom, 4)
             
-            ForEach(ingredients, id: \.original) { ingredient in
+            ForEach(ingredients, id: \.id) { ingredient in
                 Text("• \(ingredient.original ?? "")")
                     .font(.body)
             }

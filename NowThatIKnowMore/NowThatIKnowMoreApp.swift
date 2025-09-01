@@ -23,6 +23,10 @@ struct NowThatIKnowMoreApp: App {
                     .tabItem {
                         Label("Extract", systemImage: "square.and.arrow.down")
                     }
+                APIKeyTabView()
+                    .tabItem {
+                        Label("API Key", systemImage: "key.fill")
+                    }
             }
             .environment(store)
         }

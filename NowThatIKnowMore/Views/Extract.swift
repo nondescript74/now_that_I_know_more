@@ -21,21 +21,13 @@ struct Extract: View {
     @Environment(RecipeStore.self) private var recipeStore
     @State private var urlString = ""
     @State private var resultText = ""
-    @State private var showingAPIKeyEntry = false
     @State private var extractedRecipe: Recipe?
     @State private var createdRecipe: Recipe?
     @State private var showingRecipeSheet = false
     let logger: Logger = .init(subsystem: "com.headydiscy.NowThatIKnowMore", category: "Extract")
     
     var body: some View {
-        VStack(spacing: 20) {
-            Button("Set API Key") {
-                showingAPIKeyEntry = true
-            }
-            Button("Clear Recipes") {
-                recipeStore.clear()
-            }
-            
+        VStack {
             HStack {
                 TextField("Paste recipe URL", text: $urlString)
                     .textFieldStyle(.roundedBorder)
@@ -47,28 +39,30 @@ struct Extract: View {
                     .buttonStyle(.plain)
                     .accessibilityLabel("Clear URL")
                 }
-            }
-            .padding(.horizontal)
-            
-            Button("Extract Recipe") {
-                Task {
-                    await extractRecipe()
-                    if extractedRecipe == nil {
-                        logger.info("createdRecipe: \(String(describing: createdRecipe))")
-                    } else {
-                        logger.info("extractedRecipe: \(String(describing: extractedRecipe))")
+                Button("Extract") {
+                    Task {
+                        await extractRecipe()
+                        if extractedRecipe != nil {
+                            logger.info("extractedRecipe: \(String(describing: extractedRecipe))")
+                        } else if createdRecipe != nil {
+                            logger.info("createdRecipe: \(String(describing: createdRecipe))")
+                        } else {
+                            logger.info("unknown recipe")
+                        }
                     }
                 }
+                .disabled(urlString.isEmpty)
             }
-            .disabled(urlString.isEmpty)
+            .padding()
             
             Spacer()
             
+            Button("Clear Recipes") {
+                recipeStore.clear()
+            }
+            
             Text(resultText)
                 .padding()
-        }
-        .sheet(isPresented: $showingAPIKeyEntry) {
-            APIKeyEntryView()
         }
     }
     
