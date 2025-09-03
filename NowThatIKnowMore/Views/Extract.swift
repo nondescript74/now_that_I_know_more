@@ -17,6 +17,23 @@ extension JSONAny {
     }
 }
 
+struct ClearRecipesButton: View {
+    @Environment(RecipeStore.self) private var recipeStore
+    @State private var showingConfirmation = false
+    
+    var body: some View {
+        Button("Clear Recipes") {
+            showingConfirmation = true
+        }
+        .alert("Are you sure you want to clear all recipes? This cannot be undone.", isPresented: $showingConfirmation) {
+            Button("Clear Recipes", role: .destructive) {
+                recipeStore.clear()
+            }
+            Button("Cancel", role: .cancel) { }
+        }
+    }
+}
+
 struct Extract: View {
     @Environment(RecipeStore.self) private var recipeStore
     @State private var urlString = ""
@@ -57,9 +74,7 @@ struct Extract: View {
             
             Spacer()
             
-            Button("Clear Recipes") {
-                recipeStore.clear()
-            }
+            ClearRecipesButton()
             
             Text(resultText)
                 .padding()
