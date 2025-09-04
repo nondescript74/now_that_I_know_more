@@ -15,28 +15,50 @@ struct RecipeList: View {
         NavigationStack {
             List {
                 ForEach(recipeStore.recipes, id: \.self) { recipe in
-                    NavigationLink(destination: RecipeDetail(recipe: recipe)) {
+                    NavigationLink(destination: RecipeDetail(recipeID: recipe.uuid)) {
                         HStack {
-                            if let urlString = recipe.image, let url = URL(string: urlString) {
-                                AsyncImage(url: url) { phase in
-                                    switch phase {
-                                    case .empty:
-                                        ProgressView()
-                                            .frame(width: 24, height: 24)
-                                    case .success(let image):
-                                        image
+                            if let urlString = recipe.image {
+                                if let url = URL(string: urlString), url.scheme == "file" {
+                                    // Local file URL: load as UIImage and show thumbnail
+                                    if let data = try? Data(contentsOf: url), let uiImage = UIImage(data: data) {
+                                        Image(uiImage: uiImage)
                                             .resizable()
                                             .frame(width: 24, height: 24)
                                             .clipShape(RoundedRectangle(cornerRadius: 6))
-                                    case .failure(_):
+                                    } else {
                                         Image(systemName: "photo")
                                             .resizable()
                                             .frame(width: 24, height: 24)
                                             .clipShape(RoundedRectangle(cornerRadius: 6))
                                             .foregroundColor(.gray)
-                                    @unknown default:
-                                        EmptyView()
                                     }
+                                } else if let url = URL(string: urlString) {
+                                    AsyncImage(url: url) { phase in
+                                        switch phase {
+                                        case .empty:
+                                            ProgressView()
+                                                .frame(width: 24, height: 24)
+                                        case .success(let image):
+                                            image
+                                                .resizable()
+                                                .frame(width: 24, height: 24)
+                                                .clipShape(RoundedRectangle(cornerRadius: 6))
+                                        case .failure(_):
+                                            Image(systemName: "photo")
+                                                .resizable()
+                                                .frame(width: 24, height: 24)
+                                                .clipShape(RoundedRectangle(cornerRadius: 6))
+                                                .foregroundColor(.gray)
+                                        @unknown default:
+                                            EmptyView()
+                                        }
+                                    }
+                                } else {
+                                    Image(systemName: "photo")
+                                        .resizable()
+                                        .frame(width: 24, height: 24)
+                                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                                        .foregroundColor(.gray)
                                 }
                             } else {
                                 Image(systemName: "photo")
