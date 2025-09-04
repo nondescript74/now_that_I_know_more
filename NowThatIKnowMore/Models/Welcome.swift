@@ -43,6 +43,7 @@ struct Recipe: Codable, Sendable, Identifiable {
     let spoonacularSourceURL: String?
 
     enum CodingKeys: String, CodingKey {
+        case uuid
         case id, image, imageType, title, readyInMinutes, servings
         case sourceURL = "sourceUrl"
         case vegetarian, vegan, glutenFree, dairyFree, veryHealthy, cheap, veryPopular, sustainable, lowFodmap, weightWatcherSmartPoints, gaps, preparationMinutes, cookingMinutes, aggregateLikes, healthScore, creditsText, license, sourceName, pricePerServing, extendedIngredients, summary, cuisines, dishTypes, diets, occasions, instructions, analyzedInstructions
@@ -51,9 +52,10 @@ struct Recipe: Codable, Sendable, Identifiable {
         case spoonacularSourceURL = "spoonacularSourceUrl"
     }
 
-    // UUID is always generated during decode and not stored in JSON.
+    // UUID is decoded from JSON and not generated during decode.
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.uuid = try container.decode(UUID.self, forKey: .uuid)
         self.id = try container.decodeIfPresent(Int.self, forKey: .id)
         self.image = try container.decodeIfPresent(String.self, forKey: .image)
         self.imageType = try container.decodeIfPresent(String.self, forKey: .imageType)
@@ -91,11 +93,11 @@ struct Recipe: Codable, Sendable, Identifiable {
         self.originalID = try container.decodeIfPresent(JSONNull.self, forKey: .originalID)
         self.spoonacularScore = try container.decodeIfPresent(Int.self, forKey: .spoonacularScore)
         self.spoonacularSourceURL = try container.decodeIfPresent(String.self, forKey: .spoonacularSourceURL)
-        self.uuid = UUID()
     }
 
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(uuid, forKey: .uuid)
         try container.encodeIfPresent(id, forKey: .id)
         try container.encodeIfPresent(image, forKey: .image)
         try container.encodeIfPresent(imageType, forKey: .imageType)

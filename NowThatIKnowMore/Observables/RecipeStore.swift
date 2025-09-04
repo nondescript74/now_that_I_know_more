@@ -28,6 +28,13 @@ import Combine
         saveAll()
     }
     
+    func update(_ recipe: Recipe) {
+        if let idx = recipes.firstIndex(where: { $0.uuid == recipe.uuid }) {
+            recipes[idx] = recipe
+            saveAll()
+        }
+    }
+    
     func recipe(with uuid: UUID) -> Recipe? {
         recipes.first { $0.uuid == uuid }
     }
@@ -57,8 +64,26 @@ import Combine
         guard FileManager.default.fileExists(atPath: url.path) else { return }
         do {
             let data = try Data(contentsOf: url)
-            let loaded = try JSONDecoder().decode([Recipe].self, from: data)
-            recipes = loaded
+            do {
+                let loaded = try JSONDecoder().decode([Recipe].self, from: data)
+                recipes = loaded
+            } catch {
+                // Migration path: decode as [[String: Any]]
+                if let jsonArray = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
+                    // Attempt to migrate older recipe dictionaries to Recipe instances.
+                    let migrated = jsonArray.compactMap { dict -> Recipe? in
+                        var dict = dict
+                        // Insert missing fields for migration compatibility.
+                        if dict["creditsText"] == nil { dict["creditsText"] = "" }
+                        // Add more field migrations here as needed.
+                        return Recipe(from: dict)
+                    }
+                    recipes = migrated
+                    saveAll()
+                } else {
+                    print("Failed to migrate old recipes: \(error)")
+                }
+            }
         } catch {
             print("Failed to load recipes: \(error)")
         }
