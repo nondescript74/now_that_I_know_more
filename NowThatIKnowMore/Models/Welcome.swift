@@ -286,6 +286,11 @@ extension Recipe: Hashable {
 struct AnalyzedInstruction: Codable, Sendable, Equatable, Hashable {
     let name: String?
     let steps: [Step]?
+
+    init(name: String?, steps: [Step]?) {
+        self.name = name
+        self.steps = steps
+    }
 }
 
 // MARK: - Step
