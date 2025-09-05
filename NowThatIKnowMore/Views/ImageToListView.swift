@@ -42,6 +42,11 @@ struct ImageToListView: View {
     // New state to select which image to use if both local image and URL are present
     @State private var useLocalImage: Bool = true
 
+    // Replace static cuisines list with dynamic loaded list
+    @State private var cuisinesList: [String] = []
+
+    @State private var selectedCuisine: String = ""
+
     private var trimmedUrlText: String { imageUrlText.trimmingCharacters(in: .whitespacesAndNewlines) }
     private var validUrl: URL? { URL(string: trimmedUrlText) }
     private var hasValidUrl: Bool {
@@ -139,6 +144,12 @@ struct ImageToListView: View {
             .onAppear {
                 self.selectedTitleIndicesState = self.selectedTitleIndices
                 self.selectedSummaryIndicesState = self.selectedSummaryIndices
+                if self.selectedCuisine.isEmpty {
+                    self.selectedCuisine = ""
+                }
+                if cuisinesList.isEmpty {
+                    loadCuisinesList()
+                }
             }
             .onChange(of: selectedImage) { _, newImage in
                 if newImage != nil {
@@ -351,6 +362,18 @@ struct ImageToListView: View {
                         }
                     }
                 
+                // Insert Cuisine Picker here (after Summary)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Cuisine")
+                    Picker("Cuisine", selection: $selectedCuisine) {
+                        Text("None").tag("")
+                        ForEach(cuisinesList, id: \.self) { cuisine in
+                            Text(cuisine).tag(cuisine)
+                        }
+                    }
+                    .pickerStyle(MenuPickerStyle())
+                }
+
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Credits")
                         .font(.subheadline)
@@ -604,6 +627,9 @@ struct ImageToListView: View {
                 return joinedSummary.isEmpty ? nil : joinedSummary
             }
         }()
+
+        // Add cuisines variable:
+        let cuisines: [Any]? = selectedCuisine.isEmpty ? nil : [selectedCuisine]
         
         let instructionLines: [String] = self.joinedSelectedInstructions
         let instructions = instructionLines.joined(separator: "\n")
@@ -637,6 +663,7 @@ struct ImageToListView: View {
             "title": title.isEmpty ? "Untitled" : title,
             "summary": summary as Any,
             "creditsText": self.credits.trimmingCharacters(in: .whitespacesAndNewlines),
+            "cuisines": cuisines as Any,
             "instructions": instructions,
             "analyzedInstructions": analyzedInstructions.map { [
                 "name": $0.name as Any,
@@ -690,6 +717,21 @@ struct ImageToListView: View {
         self.saveMessage = "Recipe saved!"
         self.logger.info("Recipe saved with title: \(title, privacy: .public)")
     }
+
+    private struct CuisineName: Decodable {
+        let name: String
+    }
+    
+    private func loadCuisinesList() {
+        if let url = Bundle.main.url(forResource: "cuisines", withExtension: "json"),
+           let data = try? Data(contentsOf: url) {
+            if let decoded = try? JSONDecoder().decode([CuisineName].self, from: data) {
+                cuisinesList = decoded.map { $0.name }
+            } else if let decodedStrings = try? JSONDecoder().decode([String].self, from: data) {
+                cuisinesList = decodedStrings
+            }
+        }
+    }
 }
 
 extension Array {
@@ -702,5 +744,3 @@ extension Array {
     ImageToListView()
         .environment(RecipeStore())
 }
-
-
