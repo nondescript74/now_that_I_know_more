@@ -7,6 +7,7 @@
 
 import SwiftUI
 import OSLog
+import Combine
 
 private struct MainTabView: View {
     @Environment(RecipeStore.self) private var store: RecipeStore
@@ -41,10 +42,23 @@ private struct MainTabView: View {
 struct NowThatIKnowMoreApp: App {
     @Environment(\.colorScheme) var colorScheme
     @State private var store: RecipeStore = RecipeStore()
+    @State private var showLaunchScreen = true
     var body: some Scene {
         WindowGroup {
-            MainTabView()
-                .environment(store)
+            ZStack {
+                MainTabView()
+                    .environment(store)
+                if showLaunchScreen {
+                    LaunchScreenView()
+                        .transition(AnyTransition.opacity)
+                        .zIndex(1)
+                }
+            }
+            .onAppear {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+                    withAnimation { showLaunchScreen = false }
+                }
+            }
         }
     }
 }
@@ -53,3 +67,4 @@ struct NowThatIKnowMoreApp: App {
     MainTabView()
         .environment(RecipeStore())
 }
+
