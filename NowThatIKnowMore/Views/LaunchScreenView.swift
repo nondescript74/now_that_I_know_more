@@ -17,9 +17,14 @@ struct LaunchScreenView: View {
     }
     var body: some View {
         ZStack {
-            Color(.systemBackground)
+            LinearGradient(gradient: Gradient(colors: [Color.blue, Color.purple]), startPoint: .top, endPoint: .bottom)
                 .ignoresSafeArea()
             VStack(spacing: 18) {
+                Image("AppIconImage")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 120, height: 120)
+                    .shadow(radius: 12)
                 Text(appName)
                     .font(.largeTitle).fontWeight(.bold)
                 Text("Version \(version) (\(build))")
