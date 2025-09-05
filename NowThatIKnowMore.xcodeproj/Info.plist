@@ -2,6 +2,12 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSCameraUsageDescription</key>
+	<string>We use the camera to capture images of your recipes</string>
+	<key>NSDocumentsFolderUsageDescription</key>
+	<string>We save certain items of your recipes that you create in the documents folder</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>We use photos in your photo library when you select them for use in the app</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>CFBundleDisplayName</key>

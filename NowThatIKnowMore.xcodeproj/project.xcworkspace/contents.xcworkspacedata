@@ -4,13 +4,4 @@
    <FileRef
       location = "self:">
    </FileRef>
-   <FileRef
-      location = "group:LaunchScreenView.swift">
-   </FileRef>
-   <FileRef
-      location = "group:LaunchScreen.storyboard">
-   </FileRef>
-   <FileRef
-      location = "group:Info 2.plist">
-   </FileRef>
 </Workspace>
