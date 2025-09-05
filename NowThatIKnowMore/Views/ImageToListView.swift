@@ -10,8 +10,21 @@ struct ImageToListView: View {
     @State private var recognizedItems: [String] = []
     @State private var isProcessing = false
     @State private var errorMessage: String?
-    @State private var selectedTitleIndex: Int? = nil
-    @State private var selectedSummaryIndex: Int? = nil
+    @SceneStorage("itl_selectedTitleIndices") private var selectedTitleIndicesString: String = ""
+    @State private var selectedTitleIndicesState: Set<Int> = []
+    @State private var selectedSummaryIndicesState: Set<Int> = []
+    // Local computed property for Set<Int>:
+    private var selectedTitleIndices: Set<Int> {
+        get { Set(selectedTitleIndicesString.split(separator: ",").compactMap { Int($0) }) }
+        set { selectedTitleIndicesString = newValue.map(String.init).joined(separator: ",") }
+    }
+
+    @SceneStorage("itl_selectedSummaryIndices") private var selectedSummaryIndicesString: String = ""
+    private var selectedSummaryIndices: Set<Int> {
+        get { Set(selectedSummaryIndicesString.split(separator: ",").compactMap { Int($0) }) }
+        set { selectedSummaryIndicesString = newValue.map(String.init).joined(separator: ",") }
+    }
+
     @State private var selectedIngredientIndices: Set<Int> = []
     @State private var selectedInstructionIndices: Set<Int> = []
     @State private var saveMessage: String?
@@ -20,10 +33,82 @@ struct ImageToListView: View {
     @State private var instructionGroups: [[Int]] = []
     @State private var groupingIngredient: [Int] = []
     @State private var groupingInstruction: [Int] = []
-    @State private var editedTitle: String = ""
-    @State private var editedSummary: String = ""
-    @State private var credits: String = ""
-    @State private var imageUrlText: String = ""
+    @SceneStorage("itl_editedTitle") private var editedTitle: String = ""
+    @SceneStorage("itl_editedSummary") private var editedSummary: String = ""
+    @SceneStorage("itl_credits") private var credits: String = ""
+    @SceneStorage("itl_imageUrlText") private var imageUrlText: String = ""
+    @State private var isImageCollapsed = false
+
+    // New state to select which image to use if both local image and URL are present
+    @State private var useLocalImage: Bool = true
+
+    private var trimmedUrlText: String { imageUrlText.trimmingCharacters(in: .whitespacesAndNewlines) }
+    private var validUrl: URL? { URL(string: trimmedUrlText) }
+    private var hasValidUrl: Bool {
+        let trimmed = trimmedUrlText
+        let url = validUrl
+        guard !trimmed.isEmpty, let url, let scheme = url.scheme?.lowercased() else { return false }
+        return scheme == "http" || scheme == "https"
+    }
+    
+    // --- Begin new helpers ---
+    private var joinedSelectedTitle: String {
+        let indices = selectedTitleIndicesState.sorted()
+        let selectedStrings = indices.compactMap { self.recognizedItems[safe: $0] }
+        return selectedStrings.joined(separator: " ")
+    }
+    private var joinedSelectedSummary: String {
+        let indices = selectedSummaryIndicesState.sorted()
+        let selectedStrings = indices.compactMap { self.recognizedItems[safe: $0] }
+        return selectedStrings.joined(separator: " ")
+    }
+    private var joinedSelectedIngredients: [String] {
+        if !ingredientGroups.isEmpty {
+            var result = [String]()
+            for group in ingredientGroups {
+                let groupItems = group.compactMap { index -> String? in
+                    self.recognizedItems[safe: index]
+                }
+                let joined = groupItems.joined(separator: " ")
+                result.append(joined)
+            }
+            return result
+        } else {
+            let indices: [Int] = selectedIngredientIndices.sorted()
+            let items: [String] = indices.compactMap { index in
+                self.recognizedItems[safe: index]
+            }
+            return items
+        }
+    }
+    private var joinedSelectedInstructions: [String] {
+        if !instructionGroups.isEmpty {
+            var result = [String]()
+            for group in instructionGroups {
+                let groupItems = group.compactMap { index -> String? in
+                    self.recognizedItems[safe: index]
+                }
+                let joined = groupItems.joined(separator: " ")
+                result.append(joined)
+            }
+            return result
+        } else {
+            let indices: [Int] = selectedInstructionIndices.sorted()
+            let items: [String] = indices.compactMap { index in
+                self.recognizedItems[safe: index]
+            }
+            return items
+        }
+    }
+    private var canSaveRecipe: Bool {
+        let hasTitle: Bool = !selectedTitleIndicesState.isEmpty
+        let hasIngredients: Bool = (!selectedIngredientIndices.isEmpty) || (!ingredientGroups.isEmpty)
+        let hasInstructions: Bool = (!selectedInstructionIndices.isEmpty) || (!instructionGroups.isEmpty)
+        let allSectionsPresent: Bool = hasTitle && hasIngredients && hasInstructions
+        return allSectionsPresent
+    }
+    // --- End new helpers ---
+
     let logger: Logger = .init(subsystem: "com.headydiscy.NowThatIKnowMore", category: "ImageToListView")
     
     var body: some View {
@@ -45,220 +130,325 @@ struct ImageToListView: View {
                 }
                 
                 if !recognizedItems.isEmpty {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Image URL (optional)")
-                            .font(.subheadline)
-                        HStack {
-                            TextField("Paste or enter image URL", text: $imageUrlText)
-                                .textFieldStyle(.roundedBorder)
-                                .autocapitalization(.none)
-                                .keyboardType(.URL)
-                                .disableAutocorrection(true)
-                            if !imageUrlText.isEmpty {
-                                Button(action: { imageUrlText = "" }) {
-                                    Image(systemName: "xmark.circle.fill")
-                                        .foregroundColor(.secondary)
-                                }
-                                .buttonStyle(.plain)
-                                .accessibilityLabel("Clear URL")
-                            }
-                        }
-                    }
-                }
-                
-                if let image = selectedImage {
-                    Image(uiImage: image)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(maxHeight: 200)
-                        .cornerRadius(8)
-                } else if !imageUrlText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-                          let url = URL(string: imageUrlText.trimmingCharacters(in: .whitespacesAndNewlines)),
-                          ["http", "https"].contains(url.scheme?.lowercased() ?? "") {
-                    AsyncImage(url: url) { phase in
-                        switch phase {
-                        case .empty:
-                            ProgressView()
-                                .frame(maxHeight: 200)
-                        case .success(let image):
-                            image
-                                .resizable()
-                                .scaledToFit()
-                                .frame(maxHeight: 200)
-                                .cornerRadius(8)
-                        case .failure:
-                            Image(systemName: "exclamationmark.triangle")
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: 100, height: 100)
-                                .foregroundColor(.red)
-                        @unknown default:
-                            EmptyView()
-                        }
-                    }
-                }
-                
-                if isProcessing {
-                    ProgressView("Extracting text...")
-                }
-                
-                if let error = errorMessage {
-                    Text(error)
-                        .foregroundColor(.red)
-                }
-                
-                if !recognizedItems.isEmpty {
-                    Section(header: Text("Designate Recipe Parts").font(.headline)) {
-                        HStack {
-                            Text("Title")
-                            Picker("Title", selection: $selectedTitleIndex) {
-                                Text("None").tag(Optional<Int>(nil))
-                                ForEach(recognizedItems.indices, id: \.self) { i in
-                                    Text(recognizedItems[i]).tag(Optional(i))
-                                }
-                            }
-                        }
-                        TextField("Edit Title", text: $editedTitle)
-                            .textFieldStyle(.roundedBorder)
-                            .onAppear {
-                                if let idx = selectedTitleIndex, editedTitle.isEmpty {
-                                    editedTitle = recognizedItems[idx]
-                                }
-                            }
-                            .onChange(of: selectedTitleIndex) { _, newValue in
-                                if let idx = newValue {
-                                    editedTitle = recognizedItems[idx]
-                                } else {
-                                    editedTitle = ""
-                                }
-                            }
-                        HStack {
-                            Text("Summary")
-                            Picker("Summary", selection: $selectedSummaryIndex) {
-                                Text("None").tag(Optional<Int>(nil))
-                                ForEach(recognizedItems.indices, id: \.self) { i in
-                                    Text(recognizedItems[i]).tag(Optional(i))
-                                }
-                            }
-                        }
-                        TextField("Edit Summary", text: $editedSummary)
-                            .textFieldStyle(.roundedBorder)
-                            .onAppear {
-                                if let idx = selectedSummaryIndex, editedSummary.isEmpty {
-                                    editedSummary = recognizedItems[idx]
-                                }
-                            }
-                            .onChange(of: selectedSummaryIndex) { _, newValue in
-                                if let idx = newValue {
-                                    editedSummary = recognizedItems[idx]
-                                } else {
-                                    editedSummary = ""
-                                }
-                            }
-                        
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Credits")
-                                .font(.subheadline)
-                            TextField("Enter credits (e.g. source or author)", text: $credits)
-                                .textFieldStyle(.roundedBorder)
-                        }
-
-                        // Added cuisine display here
-                        if let cuisines = extractCuisines(), !cuisines.isEmpty {
-                            HStack {
-                                Text("Cuisine:")
-                                    .fontWeight(.semibold)
-                                Text(cuisines.joined(separator: ", "))
-                            }
-                        }
-                        
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Select Ingredients").font(.subheadline)
-                            ForEach(recognizedItems.indices, id: \.self) { i in
-                                Button(action: { toggleIngredientGrouped(i) }) {
-                                    HStack {
-                                        Image(systemName: groupingIngredient.contains(i) ? "checkmark.square.fill" : "square")
-                                        Text(recognizedItems[i])
-                                    }
-                                }.buttonStyle(.plain)
-                            }
-                            HStack {
-                                Button("Add Ingredient Group") {
-                                    if !groupingIngredient.isEmpty {
-                                        ingredientGroups.append(groupingIngredient.sorted())
-                                        groupingIngredient.removeAll()
-                                    }
-                                }.disabled(groupingIngredient.isEmpty)
-                                Button("Clear Groups") {
-                                    ingredientGroups.removeAll()
-                                    groupingIngredient.removeAll()
-                                }.disabled(ingredientGroups.isEmpty && groupingIngredient.isEmpty)
-                            }
-                            if !ingredientGroups.isEmpty {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text("Ingredient Groups:").font(.caption)
-                                    ForEach(ingredientGroups.indices, id: \.self) { gIndex in
-                                        HStack {
-                                            Text(ingredientGroups[gIndex].map { recognizedItems[$0] }.joined(separator: " | "))
-                                                .font(.caption)
-                                            Button(action: { ingredientGroups.remove(at: gIndex) }) {
-                                                Image(systemName: "trash").foregroundColor(.red)
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Select Instructions").font(.subheadline)
-                            ForEach(recognizedItems.indices, id: \.self) { i in
-                                Button(action: { toggleInstructionGrouped(i) }) {
-                                    HStack {
-                                        Image(systemName: groupingInstruction.contains(i) ? "checkmark.square.fill" : "square")
-                                        Text(recognizedItems[i])
-                                    }
-                                }.buttonStyle(.plain)
-                            }
-                            HStack {
-                                Button("Add Instruction Group") {
-                                    if !groupingInstruction.isEmpty {
-                                        instructionGroups.append(groupingInstruction.sorted())
-                                        groupingInstruction.removeAll()
-                                    }
-                                }.disabled(groupingInstruction.isEmpty)
-                                Button("Clear Groups") {
-                                    instructionGroups.removeAll()
-                                    groupingInstruction.removeAll()
-                                }.disabled(instructionGroups.isEmpty && groupingInstruction.isEmpty)
-                            }
-                            if !instructionGroups.isEmpty {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text("Instruction Groups:").font(.caption)
-                                    ForEach(instructionGroups.indices, id: \.self) { gIndex in
-                                        HStack {
-                                            Text(instructionGroups[gIndex].map { recognizedItems[$0] }.joined(separator: " | "))
-                                                .font(.caption)
-                                            Button(action: { instructionGroups.remove(at: gIndex) }) {
-                                                Image(systemName: "trash").foregroundColor(.red)
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        Button("Save as Recipe") {
-                            saveAsRecipe()
-                        }
-                        .disabled(selectedTitleIndex == nil || selectedIngredientIndices.isEmpty && ingredientGroups.isEmpty || selectedInstructionIndices.isEmpty && instructionGroups.isEmpty)
-                        if let msg = saveMessage {
-                            Text(msg).foregroundColor(.accentColor)
-                        }
-                    }
+                    recipePartsSection
                 }
                 
                 Spacer()
             }
             .padding()
+            .onAppear {
+                self.selectedTitleIndicesState = self.selectedTitleIndices
+                self.selectedSummaryIndicesState = self.selectedSummaryIndices
+            }
+            .onChange(of: selectedImage) { _, newImage in
+                if newImage != nil {
+                    self.useLocalImage = true
+                } else if self.hasValidUrl {
+                    self.useLocalImage = false
+                }
+            }
+            .onChange(of: imageUrlText) { _, newText in
+                if self.hasValidUrl && self.selectedImage == nil {
+                    self.useLocalImage = false
+                } else if self.selectedImage != nil {
+                    self.useLocalImage = true
+                }
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private var recipePartsSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Image URL (optional)")
+                .font(.subheadline)
+            HStack {
+                TextField("Paste or enter image URL", text: $imageUrlText)
+                    .textFieldStyle(.roundedBorder)
+                    .autocapitalization(.none)
+                    .keyboardType(.URL)
+                    .disableAutocorrection(true)
+                if !self.imageUrlText.isEmpty {
+                    Button(action: { self.imageUrlText = "" }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundColor(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Clear URL")
+                }
+            }
+            
+            // Show image usage toggle if both local image and valid URL exist
+            if self.selectedImage != nil && self.hasValidUrl {
+                Picker("Image Source", selection: $useLocalImage) {
+                    Text("Use Local Photo").tag(true)
+                    Text("Use Web URL").tag(false)
+                }
+                .pickerStyle(SegmentedPickerStyle())
+                .padding(.vertical, 4)
+            }
+            
+            // Show clear button for local image if present
+            if self.selectedImage != nil {
+                HStack(spacing: 8) {
+                    Text("Local Photo Selected")
+                        .font(.footnote)
+                        .foregroundColor(.secondary)
+                    Button(action: {
+                        self.selectedImage = nil
+                    }) {
+                        Image(systemName: "trash")
+                            .foregroundColor(.red)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Clear local photo")
+                }
+            }
+            
+            // Show collapse/show button and image for selectedImage or URL based on useLocalImage
+            if !self.isImageCollapsed {
+                if self.useLocalImage {
+                    if let image = self.selectedImage {
+                        Image(uiImage: image)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(maxHeight: 200)
+                            .cornerRadius(8)
+                    } else if self.hasValidUrl {
+                        AsyncImage(url: self.validUrl) { phase in
+                            switch phase {
+                            case .empty:
+                                ProgressView()
+                                    .frame(maxHeight: 200)
+                            case .success(let image):
+                                image
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(maxHeight: 200)
+                                    .cornerRadius(8)
+                            case .failure:
+                                Image(systemName: "exclamationmark.triangle")
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 100, height: 100)
+                                    .foregroundColor(.red)
+                            @unknown default:
+                                EmptyView()
+                            }
+                        }
+                    }
+                } else {
+                    // useLocalImage == false, show URL image only if valid URL
+                    if self.hasValidUrl {
+                        AsyncImage(url: self.validUrl) { phase in
+                            switch phase {
+                            case .empty:
+                                ProgressView()
+                                    .frame(maxHeight: 200)
+                            case .success(let image):
+                                image
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(maxHeight: 200)
+                                    .cornerRadius(8)
+                            case .failure:
+                                Image(systemName: "exclamationmark.triangle")
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 100, height: 100)
+                                    .foregroundColor(.red)
+                            @unknown default:
+                                EmptyView()
+                            }
+                        }
+                    } else if self.selectedImage != nil {
+                        EmptyView().onAppear { self.useLocalImage = true }
+                    }
+                }
+            }
+            
+            // Show collapse/show button if either local image or valid URL image present
+            if (self.selectedImage != nil || self.hasValidUrl) {
+                Button(self.isImageCollapsed ? "Show Image" : "Collapse Image") {
+                    self.isImageCollapsed.toggle()
+                }
+            }
+            
+            if self.isProcessing {
+                ProgressView("Extracting text...")
+            }
+            
+            if let error = self.errorMessage {
+                Text(error)
+                    .foregroundColor(.red)
+            }
+            
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Designate Recipe Parts")
+                    .font(.headline)
+                
+                // Replace Title Picker with multiple toggle buttons
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Title")
+                    ForEach(self.recognizedItems.indices, id: \.self) { i in
+                        Button(action: {
+                            if self.selectedTitleIndicesState.contains(i) {
+                                self.selectedTitleIndicesState.remove(i)
+                            } else {
+                                self.selectedTitleIndicesState.insert(i)
+                            }
+                        }) {
+                            HStack {
+                                Image(systemName: self.selectedTitleIndicesState.contains(i) ? "checkmark.square.fill" : "square")
+                                Text(self.recognizedItems[i])
+                            }
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                TextField("Edit Title", text: $editedTitle)
+                    .textFieldStyle(.roundedBorder)
+                    .onAppear {
+                        if self.editedTitle.isEmpty {
+                            self.editedTitle = self.joinedSelectedTitle
+                        }
+                    }
+                    .onChange(of: self.selectedTitleIndicesState) { _, _ in
+                        if self.editedTitle.isEmpty || self.editedTitle != self.joinedSelectedTitle {
+                            self.editedTitle = self.joinedSelectedTitle
+                        }
+                    }
+
+                // Replace Summary Picker with multiple toggle buttons
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Summary")
+                    ForEach(self.recognizedItems.indices, id: \.self) { i in
+                        Button(action: {
+                            if self.selectedSummaryIndicesState.contains(i) {
+                                self.selectedSummaryIndicesState.remove(i)
+                            } else {
+                                self.selectedSummaryIndicesState.insert(i)
+                            }
+                        }) {
+                            HStack {
+                                Image(systemName: self.selectedSummaryIndicesState.contains(i) ? "checkmark.square.fill" : "square")
+                                Text(self.recognizedItems[i])
+                            }
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                TextField("Edit Summary", text: $editedSummary)
+                    .textFieldStyle(.roundedBorder)
+                    .onAppear {
+                        if self.editedSummary.isEmpty {
+                            self.editedSummary = self.joinedSelectedSummary
+                        }
+                    }
+                    .onChange(of: self.selectedSummaryIndicesState) { _, _ in
+                        if self.editedSummary.isEmpty || self.editedSummary != self.joinedSelectedSummary {
+                            self.editedSummary = self.joinedSelectedSummary
+                        }
+                    }
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Credits")
+                        .font(.subheadline)
+                    TextField("Enter credits (e.g. source or author)", text: $credits)
+                        .textFieldStyle(.roundedBorder)
+                }
+
+                // Added cuisine display here
+                if let cuisines = self.extractCuisines(), !cuisines.isEmpty {
+                    HStack {
+                        Text("Cuisine:")
+                            .fontWeight(.semibold)
+                        Text(cuisines.joined(separator: ", "))
+                    }
+                }
+                
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Select Ingredients").font(.subheadline)
+                    ForEach(self.recognizedItems.indices, id: \.self) { i in
+                        Button(action: { self.toggleIngredientGrouped(i) }) {
+                            HStack {
+                                Image(systemName: self.groupingIngredient.contains(i) ? "checkmark.square.fill" : "square")
+                                Text(self.recognizedItems[i])
+                            }
+                        }.buttonStyle(.plain)
+                    }
+                    HStack {
+                        Button("Add Ingredient Group") {
+                            if !self.groupingIngredient.isEmpty {
+                                self.ingredientGroups.append(self.groupingIngredient.sorted())
+                                self.groupingIngredient.removeAll()
+                            }
+                        }.disabled(self.groupingIngredient.isEmpty)
+                        Button("Clear Groups") {
+                            self.ingredientGroups.removeAll()
+                            self.groupingIngredient.removeAll()
+                        }.disabled(self.ingredientGroups.isEmpty && self.groupingIngredient.isEmpty)
+                    }
+                    if !self.ingredientGroups.isEmpty {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Ingredient Groups:").font(.caption)
+                            ForEach(self.ingredientGroups.indices, id: \.self) { gIndex in
+                                HStack {
+                                    Text(self.ingredientGroups[gIndex].map { self.recognizedItems[$0] }.joined(separator: " | "))
+                                        .font(.caption)
+                                    Button(action: { self.ingredientGroups.remove(at: gIndex) }) {
+                                        Image(systemName: "trash").foregroundColor(.red)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Select Instructions").font(.subheadline)
+                    ForEach(self.recognizedItems.indices, id: \.self) { i in
+                        Button(action: { self.toggleInstructionGrouped(i) }) {
+                            HStack {
+                                Image(systemName: self.groupingInstruction.contains(i) ? "checkmark.square.fill" : "square")
+                                Text(self.recognizedItems[i])
+                            }
+                        }.buttonStyle(.plain)
+                    }
+                    HStack {
+                        Button("Add Instruction Group") {
+                            if !self.groupingInstruction.isEmpty {
+                                self.instructionGroups.append(self.groupingInstruction.sorted())
+                                self.groupingInstruction.removeAll()
+                            }
+                        }.disabled(self.groupingInstruction.isEmpty)
+                        Button("Clear Groups") {
+                            self.instructionGroups.removeAll()
+                            self.groupingInstruction.removeAll()
+                        }.disabled(self.instructionGroups.isEmpty && self.groupingInstruction.isEmpty)
+                    }
+                    if !self.instructionGroups.isEmpty {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Instruction Groups:").font(.caption)
+                            ForEach(self.instructionGroups.indices, id: \.self) { gIndex in
+                                HStack {
+                                    Text(self.instructionGroups[gIndex].map { self.recognizedItems[$0] }.joined(separator: " | "))
+                                        .font(.caption)
+                                    Button(action: { self.instructionGroups.remove(at: gIndex) }) {
+                                        Image(systemName: "trash").foregroundColor(.red)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                Button("Save as Recipe") {
+                    self.saveAsRecipe()
+                }
+                .disabled(!self.canSaveRecipe)
+                if let msg = self.saveMessage {
+                    Text(msg).foregroundColor(.accentColor)
+                }
+            }
         }
     }
     
@@ -275,37 +465,38 @@ struct ImageToListView: View {
     
     private func loadImage(from item: PhotosPickerItem?) async {
         guard let item = item else { return }
-        isProcessing = true
-        errorMessage = nil
+        self.isProcessing = true
+        self.errorMessage = nil
         do {
             if let data = try await item.loadTransferable(type: Data.self),
                let image = UIImage(data: data) {
-                selectedImage = image
+                self.selectedImage = image
+                self.useLocalImage = true
                 await recognizeText(in: image)
             } else {
-                errorMessage = "Couldn't load image."
+                self.errorMessage = "Couldn't load image."
             }
         } catch {
-            errorMessage = error.localizedDescription
+            self.errorMessage = error.localizedDescription
         }
-        isProcessing = false
+        self.isProcessing = false
     }
     
     @MainActor
     private func recognizeText(in image: UIImage) async {
-        recognizedItems = []
+        self.recognizedItems = []
         guard let cgImage = image.cgImage else {
-            errorMessage = "Image format not supported."
+            self.errorMessage = "Image format not supported."
             return
         }
         let request = VNRecognizeTextRequest { request, error in
             if let error = error {
-                errorMessage = error.localizedDescription
+                self.errorMessage = error.localizedDescription
                 return
             }
             guard let observations = request.results as? [VNRecognizedTextObservation] else { return }
             let allText = observations.compactMap { $0.topCandidates(1).first?.string }
-            recognizedItems = allText.filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+            self.recognizedItems = allText.filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
         }
         request.recognitionLevel = .accurate
         request.recognitionLanguages = ["en-US"]
@@ -314,39 +505,39 @@ struct ImageToListView: View {
         do {
             try handler.perform([request])
         } catch {
-            errorMessage = error.localizedDescription
+            self.errorMessage = error.localizedDescription
         }
     }
     
     private func toggleIngredientSelected(_ index: Int) {
-        if selectedIngredientIndices.contains(index) {
-            selectedIngredientIndices.remove(index)
+        if self.selectedIngredientIndices.contains(index) {
+            self.selectedIngredientIndices.remove(index)
         } else {
-            selectedIngredientIndices.insert(index)
+            self.selectedIngredientIndices.insert(index)
         }
     }
     
     private func toggleInstructionSelected(_ index: Int) {
-        if selectedInstructionIndices.contains(index) {
-            selectedInstructionIndices.remove(index)
+        if self.selectedInstructionIndices.contains(index) {
+            self.selectedInstructionIndices.remove(index)
         } else {
-            selectedInstructionIndices.insert(index)
+            self.selectedInstructionIndices.insert(index)
         }
     }
     
     private func toggleIngredientGrouped(_ index: Int) {
-        if let idx = groupingIngredient.firstIndex(of: index) {
-            groupingIngredient.remove(at: idx)
+        if let idx = self.groupingIngredient.firstIndex(of: index) {
+            self.groupingIngredient.remove(at: idx)
         } else {
-            groupingIngredient.append(index)
+            self.groupingIngredient.append(index)
         }
     }
     
     private func toggleInstructionGrouped(_ index: Int) {
-        if let idx = groupingInstruction.firstIndex(of: index) {
-            groupingInstruction.remove(at: idx)
+        if let idx = self.groupingInstruction.firstIndex(of: index) {
+            self.groupingInstruction.remove(at: idx)
         } else {
-            groupingInstruction.append(index)
+            self.groupingInstruction.append(index)
         }
     }
     
@@ -366,63 +557,62 @@ struct ImageToListView: View {
     }
     
     private func saveAsRecipe() {
-        guard let titleIndex = selectedTitleIndex else {
-            saveMessage = "Please select a title."
+        if self.selectedTitleIndicesState.isEmpty {
+            self.saveMessage = "Please select at least one title line."
             return
         }
         
         // Generate a new UUID for the recipe and image file
         let newUUID = UUID()
         
-        // Determine the image path or URL to store:
-        // Priority: image URL text (if valid and non-empty) > picked photo (saved locally) > nil
+        // Determine the image path or URL to store based on useLocalImage:
+        // Priority:
+        // if useLocalImage == true and selectedImage present -> save local image
+        // else if useLocalImage == false and valid URL present -> use URL
+        // else if only one option is present, default to that
+        
         var imagePath: String? = nil
-        let trimmedUrlText = imageUrlText.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !trimmedUrlText.isEmpty,
-           let url = URL(string: trimmedUrlText),
-           ["http", "https"].contains(url.scheme?.lowercased() ?? "") {
-            imagePath = trimmedUrlText
-        } else if let image = selectedImage {
-            imagePath = saveImageToDocuments(uiImage: image, for: newUUID)
+        
+        if self.useLocalImage {
+            if let image = self.selectedImage {
+                imagePath = saveImageToDocuments(uiImage: image, for: newUUID)
+            } else if self.hasValidUrl {
+                imagePath = self.trimmedUrlText
+            }
+        } else {
+            if self.hasValidUrl {
+                imagePath = self.trimmedUrlText
+            } else if let image = self.selectedImage {
+                imagePath = saveImageToDocuments(uiImage: image, for: newUUID)
+            }
         }
         
+        let titleJoined = self.joinedSelectedTitle
+        
         let title: String = {
-            if !editedTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                return editedTitle
+            if !self.editedTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                return self.editedTitle
             } else {
-                return recognizedItems[titleIndex]
+                return titleJoined
             }
         }()
         let summary: String? = {
-            if !editedSummary.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                return editedSummary
-            } else if let summaryIndex = selectedSummaryIndex {
-                return recognizedItems[summaryIndex]
+            if !self.editedSummary.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                return self.editedSummary
             } else {
-                return nil
+                let joinedSummary = self.joinedSelectedSummary
+                return joinedSummary.isEmpty ? nil : joinedSummary
             }
         }()
         
-        let instructionLines: [String] = {
-            if !instructionGroups.isEmpty {
-                return instructionGroups.map { group in group.map { recognizedItems[$0] }.joined(separator: " ") }
-            } else {
-                return selectedInstructionIndices.sorted().map { recognizedItems[$0] }
-            }
-        }()
+        let instructionLines: [String] = self.joinedSelectedInstructions
         let instructions = instructionLines.joined(separator: "\n")
         let steps: [Step] = instructionLines.enumerated().map { index, line in
             Step(number: index + 1, step: line, ingredients: nil, equipment: nil, length: nil)
         }
         let analyzedInstructions: [AnalyzedInstruction] = [AnalyzedInstruction(name: nil, steps: steps.isEmpty ? nil : steps)]
         
-        let ingredientLines: [String] = {
-            if !ingredientGroups.isEmpty {
-                return ingredientGroups.map { group in group.map { recognizedItems[$0] }.joined(separator: " ") }
-            } else {
-                return selectedIngredientIndices.sorted().map { recognizedItems[$0] }
-            }
-        }()
+        let ingredientLines: [String] = self.joinedSelectedIngredients
         var ingredients: [ExtendedIngredient] = []
         for (index, line) in ingredientLines.enumerated() {
             ingredients.append(
@@ -446,7 +636,7 @@ struct ImageToListView: View {
         var dict: [String: Any] = [
             "title": title.isEmpty ? "Untitled" : title,
             "summary": summary as Any,
-            "creditsText": credits.trimmingCharacters(in: .whitespacesAndNewlines),
+            "creditsText": self.credits.trimmingCharacters(in: .whitespacesAndNewlines),
             "instructions": instructions,
             "analyzedInstructions": analyzedInstructions.map { [
                 "name": $0.name as Any,
@@ -492,13 +682,19 @@ struct ImageToListView: View {
         dict["uuid"] = newUUID
         
         guard let recipe = Recipe(from: dict) else {
-            saveMessage = "Failed to create recipe from inputs."
+            self.saveMessage = "Failed to create recipe from inputs."
             return
         }
         
-        recipeStore.add(recipe)
-        saveMessage = "Recipe saved!"
-        logger.info("Recipe saved with title: \(title, privacy: .public)")
+        self.recipeStore.add(recipe)
+        self.saveMessage = "Recipe saved!"
+        self.logger.info("Recipe saved with title: \(title, privacy: .public)")
+    }
+}
+
+extension Array {
+    subscript(safe index: Index) -> Element? {
+        indices.contains(index) ? self[index] : nil
     }
 }
 
@@ -506,3 +702,5 @@ struct ImageToListView: View {
     ImageToListView()
         .environment(RecipeStore())
 }
+
+
