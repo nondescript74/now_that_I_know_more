@@ -10,24 +10,29 @@ import OSLog
 
 private struct MainTabView: View {
     @Environment(RecipeStore.self) private var store: RecipeStore
+    @SceneStorage("selectedTab") private var selectedTab: Int = 0
     var body: some View {
-        TabView {
+        TabView(selection: $selectedTab) {
             RecipeList()
                 .tabItem {
                     Label("Recipes", systemImage: "list.bullet")
                 }
+                .tag(0)
             Extract()
                 .tabItem {
                     Label("Extract", systemImage: "square.and.arrow.down")
                 }
+                .tag(1)
             ImageToListView()
                 .tabItem {
                     Label("From Image", systemImage: "text.viewfinder")
                 }
+                .tag(2)
             APIKeyTabView()
                 .tabItem {
                     Label("API Key", systemImage: "key.fill")
                 }
+                .tag(3)
         }
     }
 }
