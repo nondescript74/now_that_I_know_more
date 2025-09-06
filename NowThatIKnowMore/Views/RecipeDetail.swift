@@ -32,6 +32,7 @@ struct RecipeDetail: View {
     @State private var editedCreditsText: String = ""
     @State private var didSetupFields = false
     @State private var saveMessage: String?
+    @State private var showExtrasPanel: Bool = false
 
     var body: some View {
         Group {
@@ -130,6 +131,11 @@ struct RecipeDetail: View {
                             Text(msg).foregroundColor(.accentColor)
                         }
                         
+                        Button(action: { showExtrasPanel = true }) {
+                            Label("More Info", systemImage: "info.circle")
+                        }
+                        .padding(.vertical, 4)
+                        
                         IngredientListView(ingredients: recipe.extendedIngredients ?? [])
                         
                         InstructionListView(instructions: recipe.analyzedInstructions)
@@ -151,6 +157,11 @@ struct RecipeDetail: View {
                     .foregroundColor(.secondary)
                     .font(.title3)
                     .padding()
+            }
+        }
+        .sheet(isPresented: $showExtrasPanel) {
+            if let recipe = recipe {
+                ExtraRecipeDetailsPanel(recipe: recipe)
             }
         }
     }
@@ -224,6 +235,80 @@ private struct InstructionListView: View {
                     }
                 }
             }
+        }
+    }
+}
+
+private struct ExtraRecipeDetailsPanel: View {
+    let recipe: Recipe
+    
+    @Environment(\.dismiss) private var dismiss
+    
+    private func intValue(from value: Any?) -> Int? {
+        if let intValue = value as? Int {
+            return intValue
+        }
+        if let stringValue = value as? String, let intValue = Int(stringValue) {
+            return intValue
+        }
+        return nil
+    }
+    
+    var body: some View {
+        NavigationView {
+            List {
+                if let readyInMinutes = intValue(from: recipe.readyInMinutes), readyInMinutes > 0 {
+                    FieldView(label: "Ready In Minutes", value: "\(readyInMinutes)")
+                }
+                if let servings = intValue(from: recipe.servings), servings > 0 {
+                    FieldView(label: "Servings", value: "\(servings)")
+                }
+                if let aggregateLikes = intValue(from: recipe.aggregateLikes), aggregateLikes > 0 {
+                    FieldView(label: "Likes", value: "\(aggregateLikes)")
+                }
+                if let healthScore = intValue(from: recipe.healthScore), healthScore > 0 {
+                    FieldView(label: "Health Score", value: "\(healthScore)")
+                }
+                if let spoonacularScore = intValue(from: recipe.spoonacularScore), spoonacularScore > 0 {
+                    FieldView(label: "Spoonacular Score", value: "\(spoonacularScore)")
+                }
+                if let sourceUrl = recipe.sourceURL, !sourceUrl.isEmpty {
+                    FieldView(label: "Source URL", value: sourceUrl)
+                }
+                if let cuisines = recipe.cuisines, !cuisines.isEmpty {
+                    FieldView(label: "Cuisines", value: cuisines.compactMap { String(describing: $0) }.joined(separator: ", "))
+                }
+                if let dishTypes = recipe.dishTypes, !dishTypes.isEmpty {
+                    FieldView(label: "Dish Types", value: dishTypes.compactMap { String(describing: $0) }.joined(separator: ", "))
+                }
+                if let diets = recipe.diets, !diets.isEmpty {
+                    FieldView(label: "Diets", value: diets.compactMap { String(describing: $0) }.joined(separator: ", "))
+                }
+                if let occasions = recipe.occasions, !occasions.isEmpty {
+                    FieldView(label: "Occasions", value: occasions.compactMap { String(describing: $0) }.joined(separator: ", "))
+                }
+            }
+            .navigationTitle("More Recipe Details")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Close") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
+    
+    private struct FieldView: View {
+        let label: String
+        let value: String
+        
+        var body: some View {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(label).font(.headline)
+                Text(value).font(.body)
+            }
+            .padding(.vertical, 4)
         }
     }
 }

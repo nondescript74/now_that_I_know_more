@@ -46,6 +46,9 @@ struct ImageToListView: View {
     @State private var cuisinesList: [String] = []
 
     @State private var selectedCuisine: String = ""
+    
+    // New state for drag-over highlight for Title drag-and-merge
+    @State private var dragOverIndex: Int? = nil
 
     private var trimmedUrlText: String { imageUrlText.trimmingCharacters(in: .whitespacesAndNewlines) }
     private var validUrl: URL? { URL(string: trimmedUrlText) }
@@ -298,23 +301,41 @@ struct ImageToListView: View {
                 Text("Designate Recipe Parts")
                     .font(.headline)
                 
-                // Replace Title Picker with multiple toggle buttons
+                // Replace Title Picker with multiple toggle buttons and drag-and-merge capability
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Title")
                     ForEach(self.recognizedItems.indices, id: \.self) { i in
-                        Button(action: {
-                            if self.selectedTitleIndicesState.contains(i) {
-                                self.selectedTitleIndicesState.remove(i)
-                            } else {
-                                self.selectedTitleIndicesState.insert(i)
+                        ZStack {
+                            Button(action: {
+                                if self.selectedTitleIndicesState.contains(i) {
+                                    self.selectedTitleIndicesState.remove(i)
+                                } else {
+                                    self.selectedTitleIndicesState.insert(i)
+                                }
+                            }) {
+                                HStack {
+                                    Image(systemName: self.selectedTitleIndicesState.contains(i) ? "checkmark.square.fill" : "square")
+                                    Text(self.recognizedItems[i])
+                                }
                             }
-                        }) {
-                            HStack {
-                                Image(systemName: self.selectedTitleIndicesState.contains(i) ? "checkmark.square.fill" : "square")
-                                Text(self.recognizedItems[i])
-                            }
+                            .buttonStyle(.plain)
                         }
-                        .buttonStyle(.plain)
+                        .background(self.dragOverIndex == i ? Color.accentColor.opacity(0.1) : Color.clear)
+                        .onDrag {
+                            NSItemProvider(object: String(i) as NSString)
+                        }
+                        .onDrop(of: ["public.text"], isTargeted: Binding(get: { self.dragOverIndex == i }, set: { val in self.dragOverIndex = val ? i : nil })) { providers in
+                            if let provider = providers.first {
+                                _ = provider.loadObject(ofClass: NSString.self) { (draggedIdxStr, _) in
+                                    guard let draggedIdxStr = draggedIdxStr as? String, let draggedIdx = Int(draggedIdxStr), draggedIdx != i else { return }
+                                    DispatchQueue.main.async {
+                                        self.mergeRecognizedItems(source: draggedIdx, destination: i)
+                                    }
+                                }
+                                return true
+                            }
+                            return false
+                        }
                     }
                 }
                 TextField("Edit Title", text: $editedTitle)
@@ -393,12 +414,31 @@ struct ImageToListView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Select Ingredients").font(.subheadline)
                     ForEach(self.recognizedItems.indices, id: \.self) { i in
-                        Button(action: { self.toggleIngredientGrouped(i) }) {
-                            HStack {
-                                Image(systemName: self.groupingIngredient.contains(i) ? "checkmark.square.fill" : "square")
-                                Text(self.recognizedItems[i])
+                        ZStack {
+                            Button(action: { self.toggleIngredientGrouped(i) }) {
+                                HStack {
+                                    Image(systemName: self.groupingIngredient.contains(i) ? "checkmark.square.fill" : "square")
+                                    Text(self.recognizedItems[i])
+                                }
                             }
-                        }.buttonStyle(.plain)
+                            .buttonStyle(.plain)
+                        }
+                        .background(self.dragOverIndex == i ? Color.accentColor.opacity(0.1) : Color.clear)
+                        .onDrag {
+                            NSItemProvider(object: String(i) as NSString)
+                        }
+                        .onDrop(of: ["public.text"], isTargeted: Binding(get: { self.dragOverIndex == i }, set: { val in self.dragOverIndex = val ? i : nil })) { providers in
+                            if let provider = providers.first {
+                                _ = provider.loadObject(ofClass: NSString.self) { (draggedIdxStr, _) in
+                                    guard let draggedIdxStr = draggedIdxStr as? String, let draggedIdx = Int(draggedIdxStr), draggedIdx != i else { return }
+                                    DispatchQueue.main.async {
+                                        self.mergeRecognizedItems(source: draggedIdx, destination: i)
+                                    }
+                                }
+                                return true
+                            }
+                            return false
+                        }
                     }
                     HStack {
                         Button("Add Ingredient Group") {
@@ -430,12 +470,31 @@ struct ImageToListView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Select Instructions").font(.subheadline)
                     ForEach(self.recognizedItems.indices, id: \.self) { i in
-                        Button(action: { self.toggleInstructionGrouped(i) }) {
-                            HStack {
-                                Image(systemName: self.groupingInstruction.contains(i) ? "checkmark.square.fill" : "square")
-                                Text(self.recognizedItems[i])
+                        ZStack {
+                            Button(action: { self.toggleInstructionGrouped(i) }) {
+                                HStack {
+                                    Image(systemName: self.groupingInstruction.contains(i) ? "checkmark.square.fill" : "square")
+                                    Text(self.recognizedItems[i])
+                                }
                             }
-                        }.buttonStyle(.plain)
+                            .buttonStyle(.plain)
+                        }
+                        .background(self.dragOverIndex == i ? Color.accentColor.opacity(0.1) : Color.clear)
+                        .onDrag {
+                            NSItemProvider(object: String(i) as NSString)
+                        }
+                        .onDrop(of: ["public.text"], isTargeted: Binding(get: { self.dragOverIndex == i }, set: { val in self.dragOverIndex = val ? i : nil })) { providers in
+                            if let provider = providers.first {
+                                _ = provider.loadObject(ofClass: NSString.self) { (draggedIdxStr, _) in
+                                    guard let draggedIdxStr = draggedIdxStr as? String, let draggedIdx = Int(draggedIdxStr), draggedIdx != i else { return }
+                                    DispatchQueue.main.async {
+                                        self.mergeRecognizedItems(source: draggedIdx, destination: i)
+                                    }
+                                }
+                                return true
+                            }
+                            return false
+                        }
                     }
                     HStack {
                         Button("Add Instruction Group") {
@@ -732,6 +791,26 @@ struct ImageToListView: View {
             }
         }
     }
+    
+    private func mergeRecognizedItems(source: Int, destination: Int) {
+        guard source != destination, source < recognizedItems.count, destination < recognizedItems.count else { return }
+        let merged = recognizedItems[source] + " " + recognizedItems[destination]
+        var newItems = recognizedItems
+        let removeFirst = max(source, destination)
+        let keep = min(source, destination)
+        newItems[keep] = merged
+        newItems.remove(at: removeFirst)
+        recognizedItems = newItems
+        // For safety, clear all selection/grouping states
+        selectedTitleIndicesState.removeAll()
+        selectedSummaryIndicesState.removeAll()
+        selectedIngredientIndices.removeAll()
+        selectedInstructionIndices.removeAll()
+        ingredientGroups.removeAll()
+        instructionGroups.removeAll()
+        groupingIngredient.removeAll()
+        groupingInstruction.removeAll()
+    }
 }
 
 extension Array {
@@ -744,3 +823,4 @@ extension Array {
     ImageToListView()
         .environment(RecipeStore())
 }
+
