@@ -34,6 +34,11 @@ private struct MainTabView: View {
                     Label("API Key", systemImage: "key.fill")
                 }
                 .tag(3)
+            ClearRecipesTabView()
+                .tabItem {
+                    Label("Clear Recipes", systemImage: "trash")
+                }
+                .tag(4)
         }
     }
 }

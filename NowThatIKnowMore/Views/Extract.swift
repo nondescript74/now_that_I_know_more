@@ -17,71 +17,56 @@ extension JSONAny {
     }
 }
 
-struct ClearRecipesButton: View {
-    @Environment(RecipeStore.self) private var recipeStore
-    @State private var showingConfirmation = false
-    
-    var body: some View {
-        Button("Clear Recipes") {
-            showingConfirmation = true
-        }
-        .alert("Are you sure you want to clear all recipes? This cannot be undone.", isPresented: $showingConfirmation) {
-            Button("Clear Recipes", role: .destructive) {
-                recipeStore.clear()
-            }
-            Button("Cancel", role: .cancel) { }
-        }
-    }
-}
-
 struct Extract: View {
     @Environment(RecipeStore.self) private var recipeStore
     @State private var urlString = ""
     @State private var resultText = ""
     @State private var extractedRecipe: Recipe?
-    @State private var createdRecipe: Recipe?
+//    @State private var createdRecipe: Recipe?
     @State private var showingRecipeSheet = false
     let logger: Logger = .init(subsystem: "com.headydiscy.NowThatIKnowMore", category: "Extract")
     
     var body: some View {
-        VStack {
-            HStack {
-                TextField("Paste recipe URL", text: $urlString)
-                    .textFieldStyle(.roundedBorder)
-                if !urlString.isEmpty {
-                    Button(action: { urlString = "" }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Clear URL")
-                }
-                Button("Extract") {
-                    Task {
-                        await extractRecipe()
-                        if extractedRecipe != nil {
-                            logger.info("extractedRecipe: \(String(describing: extractedRecipe))")
-                        } else if createdRecipe != nil {
-                            logger.info("createdRecipe: \(String(describing: createdRecipe))")
-                        } else {
-                            logger.info("unknown recipe")
+        GeometryReader { proxy in
+            ScrollView {
+                VStack {
+                    HStack {
+                        TextField("Paste recipe URL", text: $urlString)
+                            .textFieldStyle(.roundedBorder)
+                        if !urlString.isEmpty {
+                            Button(action: { urlString = "" }) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundColor(.secondary)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Clear URL")
                         }
+                        Button("Extract") {
+                            Task {
+                                await extractRecipe()
+                                if extractedRecipe != nil {
+                                    logger.info("extractedRecipe: \(String(describing: extractedRecipe))")
+                                } else {
+                                    logger.info("unknown recipe")
+                                }
+                            }
+                        }
+                        .disabled(urlString.isEmpty)
                     }
+                    .padding()
+                    
+                    Text(resultText)
+                        .padding()
                 }
-                .disabled(urlString.isEmpty)
+                .frame(minHeight: proxy.size.height)
             }
-            .padding()
-            
-            Spacer()
-            
-            ClearRecipesButton()
-            
-            Text(resultText)
-                .padding()
+            .scrollDismissesKeyboard(.interactively)
         }
+        
     }
     
     private func extractRecipe() async {
+        logger.info("[extractRecipe] started, urlString: \(urlString)")
         resultText = "Loading..."
         extractedRecipe = nil
         let endpoint = "https://api.spoonacular.com/recipes/extract"
@@ -108,36 +93,45 @@ struct Extract: View {
         
         do {
             let (data, _) = try await URLSession.shared.data(for: request)
+            logger.info("[extractRecipe] API call succeeded, got data of length: \(data.count)")
             
             let decoder = JSONDecoder()
             decoder.keyDecodingStrategy = .convertFromSnakeCase
             
+            logger.info("[extractRecipe] Attempting direct decode to Recipe")
             if let recipe = try? decoder.decode(Recipe.self, from: data) {
-                extractedRecipe = recipe
-                recipeStore.add(recipe)
+                extractedRecipe = fixImageType(for: recipe)
+                logger.info("[extractRecipe] extractedRecipe set, image: \(self.extractedRecipe?.image ?? "nil")")
+                recipeStore.add(extractedRecipe!)
                 showingRecipeSheet = true
                 resultText = ""
             } else {
+                logger.info("[extractRecipe] Direct decode failed, trying fallback decode")
                 let jsonObject = try JSONSerialization.jsonObject(with: data, options: [])
                 if let dict = jsonObject as? [String: Any] {
+                    logger.info("[extractRecipe] Attempting fallback decode from dictionary")
                     // Attempt fallback decode by re-encoding dict to data and decoding Recipe
                     if let dictData = try? JSONSerialization.data(withJSONObject: dict),
                        let fallbackRecipe = try? decoder.decode(Recipe.self, from: dictData) {
-                        self.extractedRecipe = fallbackRecipe
-                        self.createdRecipe = nil
-                        recipeStore.add(fallbackRecipe)
+                        logger.info("extractRecipe Fallback decode succeeded)")
+                        self.extractedRecipe = fixImageType(for: fallbackRecipe)
+                        logger.info("[extractRecipe] extractedRecipe set, image: \(self.extractedRecipe?.image ?? "nil")")
+                        recipeStore.add(self.extractedRecipe!)
                         self.showingRecipeSheet = true
                         self.resultText = ""
                     } else {
+                        logger.info("extractRecipe Fallback decode failed, checking for title to build Recipe from dictionary")
                         if let title = dict["title"] as? String {
+                            logger.info("[extractRecipe] Creating recipe from dictionary, title: \(title)")
                             // create a Recipe and save it to the extractedRecipe
                             if createRecipeFromDictionary(dict) == nil {
                                 self.resultText = "Title: \(title)\n\n" + ((try? prettyPrinted(dict)) ?? String(describing: dict))
                                 logger.info("can't parse dictionary to Recipe")
                             }
-                            self.createdRecipe = createRecipeFromDictionary(dict)
-                            recipeStore.add(self.createdRecipe!)
-                            self.extractedRecipe = nil
+                            self.extractedRecipe = createRecipeFromDictionary(dict)
+                            logger.info("extractRecipe createdRecipe, image: \(self.extractedRecipe?.image ?? "nil")")
+                            extractedRecipe = fixImageType(for: extractedRecipe!)
+                            recipeStore.add(self.extractedRecipe!)
                             self.showingRecipeSheet = true
                             self.resultText = "Title: \(title)"
                         } else {
@@ -146,6 +140,7 @@ struct Extract: View {
                     }
                     // Recipe was not saved due to type mismatch or fallback decode failed.
                 } else if let arr = jsonObject as? [Any] {
+                    logger.info("recipe not saved >>> Found array instead of dictionary")
                     self.resultText = try prettyPrinted(arr)
                 }
             }
@@ -157,12 +152,7 @@ struct Extract: View {
     }
     
     private func createRecipeFromDictionary(_ dict: [String: Any]) -> Recipe? {
-        // Uses new Recipe(from:) initializer for dynamic dictionary input
-        if let recipe = Recipe(from: dict) {
-            return recipe
-        } else {
-            return nil
-        }
+        return Recipe(from: dict)
     }
     
     private func prettyPrinted(_ object: Any) throws -> String {
@@ -180,8 +170,43 @@ struct Extract: View {
         }
         return string
     }
+    
+    private func fixImageType(for recipe: Recipe) -> Recipe {
+        logger.info("fixImageType called for recipe with image: \(recipe.image ?? "nil"), imageType: \(recipe.imageType ?? "nil")")
+        guard var dict = recipe.asDictionary else { return recipe }
+        
+        if let image = dict["image"] as? String, !image.isEmpty {
+            let imageType = dict["imageType"] as? String
+            let commonExtensions = [".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".tiff", ".heic", ".avif", ".svg"]
+            let hasKnownExtension = commonExtensions.contains { image.lowercased().hasSuffix($0) }
+            if (imageType == nil || imageType?.isEmpty == true) && !hasKnownExtension {
+                dict["image"] = image + "jpg"
+                logger.info("[fixImageType] patched image (added jpg): \(dict["image"] as? String ?? "nil")")
+            }
+        }
+        
+        if let image = dict["image"] as? String, !image.isEmpty, let imageType = dict["imageType"] as? String, !imageType.isEmpty {
+            let expectedSuffix = "." + imageType.lowercased()
+            if !image.lowercased().hasSuffix(expectedSuffix) {
+                dict["image"] = image + expectedSuffix
+                logger.info("[fixImageType] patched image: \(dict["image"] as? String ?? "nil")")
+            }
+        }
+        return Recipe(from: dict) ?? recipe
+    }
+}
+
+private extension Recipe {
+    var asDictionary: [String: Any]? {
+        guard let data = try? JSONEncoder().encode(self),
+              let dict = try? JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] else {
+            return nil
+        }
+        return dict
+    }
 }
 
 #Preview {
     Extract().environment(RecipeStore())
 }
+
