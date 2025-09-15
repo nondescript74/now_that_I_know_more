@@ -112,6 +112,13 @@ struct RecipeDetail: View {
                             .foregroundColor(.secondary)
                             .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.gray.opacity(0.3)))
                             .padding(.bottom, 4)
+                        
+                        if !editedSummary.isEmpty && cleanSummary(editedSummary) != editedSummary {
+                            Text(cleanSummary(editedSummary))
+                                .font(.footnote)
+                                .foregroundColor(.secondary)
+                                .padding(.top, 2)
+                        }
 
                         if (editedTitle.trimmingCharacters(in: .whitespacesAndNewlines) != (recipe.title ?? "")
                             || editedSummary.trimmingCharacters(in: .whitespacesAndNewlines) != (recipe.summary ?? "")
@@ -146,7 +153,7 @@ struct RecipeDetail: View {
                     .onAppear {
                         if !didSetupFields {
                             editedTitle = recipe.title ?? ""
-                            editedSummary = recipe.summary ?? ""
+                            editedSummary = cleanSummary(recipe.summary ?? "")
                             editedCreditsText = recipe.creditsText ?? ""
                             didSetupFields = true
                         }
@@ -173,7 +180,7 @@ struct RecipeDetail: View {
         }
         
         let titleToSave = editedTitle.trimmingCharacters(in: .whitespacesAndNewlines)
-        let summaryToSave = editedSummary.trimmingCharacters(in: .whitespacesAndNewlines)
+        let summaryToSave = cleanSummary(editedSummary)
         let creditsToSave = editedCreditsText.trimmingCharacters(in: .whitespacesAndNewlines)
         
         // Attempt to convert current recipe to a dictionary via encoding/decoding.
@@ -311,6 +318,18 @@ private struct ExtraRecipeDetailsPanel: View {
             .padding(.vertical, 4)
         }
     }
+}
+
+private func cleanSummary(_ html: String) -> String {
+    var text = html.replacingOccurrences(of: "<br ?/?>", with: "\n", options: .regularExpression)
+    text = text.replacingOccurrences(of: "<li>", with: "• ", options: .caseInsensitive)
+    text = text.replacingOccurrences(of: "</li>", with: "\n", options: .caseInsensitive)
+    text = text.replacingOccurrences(of: "<ul>|</ul>", with: "", options: .regularExpression)
+    text = text.replacingOccurrences(of: "<b>(.*?)</b>", with: "**$1**", options: .regularExpression)
+    text = text.replacingOccurrences(of: "<i>(.*?)</i>", with: "*$1*", options: .regularExpression)
+    text = text.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+    let lines = text.components(separatedBy: .newlines).map { $0.trimmingCharacters(in: .whitespaces) }
+    return lines.filter { !$0.isEmpty }.map { $0 + "\n" }.joined()
 }
 
 #Preview {

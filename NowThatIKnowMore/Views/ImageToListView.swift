@@ -382,6 +382,12 @@ struct ImageToListView: View {
                             self.editedSummary = self.joinedSelectedSummary
                         }
                     }
+                if !editedSummary.isEmpty && cleanSummary(editedSummary) != editedSummary {
+                    Text(cleanSummary(editedSummary))
+                        .font(.footnote)
+                        .foregroundColor(.secondary)
+                        .padding(.top, 2)
+                }
                 
                 // Insert Cuisine Picker here (after Summary)
                 VStack(alignment: .leading, spacing: 8) {
@@ -679,12 +685,11 @@ struct ImageToListView: View {
             }
         }()
         let summary: String? = {
-            if !self.editedSummary.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                return self.editedSummary
-            } else {
-                let joinedSummary = self.joinedSelectedSummary
-                return joinedSummary.isEmpty ? nil : joinedSummary
-            }
+            let rawSummary = !self.editedSummary.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                ? self.editedSummary
+                : self.joinedSelectedSummary
+            let cleaned = cleanSummary(rawSummary)
+            return cleaned.isEmpty ? nil : cleaned
         }()
 
         // Add cuisines variable:
@@ -810,6 +815,17 @@ struct ImageToListView: View {
         instructionGroups.removeAll()
         groupingIngredient.removeAll()
         groupingInstruction.removeAll()
+    }
+    
+    private func cleanSummary(_ html: String) -> String {
+        var text = html.replacingOccurrences(of: "<br ?/?>", with: "\n", options: .regularExpression)
+        text = text.replacingOccurrences(of: "<li>", with: "• ", options: .caseInsensitive)
+        text = text.replacingOccurrences(of: "</li>", with: "\n", options: .caseInsensitive)
+        text = text.replacingOccurrences(of: "<ul>|</ul>", with: "", options: .regularExpression)
+        text = text.replacingOccurrences(of: "<b>(.*?)</b>", with: "**$1**", options: .regularExpression)
+        text = text.replacingOccurrences(of: "<i>(.*?)</i>", with: "*$1*", options: .regularExpression)
+        text = text.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+        return text.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
 
