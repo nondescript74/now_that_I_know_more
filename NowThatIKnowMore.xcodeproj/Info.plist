@@ -41,5 +41,7 @@
 		<key>NSAllowsArbitraryLoads</key>
 		<true/>
 	</dict>
+	<key>NSRemindersUsageDescription</key>
+	<string>his app uses Reminders to add your recipe ingredients as tasks.</string>
 </dict>
 </plist>
