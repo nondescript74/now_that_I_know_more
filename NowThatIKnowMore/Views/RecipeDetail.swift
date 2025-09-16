@@ -1,6 +1,8 @@
 // MARK: - Identifiable conformance for AnalyzedInstruction and Step
 import Foundation
 import PhotosUI
+import EventKit
+import EventKitUI
 
 extension AnalyzedInstruction: Identifiable {
     var id: String { name ?? UUID().uuidString }
@@ -210,6 +212,15 @@ struct RecipeDetail: View {
 private struct IngredientListView: View {
     let ingredients: [ExtendedIngredient]
     
+    @State private var showReminderPicker = false
+    @State private var selectedIndices: Set<Int> = []
+    @State private var reminderMessage: String?
+    @State private var isAddingReminders = false
+    
+    // Added properties for reminder lists and selection
+    @State private var availableReminderLists: [EKCalendar] = []
+    @State private var selectedList: EKCalendar?
+    
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Ingredients")
@@ -220,7 +231,141 @@ private struct IngredientListView: View {
                 Text("• \(ingredient.original ?? "")")
                     .font(.body)
             }
+            
+            Button("Add Ingredients to Reminders") {
+                reminderMessage = nil
+                selectedIndices = []
+                showReminderPicker = true
+            }
+            .padding(.top, 8)
+            .buttonStyle(.bordered)
+            
+            if let msg = reminderMessage {
+                Text(msg)
+                    .foregroundColor(.secondary)
+                    .padding(.top, 4)
+            }
         }
+        .sheet(isPresented: $showReminderPicker) {
+            NavigationView {
+                List {
+                    // Picker for reminder list selection
+                    if !availableReminderLists.isEmpty {
+                        Picker("Reminder List", selection: $selectedList) {
+                            ForEach(availableReminderLists, id: \.calendarIdentifier) { calendar in
+                                Text(calendar.title).tag(calendar as EKCalendar?)
+                            }
+                        }
+                    }
+                    
+                    ForEach(ingredients.indices, id: \.self) { i in
+                        Toggle(isOn: Binding(
+                            get: { selectedIndices.contains(i) },
+                            set: { val in
+                                if val {
+                                    selectedIndices.insert(i)
+                                } else {
+                                    selectedIndices.remove(i)
+                                }
+                            }
+                        )) {
+                            Text(ingredients[i].original ?? "")
+                        }
+                    }
+                }
+                .navigationTitle("Select Ingredients")
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Add") {
+                            isAddingReminders = true
+                            addIngredientsToReminders()
+                        }
+                        .disabled(selectedIndices.isEmpty)
+                    }
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") {
+                            showReminderPicker = false
+                        }
+                    }
+                }
+                if let msg = reminderMessage {
+                    Text(msg)
+                        .foregroundColor(.secondary)
+                        .padding()
+                        .frame(maxWidth: .infinity, alignment: .center)
+                }
+            }
+            .onAppear {
+                let status = EKEventStore.authorizationStatus(for: .reminder)
+                print("[DEBUG] Reminders authorization status (onAppear): \(status.rawValue)")
+                let store = EKEventStore()
+                store.requestFullAccessToReminders { granted, error in
+                    print("[DEBUG] requestFullAccessToReminders (onAppear): granted=\(granted), error=\(error?.localizedDescription ?? "none")")
+                    DispatchQueue.main.async {
+                        if granted {
+                            let calendars = store.calendars(for: .reminder)
+                            self.availableReminderLists = calendars
+                            self.selectedList = calendars.first(where: { $0.calendarIdentifier == store.defaultCalendarForNewReminders()?.calendarIdentifier }) ?? calendars.first
+                        } else {
+                            self.reminderMessage = "Access to Reminders not granted."
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    private func addIngredientsToReminders() {
+        let status = EKEventStore.authorizationStatus(for: .reminder)
+        print("[DEBUG] Reminders authorization status (add): \(status.rawValue)")
+        let store = EKEventStore()
+        store.requestFullAccessToReminders { granted, error in
+            print("[DEBUG] requestFullAccessToReminders (add): granted=\(granted), error=\(error?.localizedDescription ?? "none")")
+            DispatchQueue.main.async {
+                isAddingReminders = false
+                if let error = error {
+                    reminderMessage = "Error: \(error.localizedDescription)"
+                    return
+                }
+                guard granted else {
+                    reminderMessage = "Access to Reminders not granted."
+                    return
+                }
+                guard let calendar = selectedList else {
+                    reminderMessage = "No reminder list selected."
+                    return
+                }
+                let selected = selectedIndices.sorted().compactMap { idx in ingredients[safe: idx]?.original }
+                if selected.isEmpty {
+                    reminderMessage = "No ingredients selected."
+                    return
+                }
+                for ingredient in selected where !ingredient.isEmpty {
+                    let reminder = EKReminder(eventStore: store)
+                    reminder.title = ingredient
+                    reminder.calendar = calendar
+                    do {
+                        try store.save(reminder, commit: false)
+                    } catch {
+                        reminderMessage = "Failed to save reminder: \(error.localizedDescription)"
+                        return
+                    }
+                }
+                do {
+                    try store.commit()
+                    reminderMessage = "Added \(selected.count) reminders to \(selectedList?.title ?? "list")."
+                    showReminderPicker = false
+                } catch {
+                    reminderMessage = "Failed to commit reminders: \(error.localizedDescription)"
+                }
+            }
+        }
+    }
+}
+
+extension Collection {
+    subscript(safe index: Index) -> Element? {
+        return indices.contains(index) ? self[index] : nil
     }
 }
 
