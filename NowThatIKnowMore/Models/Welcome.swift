@@ -36,6 +36,7 @@ struct Recipe: Codable, Sendable, Identifiable {
     let extendedIngredients: [ExtendedIngredient]?
     let summary: String?
     let cuisines, dishTypes, diets, occasions: [JSONAny]?
+    var daysOfWeek: [String]?
     let instructions: String?
     let analyzedInstructions: [AnalyzedInstruction]?
     let originalID: JSONNull?
@@ -46,7 +47,8 @@ struct Recipe: Codable, Sendable, Identifiable {
         case uuid
         case id, image, imageType, title, readyInMinutes, servings
         case sourceURL = "sourceUrl"
-        case vegetarian, vegan, glutenFree, dairyFree, veryHealthy, cheap, veryPopular, sustainable, lowFodmap, weightWatcherSmartPoints, gaps, preparationMinutes, cookingMinutes, aggregateLikes, healthScore, creditsText, license, sourceName, pricePerServing, extendedIngredients, summary, cuisines, dishTypes, diets, occasions, instructions, analyzedInstructions
+        case vegetarian, vegan, glutenFree, dairyFree, veryHealthy, cheap, veryPopular, sustainable, lowFodmap, weightWatcherSmartPoints, gaps, preparationMinutes, cookingMinutes, aggregateLikes, healthScore, creditsText, license, sourceName, pricePerServing, extendedIngredients, summary, cuisines, dishTypes, diets, occasions, daysOfWeek
+        case instructions, analyzedInstructions
         case originalID = "originalId"
         case spoonacularScore
         case spoonacularSourceURL = "spoonacularSourceUrl"
@@ -88,6 +90,7 @@ struct Recipe: Codable, Sendable, Identifiable {
         self.dishTypes = try container.decodeIfPresent([JSONAny].self, forKey: .dishTypes)
         self.diets = try container.decodeIfPresent([JSONAny].self, forKey: .diets)
         self.occasions = try container.decodeIfPresent([JSONAny].self, forKey: .occasions)
+        self.daysOfWeek = try container.decodeIfPresent([String].self, forKey: .daysOfWeek)
         self.instructions = try container.decodeIfPresent(String.self, forKey: .instructions)
         self.analyzedInstructions = try container.decodeIfPresent([AnalyzedInstruction].self, forKey: .analyzedInstructions)
         self.originalID = try container.decodeIfPresent(JSONNull.self, forKey: .originalID)
@@ -130,6 +133,7 @@ struct Recipe: Codable, Sendable, Identifiable {
         try container.encodeIfPresent(dishTypes, forKey: .dishTypes)
         try container.encodeIfPresent(diets, forKey: .diets)
         try container.encodeIfPresent(occasions, forKey: .occasions)
+        try container.encodeIfPresent(daysOfWeek, forKey: .daysOfWeek)
         try container.encodeIfPresent(instructions, forKey: .instructions)
         try container.encodeIfPresent(analyzedInstructions, forKey: .analyzedInstructions)
         try container.encodeIfPresent(originalID, forKey: .originalID)
@@ -181,6 +185,7 @@ struct Recipe: Codable, Sendable, Identifiable {
         self.dishTypes = (dict["dishTypes"] as? [Any])?.compactMap { JSONAny.wrap($0) }
         self.diets = (dict["diets"] as? [Any])?.compactMap { JSONAny.wrap($0) }
         self.occasions = (dict["occasions"] as? [Any])?.compactMap { JSONAny.wrap($0) }
+        self.daysOfWeek = dict["daysOfWeek"] as? [String]
         self.instructions = dict["instructions"] as? String
         if let instArray = dict["analyzedInstructions"] as? [[String: Any]] {
             self.analyzedInstructions = instArray.compactMap { d in
@@ -232,6 +237,7 @@ extension Recipe: Equatable {
             (lhs.dishTypes?.count ?? 0) == (rhs.dishTypes?.count ?? 0) &&
             (lhs.diets?.count ?? 0) == (rhs.diets?.count ?? 0) &&
             (lhs.occasions?.count ?? 0) == (rhs.occasions?.count ?? 0) &&
+            (lhs.daysOfWeek?.count ?? 0) == (rhs.daysOfWeek?.count ?? 0) &&
             lhs.instructions == rhs.instructions &&
             lhs.analyzedInstructions == rhs.analyzedInstructions &&
             (lhs.originalID == nil) == (rhs.originalID == nil) &&
@@ -281,6 +287,7 @@ extension Recipe: Hashable {
         hasher.combine(dishTypes?.count ?? 0)
         hasher.combine(diets?.count ?? 0)
         hasher.combine(occasions?.count ?? 0)
+        hasher.combine(daysOfWeek?.count ?? 0)
     }
 }
 

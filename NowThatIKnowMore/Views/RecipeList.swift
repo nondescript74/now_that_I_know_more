@@ -14,6 +14,9 @@ struct RecipeList: View {
     let logger:Logger = .init(subsystem: "com.example.NowThatIKnowMore", category: "RecipeList")
     @Environment(RecipeStore.self) private var recipeStore
     
+    @State private var selectedDay: String = "All"
+    private static let daysOfWeek = ["All", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+    
     private var cuisines: [String] {
         // Assuming cuisines is loaded or defined somewhere in this view context.
         // Since it was referenced in the instructions, adding a sample placeholder:
@@ -22,17 +25,35 @@ struct RecipeList: View {
     }
     
     private var recipesByCuisine: [(cuisine: String, recipes: [Recipe])] {
+        let filteredRecipes: [Recipe]
+        if selectedDay == "All" {
+            filteredRecipes = recipeStore.recipes
+        } else {
+            filteredRecipes = recipeStore.recipes.filter { recipe in
+                guard let days = recipe.daysOfWeek, !days.isEmpty else { return true }
+                return days.contains(selectedDay)
+            }
+        }
+        
         let cuisineSections = cuisines.map { cuisine in
-            (cuisine: cuisine, recipes: recipeStore.recipes.filter { ($0.cuisines?.compactMap { $0.value as? String } ?? []).contains(cuisine) })
+            (cuisine: cuisine, recipes: filteredRecipes.filter { ($0.cuisines?.compactMap { $0.value as? String } ?? []).contains(cuisine) })
         }.filter { !$0.recipes.isEmpty }
         let matchedIDs = Set(cuisineSections.flatMap { $0.recipes.map { $0.uuid } })
-        let otherRecipes = recipeStore.recipes.filter { !matchedIDs.contains($0.uuid) }
+        let otherRecipes = filteredRecipes.filter { !matchedIDs.contains($0.uuid) }
         let allSections = cuisineSections + (otherRecipes.isEmpty ? [] : [(cuisine: "Other", recipes: otherRecipes)])
         return allSections
     }
     
     var body: some View {
         NavigationStack {
+            Picker("Day of Week", selection: $selectedDay) {
+                ForEach(Self.daysOfWeek, id: \.self) { day in
+                    Text(day)
+                }
+            }
+            .pickerStyle(.segmented)
+            .padding([.horizontal, .top])
+            
             List {
                 ForEach(recipesByCuisine, id: \.cuisine) { section in
                     Section(header: Text(section.cuisine)) {
@@ -118,4 +139,3 @@ struct RecipeList: View {
     RecipeList()
         .environment(RecipeStore())
 }
-
