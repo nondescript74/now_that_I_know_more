@@ -14,6 +14,11 @@ private struct MainTabView: View {
     @SceneStorage("selectedTab") private var selectedTab: Int = 0
     var body: some View {
         TabView(selection: $selectedTab) {
+            MealPlan()
+                .tabItem {
+                    Label("Meal Plan", systemImage: "fork.knife")
+                }
+                .tag(1)
             RecipeList()
                 .tabItem {
                     Label("Recipes", systemImage: "list.bullet")
@@ -23,22 +28,22 @@ private struct MainTabView: View {
                 .tabItem {
                     Label("Extract", systemImage: "square.and.arrow.down")
                 }
-                .tag(1)
+                .tag(2)
             ImageToListView()
                 .tabItem {
                     Label("From Image", systemImage: "text.viewfinder")
                 }
-                .tag(2)
+                .tag(3)
             APIKeyTabView()
                 .tabItem {
                     Label("API Key", systemImage: "key.fill")
                 }
-                .tag(3)
+                .tag(4)
             ClearRecipesTabView()
                 .tabItem {
                     Label("Clear Recipes", systemImage: "trash")
                 }
-                .tag(4)
+                .tag(5)
         }
     }
 }

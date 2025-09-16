@@ -91,9 +91,12 @@ struct Extract: View {
         let request = URLRequest(url: url)
         logger.info("\(url, privacy: .public)")
         
+        
+        
         do {
             let (data, _) = try await URLSession.shared.data(for: request)
             logger.info("[extractRecipe] API call succeeded, got data of length: \(data.count)")
+            print("API Response: ", String(data: data, encoding: .utf8) ?? "N/A")
             
             let decoder = JSONDecoder()
             decoder.keyDecodingStrategy = .convertFromSnakeCase
