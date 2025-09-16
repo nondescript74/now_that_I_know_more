@@ -283,16 +283,16 @@ private struct ExtraRecipeDetailsPanel: View {
                     FieldView(label: "Source URL", value: sourceUrl)
                 }
                 if let cuisines = recipe.cuisines, !cuisines.isEmpty {
-                    FieldView(label: "Cuisines", value: cuisines.compactMap { String(describing: $0) }.joined(separator: ", "))
+                    FieldView(label: "Cuisines", value: cuisines.map { formatJSONAny($0) }.joined(separator: ", "))
                 }
                 if let dishTypes = recipe.dishTypes, !dishTypes.isEmpty {
-                    FieldView(label: "Dish Types", value: dishTypes.compactMap { String(describing: $0) }.joined(separator: ", "))
+                    FieldView(label: "Dish Types", value: dishTypes.map { formatJSONAny($0) }.joined(separator: ", "))
                 }
                 if let diets = recipe.diets, !diets.isEmpty {
-                    FieldView(label: "Diets", value: diets.compactMap { String(describing: $0) }.joined(separator: ", "))
+                    FieldView(label: "Diets", value: diets.map { formatJSONAny($0) }.joined(separator: ", "))
                 }
                 if let occasions = recipe.occasions, !occasions.isEmpty {
-                    FieldView(label: "Occasions", value: occasions.compactMap { String(describing: $0) }.joined(separator: ", "))
+                    FieldView(label: "Occasions", value: occasions.map { formatJSONAny($0) }.joined(separator: ", "))
                 }
             }
             .navigationTitle("More Recipe Details")
@@ -317,6 +317,52 @@ private struct ExtraRecipeDetailsPanel: View {
             }
             .padding(.vertical, 4)
         }
+    }
+    
+    private func formatJSONAny(_ value: Any) -> String {
+        // Try to unwrap JSONAny recursively if possible:
+        // Assuming JSONAny has a property 'value' that holds the wrapped value.
+        // We use Mirror to reflect and unwrap.
+        var currentValue: Any = value
+        while true {
+            let mirror = Mirror(reflecting: currentValue)
+            if mirror.displayStyle == .class || mirror.displayStyle == .struct {
+                if let child = mirror.children.first(where: { $0.label == "value" }) {
+                    currentValue = child.value
+                    continue
+                }
+            }
+            break
+        }
+        
+        // Now format based on the type of currentValue
+        if currentValue is NSNull {
+            return "—"
+        }
+        if let string = currentValue as? String {
+            return string
+        }
+        if let int = currentValue as? Int {
+            return String(int)
+        }
+        if let double = currentValue as? Double {
+            return String(double)
+        }
+        if let bool = currentValue as? Bool {
+            return bool ? "true" : "false"
+        }
+        if let array = currentValue as? [Any] {
+            return array.map { formatJSONAny($0) }.joined(separator: ", ")
+        }
+        if let dict = currentValue as? [String: Any] {
+            let formattedItems = dict.map { key, val in
+                "\(key): \(formatJSONAny(val))"
+            }.sorted()
+            return formattedItems.joined(separator: ", ")
+        }
+        
+        // fallback
+        return String(describing: currentValue)
     }
 }
 
