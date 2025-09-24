@@ -5,7 +5,6 @@
 //  Created by Zahirudeen Premji on 8/27/25.
 //
 
-
 // This file was generated from JSON Schema using quicktype, do not modify it directly.
 // To parse the JSON, add this file to your project and do:
 //
@@ -354,7 +353,7 @@ struct Metric: Codable, Sendable, Equatable, Hashable {
 
 // MARK: - Encode/decode helpers
 
-class JSONNull: Codable, Hashable {
+final class JSONNull: Codable, Hashable, @unchecked Sendable {
 
     public static func == (lhs: JSONNull, rhs: JSONNull) -> Bool {
             return true
@@ -400,7 +399,7 @@ class JSONCodingKey: CodingKey {
     }
 }
 
-class JSONAny: Codable {
+final class JSONAny: Codable, @unchecked Sendable {
 
     let value: Any
     init(_ value: Any) { self.value = value }
