@@ -6,12 +6,28 @@
 	objectVersion = 90;
 	objects = {
 
+/* Begin PBXContainerItemProxy section */
+		F82259C82E84605B00840803 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = F8B44A1F2E4E254E00BD0920 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = F8B44A262E4E254E00BD0920;
+			remoteInfo = NowThatIKnowMore;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
+		F82259C42E84605B00840803 /* NowThatIKnowMoreTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NowThatIKnowMoreTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		F8B44A272E4E254E00BD0920 /* NowThatIKnowMore.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NowThatIKnowMore.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		F8EC9FF02E63AAD600211F03 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = Info.plist; path = NowThatIKnowMore.xcodeproj/Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		F82259C52E84605B00840803 /* NowThatIKnowMoreTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = NowThatIKnowMoreTests;
+			sourceTree = "<group>";
+		};
 		F8B44A292E4E254E00BD0920 /* NowThatIKnowMore */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = NowThatIKnowMore;
@@ -20,6 +36,11 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		F82259C12E84605B00840803 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			files = (
+			);
+		};
 		F8B44A242E4E254E00BD0920 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			files = (
@@ -33,6 +54,7 @@
 			children = (
 				F8EC9FF02E63AAD600211F03 /* Info.plist */,
 				F8B44A292E4E254E00BD0920 /* NowThatIKnowMore */,
+				F82259C52E84605B00840803 /* NowThatIKnowMoreTests */,
 				F8B44A282E4E254E00BD0920 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -41,6 +63,7 @@
 			isa = PBXGroup;
 			children = (
 				F8B44A272E4E254E00BD0920 /* NowThatIKnowMore.app */,
+				F82259C42E84605B00840803 /* NowThatIKnowMoreTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -48,6 +71,27 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		F82259C32E84605B00840803 /* NowThatIKnowMoreTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F82259CA2E84605B00840803 /* Build configuration list for PBXNativeTarget "NowThatIKnowMoreTests" */;
+			buildPhases = (
+				F82259C02E84605B00840803 /* Sources */,
+				F82259C12E84605B00840803 /* Frameworks */,
+				F82259C22E84605B00840803 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				F82259C92E84605B00840803 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				F82259C52E84605B00840803 /* NowThatIKnowMoreTests */,
+			);
+			name = NowThatIKnowMoreTests;
+			productName = NowThatIKnowMoreTests;
+			productReference = F82259C42E84605B00840803 /* NowThatIKnowMoreTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 		F8B44A262E4E254E00BD0920 /* NowThatIKnowMore */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = F8B44A322E4E254F00BD0920 /* Build configuration list for PBXNativeTarget "NowThatIKnowMore" */;
@@ -76,6 +120,10 @@
 				LastSwiftUpdateCheck = 2600;
 				LastUpgradeCheck = 2600;
 				TargetAttributes = {
+					F82259C32E84605B00840803 = {
+						CreatedOnToolsVersion = 26.0;
+						TestTargetID = F8B44A262E4E254E00BD0920;
+					};
 					F8B44A262E4E254E00BD0920 = {
 						CreatedOnToolsVersion = 26.0;
 					};
@@ -96,11 +144,17 @@
 			projectRoot = "";
 			targets = (
 				F8B44A262E4E254E00BD0920 /* NowThatIKnowMore */,
+				F82259C32E84605B00840803 /* NowThatIKnowMoreTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		F82259C22E84605B00840803 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			files = (
+			);
+		};
 		F8B44A252E4E254E00BD0920 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			files = (
@@ -109,6 +163,11 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		F82259C02E84605B00840803 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
+			);
+		};
 		F8B44A232E4E254E00BD0920 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			files = (
@@ -116,7 +175,70 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		F82259C92E84605B00840803 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = F8B44A262E4E254E00BD0920 /* NowThatIKnowMore */;
+			targetProxy = F82259C82E84605B00840803 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		F82259CB2E84605B00840803 /* Debug configuration for PBXNativeTarget "NowThatIKnowMoreTests" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = YKHW2TJ32G;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.headydiscy.NowThatIKnowMoreTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/NowThatIKnowMore.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/NowThatIKnowMore";
+			};
+			name = Debug;
+		};
+		F82259CC2E84605B00840803 /* Release configuration for PBXNativeTarget "NowThatIKnowMoreTests" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = YKHW2TJ32G;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.headydiscy.NowThatIKnowMoreTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/NowThatIKnowMore.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/NowThatIKnowMore";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
 		F8B44A302E4E254F00BD0920 /* Debug configuration for PBXProject "NowThatIKnowMore" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -240,7 +362,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 27;
+				CURRENT_PROJECT_VERSION = 29;
 				DEVELOPMENT_TEAM = YKHW2TJ32G;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -300,7 +422,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 27;
+				CURRENT_PROJECT_VERSION = 29;
 				DEVELOPMENT_TEAM = YKHW2TJ32G;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -356,6 +478,14 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		F82259CA2E84605B00840803 /* Build configuration list for PBXNativeTarget "NowThatIKnowMoreTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F82259CB2E84605B00840803 /* Debug configuration for PBXNativeTarget "NowThatIKnowMoreTests" */,
+				F82259CC2E84605B00840803 /* Release configuration for PBXNativeTarget "NowThatIKnowMoreTests" */,
+			);
+			defaultConfigurationName = Release;
+		};
 		F8B44A222E4E254E00BD0920 /* Build configuration list for PBXProject "NowThatIKnowMore" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
