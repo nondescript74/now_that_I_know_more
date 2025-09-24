@@ -11,7 +11,6 @@ struct MealPlan: View {
     @Environment(RecipeStore.self) private var recipeStore
     @State private var urlString = ""
     @State private var resultText = ""
-    @State private var mealPlanRecipes: [Recipe] = []
     @State private var isLoading = false
     
     @State private var selectedDay: String = "Monday"
@@ -55,7 +54,7 @@ struct MealPlan: View {
                     Text(resultText).foregroundColor(.secondary).padding(.bottom)
                 }
                 
-                let filteredMealPlanRecipes = mealPlanRecipes.filter { $0.daysOfWeek?.isEmpty != false || $0.daysOfWeek?.contains(selectedDay) == true }
+                let filteredMealPlanRecipes = recipeStore.recipes.filter { $0.daysOfWeek?.isEmpty != false || $0.daysOfWeek?.contains(selectedDay) == true }
                 
                 List {
                     ForEach(filteredMealPlanRecipes, id: \.uuid) { recipe in
@@ -81,15 +80,6 @@ struct MealPlan: View {
                                     Text(recipe.title ?? "No Title")
                                         .font(.headline)
                                         .lineLimit(2)
-                                    if let assignedDays = recipe.daysOfWeek, !assignedDays.isEmpty {
-                                        Text(assignedDays.joined(separator: ", "))
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
-                                    } else {
-                                        Text("No days assigned")
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
-                                    }
                                 }
                                 Spacer()
                                 Menu {
@@ -123,15 +113,9 @@ struct MealPlan: View {
         }
     }
     
-    private func appendMealPlanRecipe(_ recipe: Recipe) {
-        guard !mealPlanRecipes.contains(where: { $0.uuid == recipe.uuid }) else { return }
-        mealPlanRecipes.append(recipe)
-        recipeStore.add(recipe) // <-- Add this line!
-    }
-    
     private func toggleAssignment(for recipe: Recipe, day: String) {
-        guard let index = mealPlanRecipes.firstIndex(where: { $0.uuid == recipe.uuid }) else { return }
-        var updatedRecipe = mealPlanRecipes[index]
+        guard let index = recipeStore.recipes.firstIndex(where: { $0.uuid == recipe.uuid }) else { return }
+        var updatedRecipe = recipeStore.recipes[index]
         var assignedDays = updatedRecipe.daysOfWeek ?? []
         
         if let dayIndex = assignedDays.firstIndex(of: day) {
@@ -140,15 +124,13 @@ struct MealPlan: View {
             assignedDays.append(day)
         }
         updatedRecipe.daysOfWeek = assignedDays.sorted()
-        mealPlanRecipes[index] = updatedRecipe
         recipeStore.update(updatedRecipe)
     }
     
     private func clearAssignments(for recipe: Recipe) {
-        guard let index = mealPlanRecipes.firstIndex(where: { $0.uuid == recipe.uuid }) else { return }
-        var updatedRecipe = mealPlanRecipes[index]
+        guard let index = recipeStore.recipes.firstIndex(where: { $0.uuid == recipe.uuid }) else { return }
+        var updatedRecipe = recipeStore.recipes[index]
         updatedRecipe.daysOfWeek = []
-        mealPlanRecipes[index] = updatedRecipe
         recipeStore.update(updatedRecipe)
     }
     
@@ -180,17 +162,37 @@ struct MealPlan: View {
             let decoder = JSONDecoder()
             decoder.keyDecodingStrategy = .convertFromSnakeCase
             if let recipe = try? decoder.decode(Recipe.self, from: data) {
-                appendMealPlanRecipe(recipe)
+                recipeStore.add(recipe)
                 resultText = ""
                 urlString = ""
                 return
             }
-            let jsonObject = try JSONSerialization.jsonObject(with: data, options: [])
-            if let dict = jsonObject as? [String: Any], let fallback = Recipe(from: dict) {
-                appendMealPlanRecipe(fallback)
-                resultText = ""
-                urlString = ""
-                return
+            if let jsonObject = try? JSONSerialization.jsonObject(with: data, options: []),
+               let dict = jsonObject as? [String: Any] {
+                var updatedDict = dict
+                if let image = dict["image"] as? String,
+                   let imageType = dict["imageType"] as? String,
+                   !image.isEmpty,
+                   !image.lowercased().hasSuffix(".jpg") &&
+                   !image.lowercased().hasSuffix(".jpeg") &&
+                   !image.lowercased().hasSuffix(".png") &&
+                   !image.lowercased().hasSuffix(".gif") &&
+                   !image.lowercased().hasSuffix(".webp") {
+                    var suffixedImage = image + "." + imageType
+                    if suffixedImage.lowercased().hasSuffix(".jpg") || suffixedImage.lowercased().hasSuffix(".jpeg") || suffixedImage.lowercased().hasSuffix(".png") || suffixedImage.lowercased().hasSuffix(".gif") || suffixedImage.lowercased().hasSuffix(".webp") {
+                        // do nothing all is ok
+                    } else {
+                        // imageType is blank, add .jpg
+                        suffixedImage = image + "jpg"
+                    }
+                    updatedDict["image"] = suffixedImage
+                }
+                if let fallback = Recipe(from: updatedDict) {
+                    recipeStore.add(fallback)
+                    resultText = ""
+                    urlString = ""
+                    return
+                }
             }
             resultText = "Could not parse recipe."
         } catch {
@@ -199,10 +201,18 @@ struct MealPlan: View {
     }
     
     private func deleteRecipeFromPlan(at offsets: IndexSet) {
-        mealPlanRecipes.remove(atOffsets: offsets)
+        let recipesToDelete = offsets.compactMap { index -> Recipe? in
+            let filteredRecipes = recipeStore.recipes.filter { $0.daysOfWeek?.isEmpty != false || $0.daysOfWeek?.contains(selectedDay) == true }
+            guard index < filteredRecipes.count else { return nil }
+            return filteredRecipes[index]
+        }
+        for recipe in recipesToDelete {
+            recipeStore.remove(recipe)
+        }
     }
 }
 
 #Preview {
     MealPlan().environment(RecipeStore())
 }
+

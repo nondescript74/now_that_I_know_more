@@ -18,32 +18,32 @@ private struct MainTabView: View {
                 .tabItem {
                     Label("Meal Plan", systemImage: "fork.knife")
                 }
-                .tag(1)
-            RecipeList()
-                .tabItem {
-                    Label("Recipes", systemImage: "list.bullet")
-                }
                 .tag(0)
-            Extract()
-                .tabItem {
-                    Label("Extract", systemImage: "square.and.arrow.down")
-                }
-                .tag(2)
+//            RecipeList()
+//                .tabItem {
+//                    Label("Recipes", systemImage: "list.bullet")
+//                }
+//                .tag(1)
+//            Extract()
+//                .tabItem {
+//                    Label("Extract", systemImage: "square.and.arrow.down")
+//                }
+//                .tag(1)
             ImageToListView()
                 .tabItem {
                     Label("From Image", systemImage: "text.viewfinder")
                 }
-                .tag(3)
+                .tag(1)
             APIKeyTabView()
                 .tabItem {
                     Label("API Key", systemImage: "key.fill")
                 }
-                .tag(4)
+                .tag(2)
             ClearRecipesTabView()
                 .tabItem {
                     Label("Clear Recipes", systemImage: "trash")
                 }
-                .tag(5)
+                .tag(3)
         }
     }
 }
