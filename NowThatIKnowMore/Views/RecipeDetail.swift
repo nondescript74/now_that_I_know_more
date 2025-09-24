@@ -144,6 +144,55 @@ struct RecipeDetail: View {
                             Label("More Info", systemImage: "info.circle")
                         }
                         .padding(.vertical, 4)
+
+                        // --- Added Info Section ---
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Info")
+                                .font(.headline)
+                            
+                            Group {
+                                if let readyInMinutes = intValue(from: recipe.readyInMinutes), readyInMinutes > 0 {
+                                    Label("\(readyInMinutes) min", systemImage: "clock")
+                                }
+                                if let cookingMinutes = intValue(from: recipe.cookingMinutes), cookingMinutes > 0 {
+                                    Label("\(cookingMinutes) min Cooking", systemImage: "flame")
+                                }
+                                if let preparationMinutes = intValue(from: recipe.preparationMinutes), preparationMinutes > 0 {
+                                    Label("\(preparationMinutes) min Prep", systemImage: "hourglass")
+                                }
+                                if let servings = intValue(from: recipe.servings), servings > 0 {
+                                    Label("Serves \(servings)", systemImage: "person.2")
+                                }
+                                if let aggregateLikes = intValue(from: recipe.aggregateLikes), aggregateLikes > 0 {
+                                    Label("\(aggregateLikes) Likes", systemImage: "hand.thumbsup")
+                                }
+                                if let healthScore = intValue(from: recipe.healthScore), healthScore > 0 {
+                                    Label("Health Score: \(healthScore)", systemImage: "heart")
+                                }
+                                if let spoonacularScore = intValue(from: recipe.spoonacularScore), spoonacularScore > 0 {
+                                    Label("Spoonacular Score: \(spoonacularScore)", systemImage: "star")
+                                }
+                                if let sourceUrl = recipe.sourceURL, !sourceUrl.isEmpty {
+                                    Label(sourceUrl, systemImage: "link")
+                                        .lineLimit(1)
+                                        .truncationMode(.middle)
+                                }
+                                if let cuisines = recipe.cuisines, !cuisines.isEmpty {
+                                    Label(cuisines.map { formatJSONAny($0) }.joined(separator: ", "), systemImage: "fork.knife")
+                                }
+                                if let dishTypes = recipe.dishTypes, !dishTypes.isEmpty {
+                                    Label(dishTypes.map { formatJSONAny($0) }.joined(separator: ", "), systemImage: "tag")
+                                }
+                                if let diets = recipe.diets, !diets.isEmpty {
+                                    Label(diets.map { formatJSONAny($0) }.joined(separator: ", "), systemImage: "leaf")
+                                }
+                                if let occasions = recipe.occasions, !occasions.isEmpty {
+                                    Label(occasions.map { formatJSONAny($0) }.joined(separator: ", "), systemImage: "calendar")
+                                }
+                            }
+                            .font(.subheadline)
+                        }
+                        // --- End Info Section ---
                         
                         IngredientListView(ingredients: recipe.extendedIngredients ?? [])
                         
@@ -206,6 +255,62 @@ struct RecipeDetail: View {
         }
         recipeStore.update(updatedRecipe)
         saveMessage = "Saved!"
+    }
+    
+    private func intValue(from value: Any?) -> Int? {
+        if let intValue = value as? Int {
+            return intValue
+        }
+        if let stringValue = value as? String, let intValue = Int(stringValue) {
+            return intValue
+        }
+        return nil
+    }
+    
+    private func formatJSONAny(_ value: Any) -> String {
+        // Try to unwrap JSONAny recursively if possible:
+        // Assuming JSONAny has a property 'value' that holds the wrapped value.
+        // We use Mirror to reflect and unwrap.
+        var currentValue: Any = value
+        while true {
+            let mirror = Mirror(reflecting: currentValue)
+            if mirror.displayStyle == .class || mirror.displayStyle == .struct {
+                if let child = mirror.children.first(where: { $0.label == "value" }) {
+                    currentValue = child.value
+                    continue
+                }
+            }
+            break
+        }
+        
+        // Now format based on the type of currentValue
+        if currentValue is NSNull {
+            return "—"
+        }
+        if let string = currentValue as? String {
+            return string
+        }
+        if let int = currentValue as? Int {
+            return String(int)
+        }
+        if let double = currentValue as? Double {
+            return String(double)
+        }
+        if let bool = currentValue as? Bool {
+            return bool ? "true" : "false"
+        }
+        if let array = currentValue as? [Any] {
+            return array.map { formatJSONAny($0) }.joined(separator: ", ")
+        }
+        if let dict = currentValue as? [String: Any] {
+            let formattedItems = dict.map { key, val in
+                "\(key): \(formatJSONAny(val))"
+            }.sorted()
+            return formattedItems.joined(separator: ", ")
+        }
+        
+        // fallback
+        return String(describing: currentValue)
     }
 }
 
