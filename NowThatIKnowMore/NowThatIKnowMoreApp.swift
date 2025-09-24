@@ -11,7 +11,7 @@ import Combine
 
 private struct MainTabView: View {
     @Environment(RecipeStore.self) private var store: RecipeStore
-    @SceneStorage("selectedTab") private var selectedTab: Int = 0
+    @State private var selectedTab: Int = 0
     var body: some View {
         TabView(selection: $selectedTab) {
             MealPlan()
@@ -19,16 +19,6 @@ private struct MainTabView: View {
                     Label("Meal Plan", systemImage: "fork.knife")
                 }
                 .tag(0)
-//            RecipeList()
-//                .tabItem {
-//                    Label("Recipes", systemImage: "list.bullet")
-//                }
-//                .tag(1)
-//            Extract()
-//                .tabItem {
-//                    Label("Extract", systemImage: "square.and.arrow.down")
-//                }
-//                .tag(1)
             ImageToListView()
                 .tabItem {
                     Label("From Image", systemImage: "text.viewfinder")

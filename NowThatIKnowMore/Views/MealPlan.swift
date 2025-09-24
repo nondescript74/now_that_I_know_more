@@ -13,10 +13,18 @@ struct MealPlan: View {
     @State private var resultText = ""
     @State private var isLoading = false
     
-    @State private var selectedDay: String = "Monday"
-    private static let daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+    @State private var selectedDay: String = "All"
+    private static let daysOfWeek = ["All", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
     
     let logger: Logger = .init(subsystem: "com.headydiscy.NowThatIKnowMore", category: "MealPlan")
+    
+    private var filteredMealPlanRecipes: [Recipe] {
+        if selectedDay == "All" {
+            return recipeStore.recipes
+        } else {
+            return recipeStore.recipes.filter { $0.daysOfWeek?.isEmpty != false || $0.daysOfWeek?.contains(selectedDay) == true }
+        }
+    }
     
     var body: some View {
         NavigationStack {
@@ -53,8 +61,6 @@ struct MealPlan: View {
                 if !resultText.isEmpty {
                     Text(resultText).foregroundColor(.secondary).padding(.bottom)
                 }
-                
-                let filteredMealPlanRecipes = recipeStore.recipes.filter { $0.daysOfWeek?.isEmpty != false || $0.daysOfWeek?.contains(selectedDay) == true }
                 
                 List {
                     ForEach(filteredMealPlanRecipes, id: \.uuid) { recipe in
@@ -202,7 +208,12 @@ struct MealPlan: View {
     
     private func deleteRecipeFromPlan(at offsets: IndexSet) {
         let recipesToDelete = offsets.compactMap { index -> Recipe? in
-            let filteredRecipes = recipeStore.recipes.filter { $0.daysOfWeek?.isEmpty != false || $0.daysOfWeek?.contains(selectedDay) == true }
+            let filteredRecipes: [Recipe]
+            if selectedDay == "All" {
+                filteredRecipes = recipeStore.recipes
+            } else {
+                filteredRecipes = recipeStore.recipes.filter { $0.daysOfWeek?.isEmpty != false || $0.daysOfWeek?.contains(selectedDay) == true }
+            }
             guard index < filteredRecipes.count else { return nil }
             return filteredRecipes[index]
         }
@@ -215,4 +226,3 @@ struct MealPlan: View {
 #Preview {
     MealPlan().environment(RecipeStore())
 }
-
