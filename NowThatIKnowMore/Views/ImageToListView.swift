@@ -321,21 +321,21 @@ struct ImageToListView: View {
                             .buttonStyle(.plain)
                         }
                         .background(self.dragOverIndex == i ? Color.accentColor.opacity(0.1) : Color.clear)
-                        .onDrag {
-                            NSItemProvider(object: String(i) as NSString)
-                        }
-                        .onDrop(of: ["public.text"], isTargeted: Binding(get: { self.dragOverIndex == i }, set: { val in self.dragOverIndex = val ? i : nil })) { providers in
-                            if let provider = providers.first {
-                                _ = provider.loadObject(ofClass: NSString.self) { (draggedIdxStr, _) in
-                                    guard let draggedIdxStr = draggedIdxStr as? String, let draggedIdx = Int(draggedIdxStr), draggedIdx != i else { return }
-                                    DispatchQueue.main.async {
-                                        self.mergeRecognizedItems(source: draggedIdx, destination: i)
-                                    }
-                                }
-                                return true
-                            }
-                            return false
-                        }
+                        // .onDrag {
+                        //     NSItemProvider(object: String(i) as NSString)
+                        // }
+                        // .onDrop(of: ["public.text"], isTargeted: Binding(get: { self.dragOverIndex == i }, set: { val in self.dragOverIndex = val ? i : nil })) { providers in
+                        //     if let provider = providers.first {
+                        //         _ = provider.loadObject(ofClass: NSString.self) { (draggedIdxStr, _) in
+                        //             guard let draggedIdxStr = draggedIdxStr as? String, let draggedIdx = Int(draggedIdxStr), draggedIdx != i else { return }
+                        //             DispatchQueue.main.async {
+                        //                 self.mergeRecognizedItems(source: draggedIdx, destination: i)
+                        //             }
+                        //         }
+                        //         return true
+                        //     }
+                        //     return false
+                        // }
                     }
                 }
                 TextField("Edit Title", text: $editedTitle)
@@ -430,21 +430,21 @@ struct ImageToListView: View {
                             .buttonStyle(.plain)
                         }
                         .background(self.dragOverIndex == i ? Color.accentColor.opacity(0.1) : Color.clear)
-                        .onDrag {
-                            NSItemProvider(object: String(i) as NSString)
-                        }
-                        .onDrop(of: ["public.text"], isTargeted: Binding(get: { self.dragOverIndex == i }, set: { val in self.dragOverIndex = val ? i : nil })) { providers in
-                            if let provider = providers.first {
-                                _ = provider.loadObject(ofClass: NSString.self) { (draggedIdxStr, _) in
-                                    guard let draggedIdxStr = draggedIdxStr as? String, let draggedIdx = Int(draggedIdxStr), draggedIdx != i else { return }
-                                    DispatchQueue.main.async {
-                                        self.mergeRecognizedItems(source: draggedIdx, destination: i)
-                                    }
-                                }
-                                return true
-                            }
-                            return false
-                        }
+                         .onDrag {
+                             NSItemProvider(object: String(i) as NSString)
+                         }
+                         .onDrop(of: ["public.text"], isTargeted: Binding(get: { self.dragOverIndex == i }, set: { val in self.dragOverIndex = val ? i : nil })) { providers in
+                             if let provider = providers.first {
+                                 _ = provider.loadObject(ofClass: NSString.self) { (draggedIdxStr, _) in
+                                     guard let draggedIdxStr = draggedIdxStr as? String, let draggedIdx = Int(draggedIdxStr), draggedIdx != i else { return }
+                                     DispatchQueue.main.async {
+                                         self.mergeRecognizedItems(source: draggedIdx, destination: i)
+                                     }
+                                 }
+                                 return true
+                             }
+                             return false
+                         }
                     }
                     HStack {
                         Button("Add Ingredient Group") {
@@ -486,21 +486,21 @@ struct ImageToListView: View {
                             .buttonStyle(.plain)
                         }
                         .background(self.dragOverIndex == i ? Color.accentColor.opacity(0.1) : Color.clear)
-                        .onDrag {
-                            NSItemProvider(object: String(i) as NSString)
-                        }
-                        .onDrop(of: ["public.text"], isTargeted: Binding(get: { self.dragOverIndex == i }, set: { val in self.dragOverIndex = val ? i : nil })) { providers in
-                            if let provider = providers.first {
-                                _ = provider.loadObject(ofClass: NSString.self) { (draggedIdxStr, _) in
-                                    guard let draggedIdxStr = draggedIdxStr as? String, let draggedIdx = Int(draggedIdxStr), draggedIdx != i else { return }
-                                    DispatchQueue.main.async {
-                                        self.mergeRecognizedItems(source: draggedIdx, destination: i)
-                                    }
-                                }
-                                return true
-                            }
-                            return false
-                        }
+                         .onDrag {
+                             NSItemProvider(object: String(i) as NSString)
+                         }
+                         .onDrop(of: ["public.text"], isTargeted: Binding(get: { self.dragOverIndex == i }, set: { val in self.dragOverIndex = val ? i : nil })) { providers in
+                             if let provider = providers.first {
+                                 _ = provider.loadObject(ofClass: NSString.self) { (draggedIdxStr, _) in
+                                     guard let draggedIdxStr = draggedIdxStr as? String, let draggedIdx = Int(draggedIdxStr), draggedIdx != i else { return }
+                                     DispatchQueue.main.async {
+                                         self.mergeRecognizedItems(source: draggedIdx, destination: i)
+                                     }
+                                 }
+                                 return true
+                             }
+                             return false
+                         }
                     }
                     HStack {
                         Button("Add Instruction Group") {
