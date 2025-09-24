@@ -14,6 +14,7 @@ struct MealPlan: View {
     @State private var isLoading = false
     
     @State private var selectedDay: String = "All"
+    @State private var showingDaySheetForRecipe: Recipe? = nil
     private static let daysOfWeek = ["All", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
     
     let logger: Logger = .init(subsystem: "com.headydiscy.NowThatIKnowMore", category: "MealPlan")
@@ -22,7 +23,7 @@ struct MealPlan: View {
         if selectedDay == "All" {
             return recipeStore.recipes
         } else {
-            return recipeStore.recipes.filter { $0.daysOfWeek?.isEmpty != false || $0.daysOfWeek?.contains(selectedDay) == true }
+            return recipeStore.recipes.filter { $0.daysOfWeek?.contains(selectedDay) == true }
         }
     }
     
@@ -34,7 +35,7 @@ struct MealPlan: View {
                         Text(day)
                     }
                 }
-                .pickerStyle(.segmented)
+                .pickerStyle(.menu)
                 .padding([.horizontal, .top])
                 
                 HStack {
@@ -88,25 +89,14 @@ struct MealPlan: View {
                                         .lineLimit(2)
                                 }
                                 Spacer()
-                                Menu {
-                                    ForEach(Self.daysOfWeek, id: \.self) { day in
-                                        Button {
-                                            toggleAssignment(for: recipe, day: day)
-                                        } label: {
-                                            Label(day, systemImage: recipe.daysOfWeek?.contains(day) == true ? "checkmark.circle.fill" : "circle")
-                                        }
-                                    }
-                                    Button(role: .destructive) {
-                                        clearAssignments(for: recipe)
-                                    } label: {
-                                        Text("Clear All Days")
-                                    }
+                                Button {
+                                    showingDaySheetForRecipe = recipe
                                 } label: {
                                     Image(systemName: "calendar.badge.clock")
                                         .imageScale(.large)
                                         .padding(.leading, 4)
                                 }
-                                .menuStyle(BorderlessButtonMenuStyle())
+                                .buttonStyle(.plain)
                             }
                         }
                     }
@@ -116,6 +106,38 @@ struct MealPlan: View {
             }
             .navigationTitle("Meal Plan")
             .toolbar { EditButton() }
+            .sheet(item: $showingDaySheetForRecipe) { recipe in
+                VStack {
+                    Text("Assign Days for \(recipe.title ?? "No Title")").font(.headline).padding(.top)
+                    List {
+                        ForEach(Self.daysOfWeek, id: \.self) { day in
+                            Button {
+                                toggleAssignment(for: recipe, day: day)
+                                showingDaySheetForRecipe = nil
+                            } label: {
+                                HStack {
+                                    Text(day)
+                                    Spacer()
+                                    if recipe.daysOfWeek?.contains(day) == true {
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .foregroundColor(.accentColor)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Button("Clear All Days", role: .destructive) {
+                        clearAssignments(for: recipe)
+                        showingDaySheetForRecipe = nil
+                    }
+                    .padding()
+                    Button("Done") {
+                        showingDaySheetForRecipe = nil
+                    }
+                    .padding(.bottom)
+                }
+                .presentationDetents([.medium, .large])
+            }
         }
     }
     
@@ -160,7 +182,8 @@ struct MealPlan: View {
             resultText = "Invalid URL"
             return
         }
-        let request = URLRequest(url: url)
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 10 // 10 seconds
         logger.info("[MealPlan] Fetching: \(url, privacy: .public)")
         do {
             let (data, _) = try await URLSession.shared.data(for: request)
@@ -226,3 +249,4 @@ struct MealPlan: View {
 #Preview {
     MealPlan().environment(RecipeStore())
 }
+
