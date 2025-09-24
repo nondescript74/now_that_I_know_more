@@ -29,11 +29,16 @@ private struct MainTabView: View {
                     Label("API Key", systemImage: "key.fill")
                 }
                 .tag(2)
+            DictionaryToRecipeView()
+                .tabItem {
+                    Label("Dict to Recipe", systemImage: "rectangle.and.text.magnifyingglass")
+                }
+                .tag(3)
             ClearRecipesTabView()
                 .tabItem {
                     Label("Clear Recipes", systemImage: "trash")
                 }
-                .tag(3)
+                .tag(4)
         }
     }
 }
@@ -67,4 +72,3 @@ struct NowThatIKnowMoreApp: App {
     MainTabView()
         .environment(RecipeStore())
 }
-
