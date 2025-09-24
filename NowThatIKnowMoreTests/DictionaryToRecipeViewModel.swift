@@ -1,11 +1,12 @@
-// ViewModel for DictionaryToRecipeView logic, suitable for direct testing.
-// Ensure Welcome.swift (containing 'Recipe') is part of the build target for NowThatIKnowMore.
+// Ensure Welcome.swift (containing 'Recipe') and RecipeStore.swift (containing 'RecipeStore') are part of the build target for both the main app and the test target.
 import Foundation
 import struct Foundation.UUID
 import OSLog
 import Observation
 import Combine
 import NowThatIKnowMore
+
+// Ensure Recipe+Decoding.swift (containing decodeFromJSONOrPatchedDict) is part of the build target.
 
 @Observable
 final class DictionaryToRecipeViewModel {
@@ -30,14 +31,12 @@ final class DictionaryToRecipeViewModel {
             return
         }
         do {
-            let decoder = JSONDecoder()
-            decoder.keyDecodingStrategy = .convertFromSnakeCase
-            if let recipe = try? decoder.decode(Recipe.self, from: data) {
+            if let recipe = Recipe.decodeFromJSONOrPatchedDict(data) {
                 checkDuplicate(recipe)
                 return
             }
             let json = try JSONSerialization.jsonObject(with: data, options: [])
-            if let dict = json as? [String: Any], let recipe = Recipe(from: dict) {
+            if let dict = json as? [String: Any], let recipe = Recipe.decodeFromPatchedDict(dict) {
                 checkDuplicate(recipe)
                 return
             }
@@ -61,4 +60,3 @@ final class DictionaryToRecipeViewModel {
         }
     }
 }
-

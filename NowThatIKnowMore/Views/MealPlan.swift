@@ -183,7 +183,7 @@ struct MealPlan: View {
             return
         }
         var request = URLRequest(url: url)
-        request.timeoutInterval = 10 // 10 seconds
+        request.timeoutInterval = 30 // 30 seconds
         logger.info("[MealPlan] Fetching: \(url, privacy: .public)")
         do {
             let (data, _) = try await URLSession.shared.data(for: request)

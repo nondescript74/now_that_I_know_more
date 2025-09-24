@@ -117,24 +117,18 @@ struct DictionaryToRecipeView: View {
             parseError = "Input is not valid UTF-8."
             return
         }
-        do {
-            // First, try decoding directly using JSONDecoder
-            let decoder = JSONDecoder()
-            decoder.keyDecodingStrategy = .convertFromSnakeCase
-            if let recipe = try? decoder.decode(Recipe.self, from: data) {
-                checkDuplicate(recipe)
-                return
-            }
-            // If not, try as [String: Any] dictionary
-            let json = try JSONSerialization.jsonObject(with: data, options: [])
-            if let dict = json as? [String: Any], let recipe = Recipe(from: dict) {
-                checkDuplicate(recipe)
-                return
-            }
-            parseError = "Could not decode input as a Recipe."
-        } catch {
-            parseError = "Parse error: \(error.localizedDescription)"
+        if let recipe = Recipe.decodeFromJSONOrPatchedDict(data) {
+            checkDuplicate(recipe)
+            return
         }
+        // Fallback: try parsing as dictionary
+        if let json = try? JSONSerialization.jsonObject(with: data, options: []),
+           let dict = json as? [String: Any],
+           let recipe = Recipe.decodeFromPatchedDict(dict) {
+            checkDuplicate(recipe)
+            return
+        }
+        parseError = "Could not decode input as a Recipe."
     }
 
     private func checkDuplicate(_ recipe: Recipe) {
