@@ -1,4 +1,5 @@
 import SwiftUI
+import Foundation
 
 struct RecipeEditorView: View {
     @Environment(RecipeStore.self) private var recipeStore
@@ -18,6 +19,10 @@ struct RecipeEditorView: View {
     @State private var imageUrl: String
     @State private var showAlert = false
     @State private var alertMessage = ""
+    @State private var summarySelectedRange: NSRange = NSRange(location: 0, length: 0)
+    @State private var instructionsSelectedRange: NSRange = NSRange(location: 0, length: 0)
+    @State private var ingredients: String = ""
+    @State private var ingredientsSelectedRange: NSRange = NSRange(location: 0, length: 0)
     
     // Editing mode helper for complex fields
     private static let daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
@@ -32,6 +37,13 @@ struct RecipeEditorView: View {
         self._selectedDays = State(initialValue: recipe.daysOfWeek ?? [])
         self._cuisines = State(initialValue: (recipe.cuisines)?.compactMap { $0.value as? String }.joined(separator: ", ") ?? "")
         self._imageUrl = State(initialValue: recipe.image ?? "")
+//        if let list = recipe.extendedIngredients as? [[String: Any]] {
+//            self._ingredients = State(initialValue: list.compactMap { $0["original"] as? String }.joined(separator: "\n"))
+//        } else if let list = recipe.ingredients as? [String] {
+//            self._ingredients = State(initialValue: list.joined(separator: "\n"))
+//        } else {
+//            self._ingredients = State(initialValue: "")
+//        }
     }
     
     var body: some View {
@@ -46,9 +58,26 @@ struct RecipeEditorView: View {
                     Button("Clear") { creditsText = "" }
                 }
                 HStack {
-                    TextField("Summary", text: $summary, axis: .vertical)
-                        .lineLimit(2...8)
+                    BindableTextView(text: $summary, selectedRange: $summarySelectedRange)
+                        .frame(minHeight: 40, maxHeight: 150)
+                        .cornerRadius(8)
+                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.gray.opacity(0.2)))
                     Button("Clear") { summary = "" }
+                }
+                HStack(spacing: 12) {
+                    Button("Remove HTML Tags") {
+                        summary = summary.strippedHTML
+                        summarySelectedRange = NSRange(location: min(summarySelectedRange.location, summary.count), length: 0)
+                    }
+                    Button("Insert Indent") {
+                        let indent = "→ "
+                        let loc = min(summarySelectedRange.location, summary.count)
+                        summary.insert(contentsOf: indent, at: summary.index(summary.startIndex, offsetBy: loc))
+                        summarySelectedRange = NSRange(location: loc + indent.count, length: 0)
+                    }
+                    Text("(Use '→' for indentation)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                 }
             }
             Section(header: Text("Image URL (optional)")) {
@@ -84,9 +113,48 @@ struct RecipeEditorView: View {
                     Button("Clear") { cuisines = "" }
                 }
             }
+            Section(header: Text("Ingredients (one per line)")) {
+                BindableTextView(text: $ingredients, selectedRange: $ingredientsSelectedRange)
+                    .frame(minHeight: 60, maxHeight: 180)
+                    .cornerRadius(8)
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.gray.opacity(0.2)))
+                HStack(spacing: 12) {
+                    Button("Remove HTML Tags") {
+                        ingredients = ingredients.strippedHTML
+                        ingredientsSelectedRange = NSRange(location: min(ingredientsSelectedRange.location, ingredients.count), length: 0)
+                    }
+                    Button("Insert Indent") {
+                        let indent = "→ "
+                        let loc = min(ingredientsSelectedRange.location, ingredients.count)
+                        ingredients.insert(contentsOf: indent, at: ingredients.index(ingredients.startIndex, offsetBy: loc))
+                        ingredientsSelectedRange = NSRange(location: loc + indent.count, length: 0)
+                    }
+                    Text("(Use '→' for indentation)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                Button("Clear") { ingredients = "" }
+            }
             Section(header: Text("Instructions")) {
-                TextEditor(text: $instructions)
-                    .frame(minHeight: 80)
+                BindableTextView(text: $instructions, selectedRange: $instructionsSelectedRange)
+                    .frame(minHeight: 80, maxHeight: 200)
+                    .cornerRadius(8)
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.gray.opacity(0.2)))
+                HStack(spacing: 12) {
+                    Button("Remove HTML Tags") {
+                        instructions = instructions.strippedHTML
+                        instructionsSelectedRange = NSRange(location: min(instructionsSelectedRange.location, instructions.count), length: 0)
+                    }
+                    Button("Insert Indent") {
+                        let indent = "→ "
+                        let loc = min(instructionsSelectedRange.location, instructions.count)
+                        instructions.insert(contentsOf: indent, at: instructions.index(instructions.startIndex, offsetBy: loc))
+                        instructionsSelectedRange = NSRange(location: loc + indent.count, length: 0)
+                    }
+                    Text("(Use '→' for indentation)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
                 Button("Clear") { instructions = "" }
             }
             Section(header: Text("Days of Week")) {
@@ -146,7 +214,8 @@ struct RecipeEditorView: View {
             "creditsText": creditsText.trimmingCharacters(in: .whitespacesAndNewlines),
             "instructions": instructions.trimmingCharacters(in: .whitespacesAndNewlines),
             "daysOfWeek": selectedDays,
-            "cuisines": cuisines.split(separator: ",").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            "cuisines": cuisines.split(separator: ",").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) },
+            "ingredients": ingredients.components(separatedBy: "\n").map { $0.trimmingCharacters(in: .whitespaces) },
             // Add other properties as needed
         ]
         if let idValue {
@@ -173,6 +242,37 @@ struct RecipeEditorView: View {
         alertMessage = "Saved changes."
         showAlert = true
         dismiss()
+    }
+}
+
+struct BindableTextView: UIViewRepresentable {
+    @Binding var text: String
+    @Binding var selectedRange: NSRange
+
+    func makeUIView(context: Context) -> UITextView {
+        let textView = UITextView()
+        textView.isScrollEnabled = true
+        textView.font = UIFont.preferredFont(forTextStyle: .body)
+        textView.delegate = context.coordinator
+        textView.backgroundColor = UIColor.clear
+        return textView
+    }
+    func updateUIView(_ uiView: UITextView, context: Context) {
+        if uiView.text != text { uiView.text = text }
+        if uiView.selectedRange != selectedRange { uiView.selectedRange = selectedRange }
+    }
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+    class Coordinator: NSObject, UITextViewDelegate {
+        var parent: BindableTextView
+        init(_ parent: BindableTextView) { self.parent = parent }
+        func textViewDidChange(_ textView: UITextView) {
+            parent.text = textView.text
+        }
+        func textViewDidChangeSelection(_ textView: UITextView) {
+            parent.selectedRange = textView.selectedRange
+        }
     }
 }
 
