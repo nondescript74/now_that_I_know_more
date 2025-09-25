@@ -39,9 +39,9 @@
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsArbitraryLoads</key>
-		<true/>
+		<false/>
 	</dict>
 	<key>NSRemindersUsageDescription</key>
-	<string>his app uses Reminders to add your recipe ingredients as tasks.</string>
+	<string>This app uses Reminders to add your recipe ingredients as tasks.</string>
 </dict>
 </plist>
