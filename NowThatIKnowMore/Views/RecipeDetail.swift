@@ -3,6 +3,10 @@ import Foundation
 import PhotosUI
 import EventKit
 import EventKitUI
+import SafariServices
+import UIKit
+import Contacts
+import ContactsUI
 
 extension AnalyzedInstruction: Identifiable {
     var id: String { name ?? UUID().uuidString }
@@ -35,170 +39,20 @@ struct RecipeDetail: View {
     @State private var didSetupFields = false
     @State private var saveMessage: String?
     @State private var showExtrasPanel: Bool = false
+    @State private var showingSafari = false
+    @State private var showShareSheet = false
+    
+    @State private var selectedContacts: [CNContact] = []
+    @State private var showingContactPicker = false
+    @State private var selectedPhotoItems: [PhotosPickerItem] = []
+    @State private var selectedPhotos: [UIImage] = []
 
     var body: some View {
         Group {
             if let recipe = recipe {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
-                        TextField("Title", text: $editedTitle)
-                            .font(.title)
-                            .fontWeight(.bold)
-                            .padding(.top)
-                            .textFieldStyle(.roundedBorder)
-                        
-                        TextField("Credits", text: $editedCreditsText)
-                            .textFieldStyle(.roundedBorder)
-
-                        if let imageUrlString = recipe.image, !imageUrlString.isEmpty {
-                            if let url = URL(string: imageUrlString) {
-                                if url.scheme == "file" {
-                                    if let data = try? Data(contentsOf: url), let fileImage = UIImage(data: data) {
-                                        Image(uiImage: fileImage)
-                                            .resizable()
-                                            .scaledToFit()
-                                            .frame(maxWidth: .infinity)
-                                            .cornerRadius(8)
-                                    } else {
-                                        Image(systemName: "photo")
-                                            .resizable()
-                                            .scaledToFit()
-                                            .frame(width: 120, height: 120)
-                                            .foregroundColor(.gray)
-                                            .frame(maxWidth: .infinity)
-                                    }
-                                } else if url.scheme == "http" || url.scheme == "https" {
-                                    AsyncImage(url: url) { phase in
-                                        switch phase {
-                                        case .empty:
-                                            ProgressView()
-                                                .frame(maxWidth: .infinity, minHeight: 200)
-                                        case .success(let image):
-                                            image
-                                                .resizable()
-                                                .scaledToFit()
-                                                .frame(maxWidth: .infinity)
-                                                .cornerRadius(8)
-                                        case .failure(_):
-                                            Image(systemName: "photo")
-                                                .resizable()
-                                                .scaledToFit()
-                                                .frame(width: 120, height: 120)
-                                                .foregroundColor(.gray)
-                                                .frame(maxWidth: .infinity)
-                                        @unknown default:
-                                            EmptyView()
-                                        }
-                                    }
-                                } else {
-                                    Image(systemName: "photo")
-                                        .resizable()
-                                        .scaledToFit()
-                                        .frame(width: 120, height: 120)
-                                        .foregroundColor(.gray)
-                                        .frame(maxWidth: .infinity)
-                                }
-                            } else {
-                                Image(systemName: "photo")
-                                    .resizable()
-                                    .scaledToFit()
-                                    .frame(width: 120, height: 120)
-                                    .foregroundColor(.gray)
-                                    .frame(maxWidth: .infinity)
-                            }
-                        }
-
-                        TextEditor(text: $editedSummary)
-                            .frame(minHeight: 60, maxHeight: 120)
-                            .font(.body)
-                            .foregroundColor(.secondary)
-                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.gray.opacity(0.3)))
-                            .padding(.bottom, 4)
-                        
-                        if !editedSummary.isEmpty && cleanSummary(editedSummary) != editedSummary {
-                            Text(cleanSummary(editedSummary))
-                                .font(.footnote)
-                                .foregroundColor(.secondary)
-                                .padding(.top, 2)
-                        }
-
-                        if (editedTitle.trimmingCharacters(in: .whitespacesAndNewlines) != (recipe.title ?? "")
-                            || editedSummary.trimmingCharacters(in: .whitespacesAndNewlines) != (recipe.summary ?? "")
-                            || editedCreditsText.trimmingCharacters(in: .whitespacesAndNewlines) != (recipe.creditsText ?? "")) {
-                            Button("Save Changes") {
-                                saveEdits()
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .padding(.bottom, 8)
-                            .disabled(
-                                (editedTitle.trimmingCharacters(in: .whitespacesAndNewlines) == (recipe.title ?? "")) &&
-                                (editedSummary.trimmingCharacters(in: .whitespacesAndNewlines) == (recipe.summary ?? "")) &&
-                                (editedCreditsText.trimmingCharacters(in: .whitespacesAndNewlines) == (recipe.creditsText ?? ""))
-                            )
-                        }
-                        if let msg = saveMessage {
-                            Text(msg).foregroundColor(.accentColor)
-                        }
-                        
-                        Button(action: { showExtrasPanel = true }) {
-                            Label("More Info", systemImage: "info.circle")
-                        }
-                        .padding(.vertical, 4)
-
-                        // --- Added Info Section ---
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("Info")
-                                .font(.headline)
-                            
-                            Group {
-                                if let readyInMinutes = intValue(from: recipe.readyInMinutes), readyInMinutes > 0 {
-                                    Label("\(readyInMinutes) min", systemImage: "clock")
-                                }
-                                if let cookingMinutes = intValue(from: recipe.cookingMinutes), cookingMinutes > 0 {
-                                    Label("\(cookingMinutes) min Cooking", systemImage: "flame")
-                                }
-                                if let preparationMinutes = intValue(from: recipe.preparationMinutes), preparationMinutes > 0 {
-                                    Label("\(preparationMinutes) min Prep", systemImage: "hourglass")
-                                }
-                                if let servings = intValue(from: recipe.servings), servings > 0 {
-                                    Label("Serves \(servings)", systemImage: "person.2")
-                                }
-                                if let aggregateLikes = intValue(from: recipe.aggregateLikes), aggregateLikes > 0 {
-                                    Label("\(aggregateLikes) Likes", systemImage: "hand.thumbsup")
-                                }
-                                if let healthScore = intValue(from: recipe.healthScore), healthScore > 0 {
-                                    Label("Health Score: \(healthScore)", systemImage: "heart")
-                                }
-                                if let spoonacularScore = intValue(from: recipe.spoonacularScore), spoonacularScore > 0 {
-                                    Label("Spoonacular Score: \(spoonacularScore)", systemImage: "star")
-                                }
-                                if let sourceUrl = recipe.sourceURL, !sourceUrl.isEmpty {
-                                    Label(sourceUrl, systemImage: "link")
-                                        .lineLimit(1)
-                                        .truncationMode(.middle)
-                                }
-                                if let cuisines = recipe.cuisines, !cuisines.isEmpty {
-                                    Label(cuisines.map { formatJSONAny($0) }.joined(separator: ", "), systemImage: "fork.knife")
-                                }
-                                if let dishTypes = recipe.dishTypes, !dishTypes.isEmpty {
-                                    Label(dishTypes.map { formatJSONAny($0) }.joined(separator: ", "), systemImage: "tag")
-                                }
-                                if let diets = recipe.diets, !diets.isEmpty {
-                                    Label(diets.map { formatJSONAny($0) }.joined(separator: ", "), systemImage: "leaf")
-                                }
-                                if let occasions = recipe.occasions, !occasions.isEmpty {
-                                    Label(occasions.map { formatJSONAny($0) }.joined(separator: ", "), systemImage: "calendar")
-                                }
-                            }
-                            .font(.subheadline)
-                        }
-                        // --- End Info Section ---
-                        
-                        IngredientListView(ingredients: recipe.extendedIngredients ?? [])
-                        
-                        InstructionListView(instructions: recipe.analyzedInstructions)
-                        
-                        Spacer()
+                        recipeDetailContent(for: recipe)
                     }
                     .padding(.horizontal)
                     .onAppear {
@@ -207,6 +61,19 @@ struct RecipeDetail: View {
                             editedSummary = cleanSummary(recipe.summary ?? "")
                             editedCreditsText = recipe.creditsText ?? ""
                             didSetupFields = true
+                        }
+                    }
+                    .onChange(of: selectedPhotoItems) { _, newItems in
+                        selectedPhotos.removeAll()
+                        for item in newItems {
+                            Task {
+                                if let data = try? await item.loadTransferable(type: Data.self),
+                                   let image = UIImage(data: data) {
+                                    DispatchQueue.main.async {
+                                        selectedPhotos.append(image)
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -222,6 +89,230 @@ struct RecipeDetail: View {
                 ExtraRecipeDetailsPanel(recipe: recipe)
             }
         }
+        .sheet(isPresented: $showingSafari) {
+            if let sourceUrlString = recipe?.sourceURL,
+               let url = URL(string: sourceUrlString) {
+                SafariView(url: url)
+            }
+        }
+        .sheet(isPresented: $showShareSheet) {
+            if let recipe = recipe,
+               let sourceUrlString = recipe.sourceURL,
+               let url = URL(string: sourceUrlString),
+               let title = recipe.title {
+                let activityItems: [Any] = [
+                    RecipeShareProvider(title: title, url: url, image: thumbnailImageFromImageURL(recipe.image))
+                ] + selectedContacts.compactMap { $0.vCardData } + selectedPhotos
+                ShareSheet(activityItems: activityItems)
+            } else {
+                EmptyView()
+            }
+        }
+        .sheet(isPresented: $showingContactPicker) {
+            ContactPickerView { contacts in
+                selectedContacts = contacts
+                showingContactPicker = false
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private func recipeDetailContent(for recipe: Recipe) -> some View {
+        TextField("Title", text: $editedTitle)
+            .font(.title)
+            .fontWeight(.bold)
+            .padding(.top)
+            .textFieldStyle(.roundedBorder)
+        
+        TextField("Credits", text: $editedCreditsText)
+            .textFieldStyle(.roundedBorder)
+
+        if let imageUrlString = recipe.image, !imageUrlString.isEmpty {
+            if let url = URL(string: imageUrlString) {
+                if url.scheme == "file" {
+                    if let data = try? Data(contentsOf: url), let fileImage = UIImage(data: data) {
+                        Image(uiImage: fileImage)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(maxWidth: .infinity)
+                            .cornerRadius(8)
+                    } else {
+                        Image(systemName: "photo")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 120, height: 120)
+                            .foregroundColor(.gray)
+                            .frame(maxWidth: .infinity)
+                    }
+                } else if url.scheme == "http" || url.scheme == "https" {
+                    AsyncImage(url: url) { phase in
+                        switch phase {
+                        case .empty:
+                            ProgressView()
+                                .frame(maxWidth: .infinity, minHeight: 200)
+                        case .success(let image):
+                            image
+                                .resizable()
+                                .scaledToFit()
+                                .frame(maxWidth: .infinity)
+                                .cornerRadius(8)
+                        case .failure(_):
+                            Image(systemName: "photo")
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 120, height: 120)
+                                .foregroundColor(.gray)
+                                .frame(maxWidth: .infinity)
+                        @unknown default:
+                            EmptyView()
+                        }
+                    }
+                } else {
+                    Image(systemName: "photo")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 120, height: 120)
+                        .foregroundColor(.gray)
+                        .frame(maxWidth: .infinity)
+                }
+            } else {
+                Image(systemName: "photo")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 120, height: 120)
+                    .foregroundColor(.gray)
+                    .frame(maxWidth: .infinity)
+            }
+        }
+
+        TextEditor(text: $editedSummary)
+            .frame(minHeight: 60, maxHeight: 120)
+            .font(.body)
+            .foregroundColor(.secondary)
+            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.gray.opacity(0.3)))
+            .padding(.bottom, 4)
+        
+        if !editedSummary.isEmpty && cleanSummary(editedSummary) != editedSummary {
+            Text(cleanSummary(editedSummary))
+                .font(.footnote)
+                .foregroundColor(.secondary)
+                .padding(.top, 2)
+        }
+
+        if (editedTitle.trimmingCharacters(in: .whitespacesAndNewlines) != (recipe.title ?? "")
+            || editedSummary.trimmingCharacters(in: .whitespacesAndNewlines) != (recipe.summary ?? "")
+            || editedCreditsText.trimmingCharacters(in: .whitespacesAndNewlines) != (recipe.creditsText ?? "")) {
+            Button("Save Changes") {
+                saveEdits()
+            }
+            .buttonStyle(.borderedProminent)
+            .padding(.bottom, 8)
+            .disabled(
+                (editedTitle.trimmingCharacters(in: .whitespacesAndNewlines) == (recipe.title ?? "")) &&
+                (editedSummary.trimmingCharacters(in: .whitespacesAndNewlines) == (recipe.summary ?? "")) &&
+                (editedCreditsText.trimmingCharacters(in: .whitespacesAndNewlines) == (recipe.creditsText ?? ""))
+            )
+        }
+        if let msg = saveMessage {
+            Text(msg).foregroundColor(.accentColor)
+        }
+        
+        Button(action: { showExtrasPanel = true }) {
+            Label("More Info", systemImage: "info.circle")
+        }
+        .padding(.vertical, 4)
+
+        NavigationLink(destination: RecipeEditorView(recipe: recipe)) {
+            Label("Edit Recipe", systemImage: "pencil")
+        }
+        .buttonStyle(.bordered)
+        .padding(.vertical, 4)
+
+        // --- Added Info Section ---
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Info")
+                .font(.headline)
+            
+            Group {
+                if let readyInMinutes = intValue(from: recipe.readyInMinutes), readyInMinutes > 0 {
+                    Label("\(readyInMinutes) min", systemImage: "clock")
+                }
+                if let cookingMinutes = intValue(from: recipe.cookingMinutes), cookingMinutes > 0 {
+                    Label("\(cookingMinutes) min Cooking", systemImage: "flame")
+                }
+                if let preparationMinutes = intValue(from: recipe.preparationMinutes), preparationMinutes > 0 {
+                    Label("\(preparationMinutes) min Prep", systemImage: "hourglass")
+                }
+                if let servings = intValue(from: recipe.servings), servings > 0 {
+                    Label("Serves \(servings)", systemImage: "person.2")
+                }
+                if let aggregateLikes = intValue(from: recipe.aggregateLikes), aggregateLikes > 0 {
+                    Label("\(aggregateLikes) Likes", systemImage: "hand.thumbsup")
+                }
+                if let healthScore = intValue(from: recipe.healthScore), healthScore > 0 {
+                    Label("Health Score: \(healthScore)", systemImage: "heart")
+                }
+                if let spoonacularScore = intValue(from: recipe.spoonacularScore), spoonacularScore > 0 {
+                    Label("Spoonacular Score: \(spoonacularScore)", systemImage: "star")
+                }
+                if let sourceUrl = recipe.sourceURL, !sourceUrl.isEmpty {
+                    Label(sourceUrl, systemImage: "link")
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+                if let cuisines = recipe.cuisines, !cuisines.isEmpty {
+                    Label(cuisines.map { formatJSONAny($0) }.joined(separator: ", "), systemImage: "fork.knife")
+                }
+                if let dishTypes = recipe.dishTypes, !dishTypes.isEmpty {
+                    Label(dishTypes.map { formatJSONAny($0) }.joined(separator: ", "), systemImage: "tag")
+                }
+                if let diets = recipe.diets, !diets.isEmpty {
+                    Label(diets.map { formatJSONAny($0) }.joined(separator: ", "), systemImage: "leaf")
+                }
+                if let occasions = recipe.occasions, !occasions.isEmpty {
+                    Label(occasions.map { formatJSONAny($0) }.joined(separator: ", "), systemImage: "calendar")
+                }
+            }
+            .font(.subheadline)
+        }
+        // --- End Info Section ---
+        
+        if let sourceUrlString = recipe.sourceURL,
+           let url = URL(string: sourceUrlString),
+           url.scheme?.hasPrefix("http") == true {
+            Button("View in Browser") {
+                showingSafari = true
+            }
+            .buttonStyle(.bordered)
+            .padding(.vertical, 4)
+
+            Button("Share") {
+                showShareSheet = true
+            }
+            .buttonStyle(.bordered)
+            .padding(.vertical, 4)
+            
+            Button("Add Contacts") {
+                showingContactPicker = true
+            }
+            .buttonStyle(.bordered)
+            .padding(.vertical, 4)
+            
+            PhotosPicker(
+                selection: $selectedPhotoItems,
+                maxSelectionCount: 4,
+                matching: .images,
+                photoLibrary: .shared()) {
+                Label("Add Photos", systemImage: "photo.on.rectangle.angled")
+            }
+            .padding(.vertical, 4)
+        }
+        
+        IngredientListView(ingredients: recipe.extendedIngredients ?? [])
+        
+        InstructionListView(instructions: recipe.analyzedInstructions)
+        
+        Spacer()
     }
     
     private func saveEdits() {
@@ -311,6 +402,86 @@ struct RecipeDetail: View {
         
         // fallback
         return String(describing: currentValue)
+    }
+    
+    private func thumbnailImageFromImageURL(_ imageUrlString: String?) -> UIImage? {
+        guard let imageUrlString = imageUrlString, let url = URL(string: imageUrlString) else {
+            return nil
+        }
+        if url.scheme == "file" {
+            if let data = try? Data(contentsOf: url), let image = UIImage(data: data) {
+                return image
+            }
+            return nil
+        } else if url.scheme == "http" || url.scheme == "https" {
+            // Attempt to synchronously fetch image data (not recommended for production)
+            // but per instructions, do synchronously if possible.
+            let semaphore = DispatchSemaphore(value: 0)
+            var fetchedImage: UIImage? = nil
+            let task = URLSession.shared.dataTask(with: url) { data, _, _ in
+                if let data = data, let image = UIImage(data: data) {
+                    fetchedImage = image
+                }
+                semaphore.signal()
+            }
+            task.resume()
+            _ = semaphore.wait(timeout: .now() + 3) // wait max 3 seconds
+            return fetchedImage
+        }
+        return nil
+    }
+}
+
+private struct SafariView: UIViewControllerRepresentable {
+    let url: URL
+    func makeUIViewController(context: Context) -> SFSafariViewController {
+        return SFSafariViewController(url: url)
+    }
+    func updateUIViewController(_ uiViewController: SFSafariViewController, context: Context) {}
+}
+
+private struct ShareSheet: UIViewControllerRepresentable {
+    let activityItems: [Any]
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
+    }
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
+}
+
+private class RecipeShareProvider: NSObject, UIActivityItemSource {
+    let title: String
+    let url: URL
+    let image: UIImage?
+    
+    init(title: String, url: URL, image: UIImage?) {
+        self.title = title
+        self.url = url
+        self.image = image
+        super.init()
+    }
+    
+    func activityViewControllerPlaceholderItem(_ activityViewController: UIActivityViewController) -> Any {
+        return url
+    }
+    
+    func activityViewController(_ activityViewController: UIActivityViewController, itemForActivityType activityType: UIActivity.ActivityType?) -> Any? {
+        return url
+    }
+    
+    func activityViewController(_ activityViewController: UIActivityViewController, subjectForActivityType activityType: UIActivity.ActivityType?) -> String {
+        return "[\(title)]"
+    }
+    
+    func activityViewController(_ activityViewController: UIActivityViewController, dataTypeIdentifierForActivityType activityType: UIActivity.ActivityType?) -> String {
+        return "public.url"
+    }
+    
+    func activityViewController(_ activityViewController: UIActivityViewController, thumbnailImageForActivityType activityType: UIActivity.ActivityType?, suggestedSize size: CGSize) -> UIImage? {
+        return image
+    }
+    
+    func activityViewController(_ activityViewController: UIActivityViewController, messageForActivityType activityType: UIActivity.ActivityType?) -> String? {
+        return "Shared by Asterisk"
     }
 }
 
@@ -628,6 +799,33 @@ private func cleanSummary(_ html: String) -> String {
     return lines.filter { !$0.isEmpty }.map { $0 + "\n" }.joined()
 }
 
+extension CNContact {
+    var vCardData: Data? {
+        try? CNContactVCardSerialization.data(with: [self])
+    }
+}
+
+private struct ContactPickerView: UIViewControllerRepresentable {
+    var onSelect: ([CNContact]) -> Void
+    
+    func makeUIViewController(context: Context) -> CNContactPickerViewController {
+        let picker = CNContactPickerViewController()
+        picker.delegate = context.coordinator
+        picker.predicateForSelectionOfProperty = nil
+        picker.predicateForEnablingContact = nil
+        return picker
+    }
+    func updateUIViewController(_ uiViewController: CNContactPickerViewController, context: Context) {}
+    func makeCoordinator() -> Coordinator { Coordinator(onSelect: onSelect) }
+    
+    class Coordinator: NSObject, CNContactPickerDelegate {
+        let onSelect: ([CNContact]) -> Void
+        init(onSelect: @escaping ([CNContact]) -> Void) { self.onSelect = onSelect }
+        func contactPicker(_ picker: CNContactPickerViewController, didSelect contacts: [CNContact]) { onSelect(contacts) }
+        func contactPickerDidCancel(_ picker: CNContactPickerViewController) { onSelect([]) }
+    }
+}
+
 #Preview {
     let store = RecipeStore()
     let recipe = store.recipes.first ?? Recipe(from: [
@@ -640,3 +838,4 @@ private func cleanSummary(_ html: String) -> String {
     return RecipeDetail(recipeID: recipe.uuid)
         .environment(store)
 }
+

@@ -6,8 +6,6 @@
 	<string>We use the camera to capture images of your recipes</string>
 	<key>NSDocumentsFolderUsageDescription</key>
 	<string>We save certain items of your recipes that you create in the documents folder</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>We use photos in your photo library when you select them for use in the app</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>CFBundleDisplayName</key>
@@ -43,5 +41,11 @@
 	</dict>
 	<key>NSRemindersUsageDescription</key>
 	<string>This app uses Reminders to add your recipe ingredients as tasks.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>We allow you to send pictures from your library</string>
+	<key>NSContactsUsageDescription</key>
+	<string>We use your contacts to allow you to send your recipe links</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Allow saving recipe photos to your photo library.</string>
 </dict>
 </plist>
