@@ -301,11 +301,11 @@ struct ImageToListView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
-                // PhotosPicker with multiple selection, max 5 images
-                PhotosPicker(selection: $selectedItems, maxSelectionCount: 5, matching: .images, photoLibrary: .shared()) {
+                // PhotosPicker with multiple selection, 1-5 images
+                PhotosPicker(selection: $selectedItems, maxSelectionCount: 5, matching: .images) {
                     HStack {
                         Image(systemName: "photo.on.rectangle.angled")
-                        Text("Select up to 5 Images")
+                        Text("Select 1-5 Images")
                     }
                     .padding()
                     .background(Color(.systemGray6))
@@ -319,7 +319,8 @@ struct ImageToListView: View {
                 
                 // Show recognizedTextBlocks to order and offset lines before final combined recognizedItems
                 // Only show if deduplication review is not active and recognizedItems is empty (i.e. before continue)
-                if recognizedTextBlocks.count > 1 && !showDeduplicationReview && recognizedItems.isEmpty {
+                // Show for single image (count == 1) or multiple images (count > 1)
+                if recognizedTextBlocks.count >= 1 && !showDeduplicationReview && recognizedItems.isEmpty {
                     arrangeRecognizedTextBlocksSection
                 }
                 
