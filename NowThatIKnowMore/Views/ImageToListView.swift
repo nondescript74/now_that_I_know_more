@@ -106,7 +106,7 @@ struct ImageToListView: View {
                         groupItems.append(str)
                     }
                 }
-                let joined = groupItems.joined(separator: " ")
+                let joined = groupItems.joined()
                 result.append(joined)
             }
             return result
@@ -131,7 +131,7 @@ struct ImageToListView: View {
                         groupItems.append(str)
                     }
                 }
-                let joined = groupItems.joined(separator: " ")
+                let joined = groupItems.joined()
                 result.append(joined)
             }
             return result

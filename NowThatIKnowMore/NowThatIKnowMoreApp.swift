@@ -29,16 +29,21 @@ private struct MainTabView: View {
                     Label("API Key", systemImage: "key.fill")
                 }
                 .tag(2)
+            RecipeEditorView(recipe: store.recipes.first ?? Recipe(from: ["uuid": UUID(), "title": "New Recipe"])!)
+                .tabItem {
+                    Label("Edit Recipe", systemImage: "pencil")
+                }
+                .tag(3)
             DictionaryToRecipeView()
                 .tabItem {
                     Label("Dict to Recipe", systemImage: "rectangle.and.text.magnifyingglass")
                 }
-                .tag(3)
+                .tag(4)
             ClearRecipesTabView()
                 .tabItem {
                     Label("Clear Recipes", systemImage: "trash")
                 }
-                .tag(4)
+                .tag(5)
         }
     }
 }
