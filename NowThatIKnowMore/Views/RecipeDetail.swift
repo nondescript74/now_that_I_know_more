@@ -7,6 +7,7 @@ import SafariServices
 import UIKit
 import Contacts
 import ContactsUI
+import MessageUI
 
 extension AnalyzedInstruction: Identifiable {
     var id: String { name ?? UUID().uuidString }
@@ -33,9 +34,15 @@ struct RecipeDetail: View {
         recipeStore.recipe(with: recipeID)
     }
     
+    @State private var editedTitle: String = ""
+    @State private var editedSummary: String = ""
+    @State private var editedCreditsText: String = ""
+    @State private var didSetupFields = false
+    @State private var saveMessage: String?
     @State private var showExtrasPanel: Bool = false
     @State private var showingSafari = false
     @State private var showShareSheet = false
+    @State private var showingEmailComposer = false
     
     @State private var selectedContacts: [CNContact] = []
     @State private var showingContactPicker = false
@@ -50,6 +57,14 @@ struct RecipeDetail: View {
                         recipeDetailContent(for: recipe)
                     }
                     .padding(.horizontal)
+                    .onAppear {
+                        if !didSetupFields {
+                            editedTitle = recipe.title ?? ""
+                            editedSummary = cleanSummary(recipe.summary ?? "")
+                            editedCreditsText = recipe.creditsText ?? ""
+                            didSetupFields = true
+                        }
+                    }
                     .onChange(of: selectedPhotoItems) { _, newItems in
                         selectedPhotos.removeAll()
                         for item in newItems {
@@ -88,7 +103,7 @@ struct RecipeDetail: View {
                let url = URL(string: sourceUrlString),
                let title = recipe.title {
                 let activityItems: [Any] = [
-                    RecipeShareProvider(title: title, url: url, image: thumbnailImageFromImageURL(recipe.image))
+                    RecipeShareProvider(title: title, url: url, image: thumbnailImageFromImageURL(recipe.featuredMediaURL))
                 ] + selectedContacts.compactMap { $0.vCardData } + selectedPhotos
                 ShareSheet(activityItems: activityItems)
             } else {
@@ -101,61 +116,34 @@ struct RecipeDetail: View {
                 showingContactPicker = false
             }
         }
+        .sheet(isPresented: $showingEmailComposer) {
+            if let recipe = recipe {
+                MailComposeView(recipe: recipe)
+            }
+        }
     }
     
     @ViewBuilder
     private func recipeDetailContent(for recipe: Recipe) -> some View {
-        Text(recipe.title ?? "")
+        TextField("Title", text: $editedTitle)
             .font(.title)
             .fontWeight(.bold)
             .padding(.top)
+            .textFieldStyle(.roundedBorder)
         
-        if let creditsText = recipe.creditsText, !creditsText.isEmpty {
-            Text(creditsText)
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-        }
-
-        if let imageUrlString = recipe.image, !imageUrlString.isEmpty {
-            if let url = URL(string: imageUrlString) {
-                if url.scheme == "file" {
-                    if let data = try? Data(contentsOf: url), let fileImage = UIImage(data: data) {
-                        Image(uiImage: fileImage)
-                            .resizable()
-                            .scaledToFit()
-                            .frame(maxWidth: .infinity)
-                            .cornerRadius(8)
-                    } else {
-                        Image(systemName: "photo")
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 120, height: 120)
-                            .foregroundColor(.gray)
-                            .frame(maxWidth: .infinity)
-                    }
-                } else if url.scheme == "http" || url.scheme == "https" {
-                    AsyncImage(url: url) { phase in
-                        switch phase {
-                        case .empty:
-                            ProgressView()
-                                .frame(maxWidth: .infinity, minHeight: 200)
-                        case .success(let image):
-                            image
-                                .resizable()
-                                .scaledToFit()
-                                .frame(maxWidth: .infinity)
-                                .cornerRadius(8)
-                        case .failure(_):
-                            Image(systemName: "photo")
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: 120, height: 120)
-                                .foregroundColor(.gray)
-                                .frame(maxWidth: .infinity)
-                        @unknown default:
-                            EmptyView()
-                        }
-                    }
+        TextField("Credits", text: $editedCreditsText)
+            .textFieldStyle(.roundedBorder)
+        
+        // Display featured media or fall back to legacy image field
+        if let featuredURL = recipe.featuredMediaURL, !featuredURL.isEmpty {
+            let url = URL(string: featuredURL) ?? URL(filePath: featuredURL)
+            if url.scheme == "file" || url.pathComponents.first == "/" {
+                if let data = try? Data(contentsOf: url), let fileImage = UIImage(data: data) {
+                    Image(uiImage: fileImage)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(maxWidth: .infinity)
+                        .cornerRadius(8)
                 } else {
                     Image(systemName: "photo")
                         .resizable()
@@ -163,6 +151,29 @@ struct RecipeDetail: View {
                         .frame(width: 120, height: 120)
                         .foregroundColor(.gray)
                         .frame(maxWidth: .infinity)
+                }
+            } else if url.scheme == "http" || url.scheme == "https" {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .empty:
+                        ProgressView()
+                            .frame(maxWidth: .infinity, minHeight: 200)
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .scaledToFit()
+                            .frame(maxWidth: .infinity)
+                            .cornerRadius(8)
+                    case .failure(_):
+                        Image(systemName: "photo")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 120, height: 120)
+                            .foregroundColor(.gray)
+                            .frame(maxWidth: .infinity)
+                    @unknown default:
+                        EmptyView()
+                    }
                 }
             } else {
                 Image(systemName: "photo")
@@ -174,16 +185,47 @@ struct RecipeDetail: View {
             }
         }
 
-        if let summary = recipe.summary, !summary.isEmpty {
-            Text(cleanSummary(summary))
-                .font(.body)
+        TextEditor(text: $editedSummary)
+            .frame(minHeight: 60, maxHeight: 120)
+            .font(.body)
+            .foregroundColor(.secondary)
+            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.gray.opacity(0.3)))
+            .padding(.bottom, 4)
+        
+        if !editedSummary.isEmpty && cleanSummary(editedSummary) != editedSummary {
+            Text(cleanSummary(editedSummary))
+                .font(.footnote)
                 .foregroundColor(.secondary)
-                .padding(.bottom, 4)
+                .padding(.top, 2)
+        }
+
+        if (editedTitle.trimmingCharacters(in: .whitespacesAndNewlines) != (recipe.title ?? "")
+            || editedSummary.trimmingCharacters(in: .whitespacesAndNewlines) != (recipe.summary ?? "")
+            || editedCreditsText.trimmingCharacters(in: .whitespacesAndNewlines) != (recipe.creditsText ?? "")) {
+            Button("Save Changes") {
+                saveEdits()
+            }
+            .buttonStyle(.borderedProminent)
+            .padding(.bottom, 8)
+            .disabled(
+                (editedTitle.trimmingCharacters(in: .whitespacesAndNewlines) == (recipe.title ?? "")) &&
+                (editedSummary.trimmingCharacters(in: .whitespacesAndNewlines) == (recipe.summary ?? "")) &&
+                (editedCreditsText.trimmingCharacters(in: .whitespacesAndNewlines) == (recipe.creditsText ?? ""))
+            )
+        }
+        if let msg = saveMessage {
+            Text(msg).foregroundColor(.accentColor)
         }
         
         Button(action: { showExtrasPanel = true }) {
             Label("More Info", systemImage: "info.circle")
         }
+        .padding(.vertical, 4)
+
+        NavigationLink(destination: RecipeEditorView(recipe: recipe)) {
+            Label("Edit Recipe", systemImage: "pencil")
+        }
+        .buttonStyle(.bordered)
         .padding(.vertical, 4)
 
         // --- Added Info Section ---
@@ -235,6 +277,17 @@ struct RecipeDetail: View {
         }
         // --- End Info Section ---
         
+        Button(action: { showExtrasPanel = true }) {
+            Label("More Info", systemImage: "info.circle")
+        }
+        .padding(.vertical, 4)
+        
+        Button("Email Recipe") {
+            showingEmailComposer = true
+        }
+        .buttonStyle(.bordered)
+        .padding(.vertical, 4)
+
         if let sourceUrlString = recipe.sourceURL,
            let url = URL(string: sourceUrlString),
            url.scheme?.hasPrefix("http") == true {
@@ -271,6 +324,39 @@ struct RecipeDetail: View {
         InstructionListView(instructions: recipe.analyzedInstructions)
         
         Spacer()
+    }
+    
+    private func saveEdits() {
+        guard let currentRecipe = recipe else {
+            saveMessage = "Save failed (recipe not found)."
+            return
+        }
+        
+        let titleToSave = editedTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        let summaryToSave = cleanSummary(editedSummary)
+        let creditsToSave = editedCreditsText.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        // Attempt to convert current recipe to a dictionary via encoding/decoding.
+        let encoder = JSONEncoder()
+        guard let data = try? encoder.encode(currentRecipe),
+              var dict = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else {
+            saveMessage = "Save failed (unable to copy recipe)."
+            return
+        }
+        dict["title"] = titleToSave.isEmpty ? nil : titleToSave
+        dict["summary"] = summaryToSave.isEmpty ? nil : summaryToSave
+        dict["creditsText"] = creditsToSave.isEmpty ? nil : creditsToSave
+        dict["uuid"] = currentRecipe.uuid.uuidString
+        // Retain original image without change
+        dict["image"] = currentRecipe.image
+        
+        // Use Recipe(from:) convenience initializer
+        guard let updatedRecipe = Recipe(from: dict) else {
+            saveMessage = "Save failed (unable to construct recipe)."
+            return
+        }
+        recipeStore.update(updatedRecipe)
+        saveMessage = "Saved!"
     }
     
     private func intValue(from value: Any?) -> Int? {
@@ -748,6 +834,141 @@ private struct ContactPickerView: UIViewControllerRepresentable {
         init(onSelect: @escaping ([CNContact]) -> Void) { self.onSelect = onSelect }
         func contactPicker(_ picker: CNContactPickerViewController, didSelect contacts: [CNContact]) { onSelect(contacts) }
         func contactPickerDidCancel(_ picker: CNContactPickerViewController) { onSelect([]) }
+    }
+}
+
+// MARK: - Mail Compose View
+private struct MailComposeView: UIViewControllerRepresentable {
+    let recipe: Recipe
+    @Environment(\.dismiss) private var dismiss
+    
+    func makeUIViewController(context: Context) -> MFMailComposeViewController {
+        let composer = MFMailComposeViewController()
+        composer.mailComposeDelegate = context.coordinator
+        
+        // Export recipe as JSON
+        let recipeData = exportRecipeAsJSON(recipe)
+        
+        composer.setSubject("Recipe: \(recipe.title ?? "Untitled Recipe")")
+        composer.setMessageBody(createEmailBody(recipe), isHTML: true)
+        
+        if let data = recipeData {
+            composer.addAttachmentData(data, mimeType: "application/json", fileName: "\(recipe.title?.sanitizedForFileName ?? "recipe").recipe")
+        }
+        
+        // Attach user photos if any
+        if let recipeDict = try? JSONEncoder().encode(recipe),
+           let dict = try? JSONSerialization.jsonObject(with: recipeDict) as? [String: Any],
+           let photoURLs = dict["userPhotoURLs"] as? [String] {
+            for (index, urlString) in photoURLs.prefix(3).enumerated() {
+                if let data = try? Data(contentsOf: URL(fileURLWithPath: urlString)) {
+                    composer.addAttachmentData(data, mimeType: "image/jpeg", fileName: "photo_\(index).jpg")
+                }
+            }
+        }
+        
+        return composer
+    }
+    
+    func updateUIViewController(_ uiViewController: MFMailComposeViewController, context: Context) {}
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(dismiss: dismiss)
+    }
+    
+    class Coordinator: NSObject, MFMailComposeViewControllerDelegate {
+        let dismiss: DismissAction
+        
+        init(dismiss: DismissAction) {
+            self.dismiss = dismiss
+        }
+        
+        func mailComposeController(_ controller: MFMailComposeViewController, didFinishWith result: MFMailComposeResult, error: Error?) {
+            dismiss()
+        }
+    }
+    
+    private func exportRecipeAsJSON(_ recipe: Recipe) -> Data? {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        return try? encoder.encode(recipe)
+    }
+    
+    private func createEmailBody(_ recipe: Recipe) -> String {
+        var html = """
+        <html>
+        <head>
+            <style>
+                body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+                h1 { color: #333; }
+                h2 { color: #666; margin-top: 20px; }
+                .info { background-color: #f5f5f5; padding: 10px; border-radius: 5px; }
+                .ingredient { margin: 5px 0; }
+                .step { margin: 10px 0; }
+            </style>
+        </head>
+        <body>
+            <h1>\(recipe.title ?? "Recipe")</h1>
+        """
+        
+        if let credits = recipe.creditsText, !credits.isEmpty {
+            html += "<p><em>\(credits)</em></p>"
+        }
+        
+        if let summary = recipe.summary, !summary.isEmpty {
+            html += "<p>\(cleanSummary(summary))</p>"
+        }
+        
+        html += "<div class='info'>"
+        if let servings = recipe.servings {
+            html += "<p><strong>Servings:</strong> \(servings)</p>"
+        }
+        if let readyInMinutes = recipe.readyInMinutes {
+            html += "<p><strong>Ready in:</strong> \(readyInMinutes) minutes</p>"
+        }
+        html += "</div>"
+        
+        if let ingredients = recipe.extendedIngredients, !ingredients.isEmpty {
+            html += "<h2>Ingredients</h2><ul>"
+            for ingredient in ingredients {
+                if let original = ingredient.original {
+                    html += "<li class='ingredient'>\(original)</li>"
+                }
+            }
+            html += "</ul>"
+        }
+        
+        if let instructions = recipe.analyzedInstructions, !instructions.isEmpty {
+            html += "<h2>Instructions</h2>"
+            for instruction in instructions {
+                if let steps = instruction.steps {
+                    html += "<ol>"
+                    for step in steps {
+                        if let stepText = step.step {
+                            html += "<li class='step'>\(stepText)</li>"
+                        }
+                    }
+                    html += "</ol>"
+                }
+            }
+        }
+        
+        html += """
+            <hr>
+            <p><small>This recipe was shared from the NowThatIKnowMore app. To import this recipe, open the attached .recipe file in the app.</small></p>
+        </body>
+        </html>
+        """
+        
+        return html
+    }
+}
+
+
+extension String {
+    var sanitizedForFileName: String {
+        let invalidCharacters = CharacterSet(charactersIn: ":/\\?%*|\"<>")
+        return components(separatedBy: invalidCharacters).joined(separator: "_")
     }
 }
 

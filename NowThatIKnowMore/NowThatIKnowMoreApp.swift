@@ -53,11 +53,31 @@ struct NowThatIKnowMoreApp: App {
     @Environment(\.colorScheme) var colorScheme
     @State private var store: RecipeStore = RecipeStore()
     @State private var showLaunchScreen = true
+    @State private var showImport = false
+    @State private var showAlert = false
+    @State private var alertTitle = ""
+    @State private var alertMessage = ""
+    
     var body: some Scene {
         WindowGroup {
             ZStack {
                 MainTabView()
                     .environment(store)
+                    .onOpenURL { url in
+                        if url.pathExtension == "recipe" {
+                            handleRecipeImport(from: url)
+                        }
+                    }
+                    .sheet(isPresented: $showImport) {
+                        RecipeImportView()
+                            .environment(store)
+                    }
+                    .alert(alertTitle, isPresented: $showAlert) {
+                        Button("OK", role: .cancel) { }
+                    } message: {
+                        Text(alertMessage)
+                    }
+                
                 if showLaunchScreen {
                     LaunchScreenView()
                         .transition(AnyTransition.opacity)
@@ -71,9 +91,60 @@ struct NowThatIKnowMoreApp: App {
             }
         }
     }
+    
+    private func handleRecipeImport(from url: URL) {
+        // Start accessing security-scoped resource
+        guard url.startAccessingSecurityScopedResource() else {
+            alertTitle = "Error"
+            alertMessage = "Unable to access the recipe file."
+            showAlert = true
+            return
+        }
+        
+        defer { url.stopAccessingSecurityScopedResource() }
+        
+        do {
+            let data = try Data(contentsOf: url)
+            
+            // Try to decode as Recipe
+            let decoder = JSONDecoder()
+            if let recipe = try? decoder.decode(Recipe.self, from: data) {
+                importRecipe(recipe)
+            } else if let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                      let recipe = Recipe(from: dict) {
+                importRecipe(recipe)
+            } else {
+                alertTitle = "Error"
+                alertMessage = "Unable to parse recipe file. The file may be corrupted or in an invalid format."
+                showAlert = true
+            }
+        } catch {
+            alertTitle = "Error"
+            alertMessage = "Failed to read file: \(error.localizedDescription)"
+            showAlert = true
+        }
+    }
+    
+    private func importRecipe(_ recipe: Recipe) {
+        // Check if recipe already exists
+        if store.recipe(with: recipe.uuid) != nil {
+            alertTitle = "Already Exists"
+            alertMessage = "A recipe with this ID already exists in your collection."
+            showAlert = true
+            return
+        }
+        
+        // Add the recipe
+        store.add(recipe)
+        
+        alertTitle = "Success"
+        alertMessage = "Recipe '\(recipe.title ?? "Untitled")' has been imported successfully!"
+        showAlert = true
+    }
 }
 
 #Preview {
     MainTabView()
         .environment(RecipeStore())
 }
+

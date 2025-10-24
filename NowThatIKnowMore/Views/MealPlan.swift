@@ -67,7 +67,7 @@ struct MealPlan: View {
                     ForEach(filteredMealPlanRecipes, id: \.uuid) { recipe in
                         NavigationLink(destination: RecipeDetail(recipeID: recipe.uuid)) {
                             HStack {
-                                if let urlString = recipe.image, let url = URL(string: urlString), !urlString.isEmpty {
+                                if let urlString = recipe.featuredMediaURL, !urlString.isEmpty, let url = URL(string: urlString) {
                                     AsyncImage(url: url) { phase in
                                         switch phase {
                                         case .empty:

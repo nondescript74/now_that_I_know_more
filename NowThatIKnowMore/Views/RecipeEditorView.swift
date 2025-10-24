@@ -2,6 +2,7 @@ import SwiftUI
 import Foundation
 import PhotosUI
 import AVKit
+import MessageUI
 
 struct RecipeEditorView: View {
     @Environment(RecipeStore.self) private var recipeStore
@@ -29,15 +30,11 @@ struct RecipeEditorView: View {
     @State private var instructionsSelectedRange: NSRange = NSRange(location: 0, length: 0)
     @State private var ingredients: String = ""
     @State private var ingredientsSelectedRange: NSRange = NSRange(location: 0, length: 0)
+    @State private var showingEmailComposer = false
     
-    // Media (photos and videos) captured/selected by the user
-    @State private var selectedPhotoItems: [PhotosPickerItem] = []
-    @State private var userPhotos: [UIImage] = []
-    @State private var userVideos: [URL] = []
-    @State private var showingImagePicker = false
-    @State private var showingVideoPicker = false
-    @State private var showingCamera = false
-    @State private var cameraMediaType: UIImagePickerController.CameraCaptureMode = .photo
+    // Media gallery state
+    @State private var mediaItems: [RecipeMedia]
+    @State private var featuredMediaID: UUID?
     
     // Editing mode helper for complex fields
     private static let daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
@@ -53,40 +50,8 @@ struct RecipeEditorView: View {
         self._selectedDays = State(initialValue: recipe?.daysOfWeek ?? [])
         self._cuisines = State(initialValue: (recipe?.cuisines)?.compactMap { $0.value as? String }.joined(separator: ", ") ?? "")
         self._imageUrl = State(initialValue: recipe?.image ?? "")
-        
-        // Initialize media from recipe if available
-        var photos: [UIImage] = []
-        var videos: [URL] = []
-        
-        if let recipe = recipe,
-           let data = try? JSONEncoder().encode(recipe),
-           let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-            
-            // Load photo URLs
-            if let photoURLStrings = dict["userPhotoURLs"] as? [String] {
-                for urlString in photoURLStrings {
-                    let url = URL(fileURLWithPath: urlString)
-                    if let data = try? Data(contentsOf: url),
-                       let image = UIImage(data: data) {
-                        photos.append(image)
-                    }
-                }
-            }
-            
-            // Load video URLs
-            if let videoURLStrings = dict["userVideoURLs"] as? [String] {
-                for urlString in videoURLStrings {
-                    let url = URL(fileURLWithPath: urlString)
-                    if FileManager.default.fileExists(atPath: url.path) {
-                        videos.append(url)
-                    }
-                }
-            }
-        }
-        
-        self._userPhotos = State(initialValue: photos)
-        self._userVideos = State(initialValue: videos)
-        
+        self._mediaItems = State(initialValue: recipe?.mediaItems ?? [])
+        self._featuredMediaID = State(initialValue: recipe?.featuredMediaID)
 //        if let list = recipe.extendedIngredients as? [[String: Any]] {
 //            self._ingredients = State(initialValue: list.compactMap { $0["original"] as? String }.joined(separator: "\n"))
 //        } else if let list = recipe.ingredients as? [String] {
@@ -98,259 +63,24 @@ struct RecipeEditorView: View {
     
     var body: some View {
         Form {
-            // Recipe selection section - only show if we have recipes available and not already editing
-            if !recipeStore.recipes.isEmpty && !isEditingExisting {
-                Section(header: Text("Choose Recipe")) {
-                    Button("Select Existing Recipe to Edit") {
-                        showRecipePicker = true
-                    }
-                    .buttonStyle(.bordered)
-                    
-                    Text("Or create a new recipe below")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-            }
-            
-            if isEditingExisting {
-                Section {
-                    HStack {
-                        Text("Editing: \(recipe?.title ?? "Recipe")")
-                            .font(.headline)
-                            .foregroundColor(.blue)
-                        Spacer()
-                        Button("Switch Recipe") {
-                            showRecipePicker = true
-                        }
-                        .buttonStyle(.bordered)
-                        .font(.caption)
-                    }
-                }
-            }
-            
-            Section(header: Text("Basic Info")) {
-                HStack {
-                    TextField("Title", text: $title)
-                    Button("Clear") { title = "" }
-                }
-                HStack {
-                    TextField("Credits", text: $creditsText)
-                    Button("Clear") { creditsText = "" }
-                }
-                HStack {
-                    BindableTextView(text: $summary, selectedRange: $summarySelectedRange)
-                        .frame(minHeight: 40, maxHeight: 150)
-                        .cornerRadius(8)
-                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.gray.opacity(0.2)))
-                    Button("Clear") { summary = "" }
-                }
-                HStack(spacing: 12) {
-                    Button("Remove HTML Tags") {
-                        summary = summary.strippedHTML
-                        summarySelectedRange = NSRange(location: min(summarySelectedRange.location, summary.count), length: 0)
-                    }
-                    Button("Insert Indent") {
-                        let indent = "→ "
-                        let loc = min(summarySelectedRange.location, summary.count)
-                        summary.insert(contentsOf: indent, at: summary.index(summary.startIndex, offsetBy: loc))
-                        summarySelectedRange = NSRange(location: loc + indent.count, length: 0)
-                    }
-                    Text("(Use '→' for indentation)")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-            }
-            Section(header: Text("Image URL (optional)")) {
-                HStack {
-                    TextField("Paste image url", text: $imageUrl)
-                        .keyboardType(.URL)
-                        .autocapitalization(.none)
-                        .disableAutocorrection(true)
-                    Button("Clear") { imageUrl = "" }
-                }
-                if isValidImageUrl(imageUrl) {
-                    AsyncImage(url: URL(string: imageUrl)) { phase in
-                        switch phase {
-                        case .empty: ProgressView()
-                        case .success(let image): image.resizable().scaledToFit().frame(height: 120)
-                        case .failure: Image(systemName: "exclamationmark.triangle").foregroundColor(.red)
-                        @unknown default: EmptyView()
-                        }
-                    }
-                }
-            }
-            Section(header: Text("Servings")) {
-                HStack {
-                    TextField("Servings", text: $servings)
-                        .keyboardType(.numberPad)
-                    Button("Clear") { servings = "" }
-                }
-            }
-            Section(header: Text("Cuisines (comma separated)")) {
-                HStack {
-                    TextField("Cuisines", text: $cuisines)
-                        .autocorrectionDisabled()
-                    Button("Clear") { cuisines = "" }
-                }
-            }
-            Section(header: Text("Ingredients (one per line)")) {
-                BindableTextView(text: $ingredients, selectedRange: $ingredientsSelectedRange)
-                    .frame(minHeight: 60, maxHeight: 180)
-                    .cornerRadius(8)
-                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.gray.opacity(0.2)))
-                HStack(spacing: 12) {
-                    Button("Remove HTML Tags") {
-                        ingredients = ingredients.strippedHTML
-                        ingredientsSelectedRange = NSRange(location: min(ingredientsSelectedRange.location, ingredients.count), length: 0)
-                    }
-                    Button("Insert Indent") {
-                        let indent = "→ "
-                        let loc = min(ingredientsSelectedRange.location, ingredients.count)
-                        ingredients.insert(contentsOf: indent, at: ingredients.index(ingredients.startIndex, offsetBy: loc))
-                        ingredientsSelectedRange = NSRange(location: loc + indent.count, length: 0)
-                    }
-                    Text("(Use '→' for indentation)")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                Button("Clear") { ingredients = "" }
-            }
-            Section(header: Text("Instructions")) {
-                BindableTextView(text: $instructions, selectedRange: $instructionsSelectedRange)
-                    .frame(minHeight: 80, maxHeight: 200)
-                    .cornerRadius(8)
-                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.gray.opacity(0.2)))
-                HStack(spacing: 12) {
-                    Button("Remove HTML Tags") {
-                        instructions = instructions.strippedHTML
-                        instructionsSelectedRange = NSRange(location: min(instructionsSelectedRange.location, instructions.count), length: 0)
-                    }
-                    Button("Insert Indent") {
-                        let indent = "→ "
-                        let loc = min(instructionsSelectedRange.location, instructions.count)
-                        instructions.insert(contentsOf: indent, at: instructions.index(instructions.startIndex, offsetBy: loc))
-                        instructionsSelectedRange = NSRange(location: loc + indent.count, length: 0)
-                    }
-                    Text("(Use '→' for indentation)")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                Button("Clear") { instructions = "" }
-            }
-            Section(header: Text("Days of Week")) {
-                ForEach(Self.daysOfWeek, id: \.self) { day in
-                    Toggle(day, isOn: Binding(
-                        get: { selectedDays.contains(day) },
-                        set: { val in
-                            if val { selectedDays.append(day) }
-                            else { selectedDays.removeAll { $0 == day } }
-                        }
-                    ))
-                }
-                Button("Clear Days") { selectedDays.removeAll() }
-            }
-            
-            Section(header: Text("Photos & Videos")) {
-                // Photo Picker
-                PhotosPicker(
-                    selection: $selectedPhotoItems,
-                    maxSelectionCount: 10,
-                    matching: .any(of: [.images, .videos]),
-                    photoLibrary: .shared()
-                ) {
-                    Label("Select from Library", systemImage: "photo.on.rectangle")
-                }
-                
-                // Camera button for photos
-                Button(action: {
-                    cameraMediaType = .photo
-                    showingCamera = true
-                }) {
-                    Label("Take Photo", systemImage: "camera")
-                }
-                
-                // Camera button for videos
-                Button(action: {
-                    cameraMediaType = .video
-                    showingCamera = true
-                }) {
-                    Label("Record Video", systemImage: "video")
-                }
-                
-                // Display selected photos
-                if !userPhotos.isEmpty {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Photos (\(userPhotos.count))")
-                            .font(.subheadline)
-                            .fontWeight(.semibold)
-                        
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 12) {
-                                ForEach(userPhotos.indices, id: \.self) { index in
-                                    ZStack(alignment: .topTrailing) {
-                                        Image(uiImage: userPhotos[index])
-                                            .resizable()
-                                            .scaledToFill()
-                                            .frame(width: 100, height: 100)
-                                            .clipShape(RoundedRectangle(cornerRadius: 8))
-                                        
-                                        Button(action: {
-                                            userPhotos.remove(at: index)
-                                        }) {
-                                            Image(systemName: "xmark.circle.fill")
-                                                .foregroundColor(.red)
-                                                .background(Circle().fill(Color.white))
-                                        }
-                                        .padding(4)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                
-                // Display selected videos
-                if !userVideos.isEmpty {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Videos (\(userVideos.count))")
-                            .font(.subheadline)
-                            .fontWeight(.semibold)
-                        
-                        ForEach(userVideos.indices, id: \.self) { index in
-                            HStack {
-                                VideoPlayer(player: AVPlayer(url: userVideos[index]))
-                                    .frame(height: 200)
-                                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                                
-                                Button(action: {
-                                    userVideos.remove(at: index)
-                                }) {
-                                    Image(systemName: "trash")
-                                        .foregroundColor(.red)
-                                }
-                                .buttonStyle(.bordered)
-                            }
-                        }
-                    }
-                }
-                
-                if !userPhotos.isEmpty || !userVideos.isEmpty {
-                    Button("Clear All Media", role: .destructive) {
-                        userPhotos.removeAll()
-                        userVideos.removeAll()
-                        selectedPhotoItems.removeAll()
-                    }
-                }
-            }
-            
-            Section {
-                Button("Save Changes") { saveEdits() }
-                    .buttonStyle(.borderedProminent)
-                Button("Cancel", role: .destructive) { dismiss() }
-            }
+            recipeSelectionSection
+            basicInfoSection
+            mediaSection
+            imageURLSection
+            servingsSection
+            cuisinesSection
+            ingredientsSection
+            instructionsSection
+            daysOfWeekSection
+            actionSection
         }
         .navigationTitle(isEditingExisting ? "Edit Recipe" : "Create Recipe")
         .alert("Edit", isPresented: $showAlert, actions: { Button("OK", role: .cancel) { } }, message: { Text(alertMessage) })
+        .sheet(isPresented: $showingEmailComposer) {
+            if let recipe = recipe {
+                MailComposeView(recipe: recipe)
+            }
+        }
         .sheet(isPresented: $showRecipePicker) {
             NavigationStack {
                 RecipePickerView(onSelect: { selectedRecipe in
@@ -366,33 +96,229 @@ struct RecipeEditorView: View {
                 }
             }
         }
-        .sheet(isPresented: $showingCamera) {
-            CameraView(mediaType: cameraMediaType, onPhotoCaptured: { image in
-                userPhotos.append(image)
-                showingCamera = false
-            }, onVideoCaptured: { videoURL in
-                userVideos.append(videoURL)
-                showingCamera = false
-            }, onCancel: {
-                showingCamera = false
-            })
+    }
+    
+    // MARK: - Form Sections
+    
+    @ViewBuilder
+    private var recipeSelectionSection: some View {
+        if !recipeStore.recipes.isEmpty && !isEditingExisting {
+            Section(header: Text("Choose Recipe")) {
+                Button("Select Existing Recipe to Edit") {
+                    showRecipePicker = true
+                }
+                .buttonStyle(.bordered)
+                
+                Text("Or create a new recipe below")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
         }
-        .onChange(of: selectedPhotoItems) { oldItems, newItems in
-            Task {
-                for item in newItems {
-                    // Try to load as image first
-                    if let data = try? await item.loadTransferable(type: Data.self),
-                       let image = UIImage(data: data) {
-                        await MainActor.run {
-                            userPhotos.append(image)
-                        }
-                    } else if let movie = try? await item.loadTransferable(type: VideoTransferable.self) {
-                        await MainActor.run {
-                            userVideos.append(movie.url)
-                        }
+        
+        if isEditingExisting {
+            Section {
+                HStack {
+                    Text("Editing: \(recipe?.title ?? "Recipe")")
+                        .font(.headline)
+                        .foregroundColor(.blue)
+                    Spacer()
+                    Button("Switch Recipe") {
+                        showRecipePicker = true
+                    }
+                    .buttonStyle(.bordered)
+                    .font(.caption)
+                }
+            }
+        }
+    }
+    
+    private var basicInfoSection: some View {
+        Section(header: Text("Basic Info")) {
+            HStack {
+                TextField("Title", text: $title)
+                Button("Clear") { title = "" }
+            }
+            HStack {
+                TextField("Credits", text: $creditsText)
+                Button("Clear") { creditsText = "" }
+            }
+            HStack {
+                BindableTextView(text: $summary, selectedRange: $summarySelectedRange)
+                    .frame(minHeight: 40, maxHeight: 150)
+                    .cornerRadius(8)
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.gray.opacity(0.2)))
+                Button("Clear") { summary = "" }
+            }
+            HStack(spacing: 12) {
+                Button("Remove HTML Tags") {
+                    summary = summary.strippedHTML
+                    summarySelectedRange = NSRange(location: min(summarySelectedRange.location, summary.count), length: 0)
+                }
+                Button("Insert Indent") {
+                    let indent = "→ "
+                    let loc = min(summarySelectedRange.location, summary.count)
+                    summary.insert(contentsOf: indent, at: summary.index(summary.startIndex, offsetBy: loc))
+                    summarySelectedRange = NSRange(location: loc + indent.count, length: 0)
+                }
+                Text("(Use '→' for indentation)")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+        }
+    }
+    
+    private var mediaSection: some View {
+        Section(header: Text("Photos & Videos")) {
+            MediaGalleryView(
+                mediaItems: mediaItems,
+                featuredMediaID: featuredMediaID,
+                onSelectFeatured: { mediaID in
+                    featuredMediaID = mediaID
+                },
+                onAddMedia: { newMedia in
+                    mediaItems.append(contentsOf: newMedia)
+                    // If no featured media is set, make the first one featured
+                    if featuredMediaID == nil, let first = newMedia.first {
+                        featuredMediaID = first.id
+                    }
+                },
+                onRemoveMedia: { mediaID in
+                    mediaItems.removeAll { $0.id == mediaID }
+                    // If we removed the featured media, select a new one
+                    if featuredMediaID == mediaID {
+                        featuredMediaID = mediaItems.first?.id
+                    }
+                }
+            )
+            
+            Text("Tap a photo or video to set it as featured. The featured media will be shown on the recipe card.")
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+    }
+    
+    private var imageURLSection: some View {
+        Section(header: Text("Image URL (optional)")) {
+            HStack {
+                TextField("Paste image url", text: $imageUrl)
+                    .keyboardType(.URL)
+                    .autocapitalization(.none)
+                    .disableAutocorrection(true)
+                Button("Clear") { imageUrl = "" }
+            }
+            if isValidImageUrl(imageUrl) {
+                AsyncImage(url: URL(string: imageUrl)) { phase in
+                    switch phase {
+                    case .empty: ProgressView()
+                    case .success(let image): image.resizable().scaledToFit().frame(height: 120)
+                    case .failure: Image(systemName: "exclamationmark.triangle").foregroundColor(.red)
+                    @unknown default: EmptyView()
                     }
                 }
             }
+        }
+    }
+    
+    private var servingsSection: some View {
+        Section(header: Text("Servings")) {
+            HStack {
+                TextField("Servings", text: $servings)
+                    .keyboardType(.numberPad)
+                Button("Clear") { servings = "" }
+            }
+        }
+    }
+    
+    private var cuisinesSection: some View {
+        Section(header: Text("Cuisines (comma separated)")) {
+            HStack {
+                TextField("Cuisines", text: $cuisines)
+                    .autocorrectionDisabled()
+                Button("Clear") { cuisines = "" }
+            }
+        }
+    }
+    
+    private var ingredientsSection: some View {
+        Section(header: Text("Ingredients (one per line)")) {
+            BindableTextView(text: $ingredients, selectedRange: $ingredientsSelectedRange)
+                .frame(minHeight: 60, maxHeight: 180)
+                .cornerRadius(8)
+                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.gray.opacity(0.2)))
+            HStack(spacing: 12) {
+                Button("Remove HTML Tags") {
+                    ingredients = ingredients.strippedHTML
+                    ingredientsSelectedRange = NSRange(location: min(ingredientsSelectedRange.location, ingredients.count), length: 0)
+                }
+                Button("Insert Indent") {
+                    let indent = "→ "
+                    let loc = min(ingredientsSelectedRange.location, ingredients.count)
+                    ingredients.insert(contentsOf: indent, at: ingredients.index(ingredients.startIndex, offsetBy: loc))
+                    ingredientsSelectedRange = NSRange(location: loc + indent.count, length: 0)
+                }
+                Text("(Use '→' for indentation)")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            Button("Clear") { ingredients = "" }
+        }
+    }
+    
+    private var instructionsSection: some View {
+        Section(header: Text("Instructions")) {
+            BindableTextView(text: $instructions, selectedRange: $instructionsSelectedRange)
+                .frame(minHeight: 80, maxHeight: 200)
+                .cornerRadius(8)
+                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.gray.opacity(0.2)))
+            HStack(spacing: 12) {
+                Button("Remove HTML Tags") {
+                    instructions = instructions.strippedHTML
+                    instructionsSelectedRange = NSRange(location: min(instructionsSelectedRange.location, instructions.count), length: 0)
+                }
+                Button("Insert Indent") {
+                    let indent = "→ "
+                    let loc = min(instructionsSelectedRange.location, instructions.count)
+                    instructions.insert(contentsOf: indent, at: instructions.index(instructions.startIndex, offsetBy: loc))
+                    instructionsSelectedRange = NSRange(location: loc + indent.count, length: 0)
+                }
+                Text("(Use '→' for indentation)")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            Button("Clear") { instructions = "" }
+        }
+    }
+    
+    private var daysOfWeekSection: some View {
+        Section(header: Text("Days of Week")) {
+            ForEach(Self.daysOfWeek, id: \.self) { day in
+                Toggle(day, isOn: Binding(
+                    get: { selectedDays.contains(day) },
+                    set: { val in
+                        if val { selectedDays.append(day) }
+                        else { selectedDays.removeAll { $0 == day } }
+                    }
+                ))
+            }
+            Button("Clear Days") { selectedDays.removeAll() }
+        }
+    }
+    
+    private var actionSection: some View {
+        Section {
+            Button("Save Changes") { saveEdits() }
+                .buttonStyle(.borderedProminent)
+            
+            if isEditingExisting, let _ = recipe {
+                Button(action: {
+                    showingEmailComposer = true
+                }) {
+                    Label("Email Recipe", systemImage: "envelope")
+                }
+                .buttonStyle(.bordered)
+            }
+            
+            Button("Cancel", role: .destructive) { dismiss() }
         }
     }
     
@@ -414,36 +340,8 @@ struct RecipeEditorView: View {
         selectedDays = selectedRecipe.daysOfWeek ?? []
         cuisines = (selectedRecipe.cuisines)?.compactMap { $0.value as? String }.joined(separator: ", ") ?? ""
         imageUrl = selectedRecipe.image ?? ""
-        
-        // Load existing user photos and videos if they exist
-        userPhotos.removeAll()
-        userVideos.removeAll()
-        
-        // Try to extract custom fields from the recipe using reflection or JSONSerialization
-        if let data = try? JSONEncoder().encode(selectedRecipe),
-           let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-            
-            // Load photo URLs
-            if let photoURLStrings = dict["userPhotoURLs"] as? [String] {
-                for urlString in photoURLStrings {
-                    let url = URL(fileURLWithPath: urlString)
-                    if let data = try? Data(contentsOf: url),
-                       let image = UIImage(data: data) {
-                        userPhotos.append(image)
-                    }
-                }
-            }
-            
-            // Load video URLs
-            if let videoURLStrings = dict["userVideoURLs"] as? [String] {
-                for urlString in videoURLStrings {
-                    let url = URL(fileURLWithPath: urlString)
-                    if FileManager.default.fileExists(atPath: url.path) {
-                        userVideos.append(url)
-                    }
-                }
-            }
-        }
+        mediaItems = selectedRecipe.mediaItems ?? []
+        featuredMediaID = selectedRecipe.featuredMediaID
     }
     
     private func saveEdits() {
@@ -467,41 +365,6 @@ struct RecipeEditorView: View {
             imageTypeToSave = URL(string: imageUrl)?.pathExtension.lowercased()
         }
         
-        // Save user photos and videos to documents directory
-        var savedPhotoURLs: [String] = []
-        var savedVideoURLs: [String] = []
-        
-        let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        let recipeFolderName = (recipe?.uuid ?? UUID()).uuidString
-        let recipeMediaFolder = documentsPath.appendingPathComponent("RecipeMedia/\(recipeFolderName)")
-        
-        // Create directory if needed
-        try? FileManager.default.createDirectory(at: recipeMediaFolder, withIntermediateDirectories: true)
-        
-        // Save photos
-        for (index, photo) in userPhotos.enumerated() {
-            if let data = photo.jpegData(compressionQuality: 0.8) {
-                let filename = "photo_\(index)_\(UUID().uuidString).jpg"
-                let fileURL = recipeMediaFolder.appendingPathComponent(filename)
-                try? data.write(to: fileURL)
-                savedPhotoURLs.append(fileURL.path)
-            }
-        }
-        
-        // Save video URLs
-        for videoURL in userVideos {
-            // If it's already in our documents, just store the path
-            // Otherwise, copy it
-            if videoURL.path.contains(documentsPath.path) {
-                savedVideoURLs.append(videoURL.path)
-            } else {
-                let filename = "video_\(UUID().uuidString).mov"
-                let destinationURL = recipeMediaFolder.appendingPathComponent(filename)
-                try? FileManager.default.copyItem(at: videoURL, to: destinationURL)
-                savedVideoURLs.append(destinationURL.path)
-            }
-        }
-        
         var dict: [String: Any] = [
             "uuid": recipe?.uuid ?? UUID(),
             "title": title.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -513,14 +376,6 @@ struct RecipeEditorView: View {
             "ingredients": ingredients.components(separatedBy: "\n").map { $0.trimmingCharacters(in: .whitespaces) },
             // Add other properties as needed
         ]
-        
-        // Store media URLs in the dictionary
-        if !savedPhotoURLs.isEmpty {
-            dict["userPhotoURLs"] = savedPhotoURLs
-        }
-        if !savedVideoURLs.isEmpty {
-            dict["userVideoURLs"] = savedVideoURLs
-        }
         if let idValue {
             dict["id"] = idValue
         }
@@ -539,6 +394,24 @@ struct RecipeEditorView: View {
         if let servingsValue {
             dict["servings"] = servingsValue
         }
+        
+        // Add media items
+        if !mediaItems.isEmpty {
+            let mediaArray = mediaItems.map { media -> [String: Any] in
+                return [
+                    "id": media.id.uuidString,
+                    "url": media.url,
+                    "type": media.type.rawValue
+                ]
+            }
+            dict["mediaItems"] = mediaArray
+        }
+        
+        // Add featured media ID
+        if let featuredID = featuredMediaID {
+            dict["featuredMediaID"] = featuredID.uuidString
+        }
+        
         // Add any additional fields from the original recipe that shouldn't be lost
         if let existingRecipe = recipe {
             let updated = Recipe(from: dict) ?? existingRecipe
@@ -595,82 +468,6 @@ private struct RecipePickerView: View {
     }
 }
 
-// MARK: - Video Transferable
-struct VideoTransferable: Transferable {
-    let url: URL
-    
-    static var transferRepresentation: some TransferRepresentation {
-        FileRepresentation(contentType: .movie) { video in
-            SentTransferredFile(video.url)
-        } importing: { received in
-            let copy = FileManager.default.temporaryDirectory.appendingPathComponent(received.file.lastPathComponent)
-            if FileManager.default.fileExists(atPath: copy.path) {
-                try FileManager.default.removeItem(at: copy)
-            }
-            try FileManager.default.copyItem(at: received.file, to: copy)
-            return Self(url: copy)
-        }
-    }
-}
-
-// MARK: - Camera View
-struct CameraView: UIViewControllerRepresentable {
-    let mediaType: UIImagePickerController.CameraCaptureMode
-    let onPhotoCaptured: (UIImage) -> Void
-    let onVideoCaptured: (URL) -> Void
-    let onCancel: () -> Void
-    
-    func makeUIViewController(context: Context) -> UIImagePickerController {
-        let picker = UIImagePickerController()
-        picker.sourceType = .camera
-        picker.cameraCaptureMode = mediaType
-        
-        if mediaType == .photo {
-            picker.mediaTypes = ["public.image"]
-        } else {
-            picker.mediaTypes = ["public.movie"]
-        }
-        
-        picker.delegate = context.coordinator
-        return picker
-    }
-    
-    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
-    
-    func makeCoordinator() -> Coordinator {
-        Coordinator(onPhotoCaptured: onPhotoCaptured, onVideoCaptured: onVideoCaptured, onCancel: onCancel)
-    }
-    
-    class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
-        let onPhotoCaptured: (UIImage) -> Void
-        let onVideoCaptured: (URL) -> Void
-        let onCancel: () -> Void
-        
-        init(onPhotoCaptured: @escaping (UIImage) -> Void, onVideoCaptured: @escaping (URL) -> Void, onCancel: @escaping () -> Void) {
-            self.onPhotoCaptured = onPhotoCaptured
-            self.onVideoCaptured = onVideoCaptured
-            self.onCancel = onCancel
-        }
-        
-        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
-            if let image = info[.originalImage] as? UIImage {
-                onPhotoCaptured(image)
-            } else if let videoURL = info[.mediaURL] as? URL {
-                // Copy to a permanent location in documents directory
-                let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-                let destinationURL = documentsPath.appendingPathComponent(UUID().uuidString + ".mov")
-                
-                try? FileManager.default.copyItem(at: videoURL, to: destinationURL)
-                onVideoCaptured(destinationURL)
-            }
-        }
-        
-        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
-            onCancel()
-        }
-    }
-}
-
 struct BindableTextView: UIViewRepresentable {
     @Binding var text: String
     @Binding var selectedRange: NSRange
@@ -701,6 +498,75 @@ struct BindableTextView: UIViewRepresentable {
         }
     }
 }
+
+// MARK: - Mail Compose View for RecipeEditor
+private struct MailComposeView: UIViewControllerRepresentable {
+    let recipe: Recipe
+    @Environment(\.dismiss) private var dismiss
+    
+    func makeUIViewController(context: Context) -> MFMailComposeViewController {
+        let composer = MFMailComposeViewController()
+        composer.mailComposeDelegate = context.coordinator
+        
+        // Export recipe as JSON
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        let recipeData = try? encoder.encode(recipe)
+        
+        composer.setSubject("Recipe: \(recipe.title ?? "Untitled Recipe")")
+        composer.setMessageBody(createEmailBody(recipe), isHTML: true)
+        
+        if let data = recipeData {
+            composer.addAttachmentData(data, mimeType: "application/json", fileName: "\(recipe.title?.sanitizedForFileName ?? "recipe").recipe")
+        }
+        
+        return composer
+    }
+    
+    func updateUIViewController(_ uiViewController: MFMailComposeViewController, context: Context) {}
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(dismiss: dismiss)
+    }
+    
+    class Coordinator: NSObject, MFMailComposeViewControllerDelegate {
+        let dismiss: DismissAction
+        
+        init(dismiss: DismissAction) {
+            self.dismiss = dismiss
+        }
+        
+        func mailComposeController(_ controller: MFMailComposeViewController, didFinishWith result: MFMailComposeResult, error: Error?) {
+            dismiss()
+        }
+    }
+    
+    private func createEmailBody(_ recipe: Recipe) -> String {
+        let html = """
+        <html>
+        <head>
+            <style>
+                body { font-family: -apple-system, sans-serif; }
+                h1 { color: #333; }
+            </style>
+        </head>
+        <body>
+            <h1>\(recipe.title ?? "Recipe")</h1>
+            <p>This recipe was shared from the NowThatIKnowMore app.</p>
+            <p>To import this recipe, open the attached .recipe file in the app.</p>
+        </body>
+        </html>
+        """
+        return html
+    }
+}
+
+//extension String {
+//    var sanitizedForFileName: String {
+//        let invalidCharacters = CharacterSet(charactersIn: ":/\\?%*|\"<>")
+//        return components(separatedBy: invalidCharacters).joined(separator: "_")
+//    }
+//}
 
 #Preview("Edit Existing Recipe") {
     let store = RecipeStore()
