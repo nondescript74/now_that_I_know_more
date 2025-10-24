@@ -47,41 +47,5 @@
 	<string>We use your contacts to allow you to send your recipe links</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Allow saving recipe photos to your photo library.</string>
-	<key>CFBundleDocumentTypes</key>
-	<array>
-		<dict>
-			<key>CFBundleTypeName</key>
-			<string>Recipe</string>
-			<key>CFBundleTypeRole</key>
-			<string>Editor</string>
-			<key>LSHandlerRank</key>
-			<string>Owner</string>
-			<key>LSItemContentTypes</key>
-			<array>
-				<string>com.headydiscy.recipe</string>
-			</array>
-		</dict>
-	</array>
-	<key>UTExportedTypeDeclarations</key>
-	<array>
-		<dict>
-			<key>UTTypeConformsTo</key>
-			<array>
-				<string>public.data</string>
-				<string>public.content</string>
-			</array>
-			<key>UTTypeDescription</key>
-			<string>Recipe Document</string>
-			<key>UTTypeIdentifier</key>
-			<string>com.headydiscy.recipe</string>
-			<key>UTTypeTagSpecification</key>
-			<dict>
-				<key>public.filename-extension</key>
-				<array>
-					<string>recipe</string>
-				</array>
-			</dict>
-		</dict>
-	</array>
 </dict>
 </plist>

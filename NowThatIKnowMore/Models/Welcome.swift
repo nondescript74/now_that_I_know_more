@@ -41,6 +41,10 @@ struct Recipe: Codable, Sendable, Identifiable {
     let originalID: JSONNull?
     let spoonacularScore: Int?
     let spoonacularSourceURL: String?
+    
+    // New media fields
+    let mediaItems: [RecipeMedia]?
+    let featuredMediaID: UUID?
 
     enum CodingKeys: String, CodingKey {
         case uuid
@@ -51,6 +55,7 @@ struct Recipe: Codable, Sendable, Identifiable {
         case originalID = "originalId"
         case spoonacularScore
         case spoonacularSourceURL = "spoonacularSourceUrl"
+        case mediaItems, featuredMediaID
     }
 
     // UUID is decoded from JSON and not generated during decode.
@@ -95,6 +100,8 @@ struct Recipe: Codable, Sendable, Identifiable {
         self.originalID = try container.decodeIfPresent(JSONNull.self, forKey: .originalID)
         self.spoonacularScore = try container.decodeIfPresent(Int.self, forKey: .spoonacularScore)
         self.spoonacularSourceURL = try container.decodeIfPresent(String.self, forKey: .spoonacularSourceURL)
+        self.mediaItems = try container.decodeIfPresent([RecipeMedia].self, forKey: .mediaItems)
+        self.featuredMediaID = try container.decodeIfPresent(UUID.self, forKey: .featuredMediaID)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -138,6 +145,8 @@ struct Recipe: Codable, Sendable, Identifiable {
         try container.encodeIfPresent(originalID, forKey: .originalID)
         try container.encodeIfPresent(spoonacularScore, forKey: .spoonacularScore)
         try container.encodeIfPresent(spoonacularSourceURL, forKey: .spoonacularSourceURL)
+        try container.encodeIfPresent(mediaItems, forKey: .mediaItems)
+        try container.encodeIfPresent(featuredMediaID, forKey: .featuredMediaID)
     }
 
     // Convenience failable initializer for Recipe from [String: Any] dictionary
@@ -198,6 +207,54 @@ struct Recipe: Codable, Sendable, Identifiable {
         self.originalID = dict["originalId"] as? JSONNull
         self.spoonacularScore = dict["spoonacularScore"] as? Int
         self.spoonacularSourceURL = dict["spoonacularSourceUrl"] as? String ?? dict["spoonacularSourceURL"] as? String
+        
+        // Decode media items
+        if let mediaArray = dict["mediaItems"] as? [[String: Any]] {
+            self.mediaItems = mediaArray.compactMap { mediaDict in
+                guard let data = try? JSONSerialization.data(withJSONObject: mediaDict),
+                      let decoded = try? JSONDecoder().decode(RecipeMedia.self, from: data) else { return nil }
+                return decoded
+            }
+        } else {
+            self.mediaItems = nil
+        }
+        
+        // Decode featured media ID
+        if let featuredIDString = dict["featuredMediaID"] as? String {
+            self.featuredMediaID = UUID(uuidString: featuredIDString)
+        } else {
+            self.featuredMediaID = nil
+        }
+    }
+}
+
+extension Recipe {
+    /// Returns the URL of the featured media item, or falls back to the legacy image field
+    var featuredMediaURL: String? {
+        if let featuredID = featuredMediaID,
+           let featured = mediaItems?.first(where: { $0.id == featuredID }) {
+            return featured.url
+        }
+        // Fall back to first media item if no featured is set
+        if let firstMedia = mediaItems?.first {
+            return firstMedia.url
+        }
+        // Fall back to legacy image field
+        return image
+    }
+    
+    /// Returns the type of the featured media (photo or video)
+    var featuredMediaType: RecipeMedia.MediaType? {
+        if let featuredID = featuredMediaID,
+           let featured = mediaItems?.first(where: { $0.id == featuredID }) {
+            return featured.type
+        }
+        // Fall back to first media item if no featured is set
+        if let firstMedia = mediaItems?.first {
+            return firstMedia.type
+        }
+        // Legacy image field is assumed to be a photo
+        return image != nil ? .photo : nil
     }
 }
 
