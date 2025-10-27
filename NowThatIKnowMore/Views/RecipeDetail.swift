@@ -43,6 +43,7 @@ struct RecipeDetail: View {
     @State private var showingSafari = false
     @State private var showShareSheet = false
     @State private var showingEmailComposer = false
+    @State private var showingMailNotAvailableAlert = false
     
     @State private var selectedContacts: [CNContact] = []
     @State private var showingContactPicker = false
@@ -120,6 +121,11 @@ struct RecipeDetail: View {
             if let recipe = recipe {
                 MailComposeView(recipe: recipe)
             }
+        }
+        .alert("Mail Not Available", isPresented: $showingMailNotAvailableAlert) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text("Mail services are not available. Please configure Mail on your device to send email.")
         }
     }
     
@@ -283,10 +289,15 @@ struct RecipeDetail: View {
         .padding(.vertical, 4)
         
         Button("Email Recipe") {
-            showingEmailComposer = true
+            if MFMailComposeViewController.canSendMail() {
+                showingEmailComposer = true
+            } else {
+                showingMailNotAvailableAlert = true
+            }
         }
         .buttonStyle(.bordered)
         .padding(.vertical, 4)
+        .disabled(!MFMailComposeViewController.canSendMail())
 
         if let sourceUrlString = recipe.sourceURL,
            let url = URL(string: sourceUrlString),

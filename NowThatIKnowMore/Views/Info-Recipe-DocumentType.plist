@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+    Recipe Document Type Registration
+    
+    INSTRUCTIONS:
+    1. Open your app's Info.plist file
+    2. Copy the keys below (CFBundleDocumentTypes and UTExportedTypeDeclarations)
+    3. Paste them into your Info.plist at the root level
+    4. Or use Xcode's Target Info tab to add these values visually
+    
+    This configuration allows your app to:
+    - Open .recipe files from Mail, Files, AirDrop
+    - Register as the handler for recipe documents
+    - Display custom icon for .recipe files (optional)
+-->
+<plist version="1.0">
+<dict>
+    <!-- Document Types: Tells iOS this app can open .recipe files -->
+    <key>CFBundleDocumentTypes</key>
+    <array>
+        <dict>
+            <!-- User-visible name for this document type -->
+            <key>CFBundleTypeName</key>
+            <string>Recipe Document</string>
+            
+            <!-- Priority for handling this type (Owner = highest) -->
+            <key>LSHandlerRank</key>
+            <string>Owner</string>
+            
+            <!-- UTI (Uniform Type Identifier) this app handles -->
+            <key>LSItemContentTypes</key>
+            <array>
+                <string>com.nowthatiknowmore.recipe</string>
+            </array>
+            
+            <!-- Optional: Custom icon for .recipe files
+            <key>CFBundleTypeIconFiles</key>
+            <array>
+                <string>RecipeDocumentIcon</string>
+            </array>
+            -->
+        </dict>
+    </array>
+    
+    <!-- Exported Type Declarations: Defines what a .recipe file is -->
+    <key>UTExportedTypeDeclarations</key>
+    <array>
+        <dict>
+            <!-- What other types .recipe conforms to -->
+            <key>UTTypeConformsTo</key>
+            <array>
+                <string>public.json</string>
+                <string>public.data</string>
+            </array>
+            
+            <!-- User-visible description -->
+            <key>UTTypeDescription</key>
+            <string>Recipe Document</string>
+            
+            <!-- Unique identifier for this type -->
+            <key>UTTypeIdentifier</key>
+            <string>com.nowthatiknowmore.recipe</string>
+            
+            <!-- File extension and MIME type -->
+            <key>UTTypeTagSpecification</key>
+            <dict>
+                <!-- File extension(s) -->
+                <key>public.filename-extension</key>
+                <array>
+                    <string>recipe</string>
+                </array>
+                
+                <!-- MIME type(s) -->
+                <key>public.mime-type</key>
+                <array>
+                    <string>application/json</string>
+                    <string>application/x-recipe</string>
+                </array>
+            </dict>
+        </dict>
+    </array>
+</dict>
+</plist>

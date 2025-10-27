@@ -12,6 +12,8 @@ struct MealPlan: View {
     @State private var urlString = ""
     @State private var resultText = ""
     @State private var isLoading = false
+    @State private var showingImportSheet = false
+    @State private var showingSharingTips = false
     
     @State private var selectedDay: String = "All"
     @State private var showingDaySheetForRecipe: Recipe? = nil
@@ -105,7 +107,32 @@ struct MealPlan: View {
                 .listStyle(.insetGrouped)
             }
             .navigationTitle("Meal Plan")
-            .toolbar { EditButton() }
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button {
+                        showingImportSheet = true
+                    } label: {
+                        Label("Import Recipe", systemImage: "tray.and.arrow.down")
+                    }
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    HStack {
+                        Button {
+                            showingSharingTips = true
+                        } label: {
+                            Label("Sharing Tips", systemImage: "questionmark.circle")
+                        }
+                        EditButton()
+                    }
+                }
+            }
+            .sheet(isPresented: $showingImportSheet) {
+                RecipeImportView()
+                    .environment(recipeStore)
+            }
+            .sheet(isPresented: $showingSharingTips) {
+                RecipeSharingTipsView()
+            }
             .sheet(item: $showingDaySheetForRecipe) { recipe in
                 VStack {
                     Text("Assign Days for \(recipe.title ?? "No Title")").font(.headline).padding(.top)
