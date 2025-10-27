@@ -53,7 +53,8 @@ struct NowThatIKnowMoreApp: App {
     @Environment(\.colorScheme) var colorScheme
     @State private var store: RecipeStore = RecipeStore()
     @State private var showLaunchScreen = true
-    @State private var showImport = false
+    @State private var showImportPreview = false
+    @State private var importedRecipe: Recipe?
     @State private var showAlert = false
     @State private var alertTitle = ""
     @State private var alertMessage = ""
@@ -68,9 +69,17 @@ struct NowThatIKnowMoreApp: App {
                             handleRecipeImport(from: url)
                         }
                     }
-                    .sheet(isPresented: $showImport) {
-                        RecipeImportView()
+                    .sheet(isPresented: $showImportPreview) {
+                        if let recipe = importedRecipe {
+                            RecipeImportPreviewView(recipe: recipe, onImport: {
+                                finalizeImport(recipe)
+                                showImportPreview = false
+                            }, onCancel: {
+                                showImportPreview = false
+                                importedRecipe = nil
+                            })
                             .environment(store)
+                        }
                     }
                     .alert(alertTitle, isPresented: $showAlert) {
                         Button("OK", role: .cancel) { }
@@ -109,10 +118,12 @@ struct NowThatIKnowMoreApp: App {
             // Try to decode as Recipe
             let decoder = JSONDecoder()
             if let recipe = try? decoder.decode(Recipe.self, from: data) {
-                importRecipe(recipe)
+                importedRecipe = recipe
+                showImportPreview = true
             } else if let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                       let recipe = Recipe(from: dict) {
-                importRecipe(recipe)
+                importedRecipe = recipe
+                showImportPreview = true
             } else {
                 alertTitle = "Error"
                 alertMessage = "Unable to parse recipe file. The file may be corrupted or in an invalid format."
@@ -125,11 +136,11 @@ struct NowThatIKnowMoreApp: App {
         }
     }
     
-    private func importRecipe(_ recipe: Recipe) {
+    private func finalizeImport(_ recipe: Recipe) {
         // Check if recipe already exists
         if store.recipe(with: recipe.uuid) != nil {
             alertTitle = "Already Exists"
-            alertMessage = "A recipe with this ID already exists in your collection."
+            alertMessage = "A recipe with this ID already exists in your collection. Would you like to replace it?"
             showAlert = true
             return
         }
@@ -140,6 +151,8 @@ struct NowThatIKnowMoreApp: App {
         alertTitle = "Success"
         alertMessage = "Recipe '\(recipe.title ?? "Untitled")' has been imported successfully!"
         showAlert = true
+        
+        importedRecipe = nil
     }
 }
 

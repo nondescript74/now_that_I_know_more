@@ -6,6 +6,10 @@
 	objectVersion = 90;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		F8127C552EB028FC0059160D /* RECIPE_IMPORT_SETUP.md in Resources */ = {isa = PBXBuildFile; fileRef = F8127C542EB028FC0059160D /* RECIPE_IMPORT_SETUP.md */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		F82259C82E84605B00840803 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -17,6 +21,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		F8127C542EB028FC0059160D /* RECIPE_IMPORT_SETUP.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = RECIPE_IMPORT_SETUP.md; sourceTree = "<group>"; };
 		F82259C42E84605B00840803 /* NowThatIKnowMoreTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NowThatIKnowMoreTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		F8B44A272E4E254E00BD0920 /* NowThatIKnowMore.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NowThatIKnowMore.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		F8EC9FF02E63AAD600211F03 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = Info.plist; path = NowThatIKnowMore.xcodeproj/Info.plist; sourceTree = "<group>"; };
@@ -71,6 +76,7 @@
 				F8B44A292E4E254E00BD0920 /* NowThatIKnowMore */,
 				F82259C52E84605B00840803 /* NowThatIKnowMoreTests */,
 				F8B44A282E4E254E00BD0920 /* Products */,
+				F8127C542EB028FC0059160D /* RECIPE_IMPORT_SETUP.md */,
 			);
 			sourceTree = "<group>";
 		};
@@ -173,6 +179,7 @@
 		F8B44A252E4E254E00BD0920 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			files = (
+				F8127C552EB028FC0059160D /* RECIPE_IMPORT_SETUP.md in Resources */,
 			);
 		};
 /* End PBXResourcesBuildPhase section */
@@ -381,7 +388,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 41;
+				CURRENT_PROJECT_VERSION = 42;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = YKHW2TJ32G;
 				ENABLE_APP_SANDBOX = YES;
@@ -442,7 +449,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 41;
+				CURRENT_PROJECT_VERSION = 42;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = YKHW2TJ32G;
 				ENABLE_APP_SANDBOX = YES;
