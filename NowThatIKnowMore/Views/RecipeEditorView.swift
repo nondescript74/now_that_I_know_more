@@ -35,6 +35,7 @@ struct RecipeEditorView: View {
     // Media gallery state
     @State private var mediaItems: [RecipeMedia]
     @State private var featuredMediaID: UUID?
+    @State private var preferFeaturedMedia: Bool
     
     // Editing mode helper for complex fields
     private static let daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
@@ -52,6 +53,7 @@ struct RecipeEditorView: View {
         self._imageUrl = State(initialValue: recipe?.image ?? "")
         self._mediaItems = State(initialValue: recipe?.mediaItems ?? [])
         self._featuredMediaID = State(initialValue: recipe?.featuredMediaID)
+        self._preferFeaturedMedia = State(initialValue: recipe?.preferFeaturedMedia ?? true)
 //        if let list = recipe.extendedIngredients as? [[String: Any]] {
 //            self._ingredients = State(initialValue: list.compactMap { $0["original"] as? String }.joined(separator: "\n"))
 //        } else if let list = recipe.ingredients as? [String] {
@@ -194,6 +196,20 @@ struct RecipeEditorView: View {
             Text("Tap a photo or video to set it as featured. The featured media will be shown on the recipe card.")
                 .font(.caption)
                 .foregroundColor(.secondary)
+            
+            // Display preference toggle
+            if !mediaItems.isEmpty && isValidImageUrl(imageUrl) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Divider()
+                    Toggle("Prefer Featured Media Over URL Image", isOn: $preferFeaturedMedia)
+                    Text(preferFeaturedMedia ? 
+                         "The featured media will be displayed instead of the image URL." :
+                         "The image URL will be displayed instead of the featured media.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                .padding(.top, 8)
+            }
         }
     }
     
@@ -342,6 +358,7 @@ struct RecipeEditorView: View {
         imageUrl = selectedRecipe.image ?? ""
         mediaItems = selectedRecipe.mediaItems ?? []
         featuredMediaID = selectedRecipe.featuredMediaID
+        preferFeaturedMedia = selectedRecipe.preferFeaturedMedia ?? true
     }
     
     private func saveEdits() {
@@ -411,6 +428,9 @@ struct RecipeEditorView: View {
         if let featuredID = featuredMediaID {
             dict["featuredMediaID"] = featuredID.uuidString
         }
+        
+        // Add image display preference
+        dict["preferFeaturedMedia"] = preferFeaturedMedia
         
         // Add any additional fields from the original recipe that shouldn't be lost
         if let existingRecipe = recipe {

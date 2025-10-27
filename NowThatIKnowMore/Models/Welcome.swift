@@ -45,6 +45,7 @@ struct Recipe: Codable, Sendable, Identifiable {
     // New media fields
     let mediaItems: [RecipeMedia]?
     let featuredMediaID: UUID?
+    let preferFeaturedMedia: Bool?
 
     enum CodingKeys: String, CodingKey {
         case uuid
@@ -55,7 +56,7 @@ struct Recipe: Codable, Sendable, Identifiable {
         case originalID = "originalId"
         case spoonacularScore
         case spoonacularSourceURL = "spoonacularSourceUrl"
-        case mediaItems, featuredMediaID
+        case mediaItems, featuredMediaID, preferFeaturedMedia
     }
 
     // UUID is decoded from JSON and not generated during decode.
@@ -102,6 +103,7 @@ struct Recipe: Codable, Sendable, Identifiable {
         self.spoonacularSourceURL = try container.decodeIfPresent(String.self, forKey: .spoonacularSourceURL)
         self.mediaItems = try container.decodeIfPresent([RecipeMedia].self, forKey: .mediaItems)
         self.featuredMediaID = try container.decodeIfPresent(UUID.self, forKey: .featuredMediaID)
+        self.preferFeaturedMedia = try container.decodeIfPresent(Bool.self, forKey: .preferFeaturedMedia)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -147,6 +149,7 @@ struct Recipe: Codable, Sendable, Identifiable {
         try container.encodeIfPresent(spoonacularSourceURL, forKey: .spoonacularSourceURL)
         try container.encodeIfPresent(mediaItems, forKey: .mediaItems)
         try container.encodeIfPresent(featuredMediaID, forKey: .featuredMediaID)
+        try container.encodeIfPresent(preferFeaturedMedia, forKey: .preferFeaturedMedia)
     }
 
     // Convenience failable initializer for Recipe from [String: Any] dictionary
@@ -225,12 +228,21 @@ struct Recipe: Codable, Sendable, Identifiable {
         } else {
             self.featuredMediaID = nil
         }
+        
+        // Decode prefer featured media
+        self.preferFeaturedMedia = dict["preferFeaturedMedia"] as? Bool
     }
 }
 
 extension Recipe {
     /// Returns the URL of the featured media item, or falls back to the legacy image field
     var featuredMediaURL: String? {
+        // If user explicitly prefers URL image over featured media, return the URL
+        if preferFeaturedMedia == false, let urlImage = image, !urlImage.isEmpty {
+            return urlImage
+        }
+        
+        // Otherwise, try to return featured media
         if let featuredID = featuredMediaID,
            let featured = mediaItems?.first(where: { $0.id == featuredID }) {
             return featured.url

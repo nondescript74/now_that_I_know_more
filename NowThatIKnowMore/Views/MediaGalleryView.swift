@@ -194,52 +194,78 @@ private struct PhotoThumbnail: View {
     let url: String
     
     var body: some View {
-        if let nsURL = URL(string: url) {
-            // URL from string (likely http/https)
-            if nsURL.scheme == "http" || nsURL.scheme == "https" {
-                AsyncImage(url: nsURL) { phase in
-                    switch phase {
-                    case .empty:
-                        ProgressView()
-                    case .success(let image):
-                        image
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: 120, height: 120)
-                            .clipped()
-                    case .failure:
-                        placeholderImage
-                    @unknown default:
-                        placeholderImage
-                    }
-                }
-            } else {
-                // Local file URL
-                if let data = try? Data(contentsOf: nsURL),
-                   let uiImage = UIImage(data: data) {
-                    Image(uiImage: uiImage)
+        // First check if it's a web URL
+        if let nsURL = URL(string: url),
+           nsURL.scheme == "http" || nsURL.scheme == "https" {
+            AsyncImage(url: nsURL) { phase in
+                switch phase {
+                case .empty:
+                    ProgressView()
+                case .success(let image):
+                    image
                         .resizable()
                         .scaledToFill()
                         .frame(width: 120, height: 120)
                         .clipped()
-                } else {
+                case .failure:
+                    placeholderImage
+                @unknown default:
                     placeholderImage
                 }
             }
         } else {
-            // Try as file path if URL(string:) failed
-            let fileURL = URL(filePath: url)
+            // Try loading as local file
+            loadLocalImage
+        }
+    }
+    
+    @ViewBuilder
+    private var loadLocalImage: some View {
+        // Try multiple approaches to load local file
+        if let uiImage = loadImage() {
+            Image(uiImage: uiImage)
+                .resizable()
+                .scaledToFill()
+                .frame(width: 120, height: 120)
+                .clipped()
+        } else {
+            placeholderImage
+        }
+    }
+    
+    private func loadImage() -> UIImage? {
+        // Debug: Uncomment to see what URLs are being loaded
+        // print("📷 Attempting to load image from: \(url)")
+        
+        // Method 1: Try as absolute file path
+        if url.hasPrefix("/") {
+            let fileURL = URL(fileURLWithPath: url)
             if let data = try? Data(contentsOf: fileURL),
-               let uiImage = UIImage(data: data) {
-                Image(uiImage: uiImage)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: 120, height: 120)
-                    .clipped()
-            } else {
-                placeholderImage
+               let image = UIImage(data: data) {
+                // print("✅ Loaded image via absolute path")
+                return image
             }
         }
+        
+        // Method 2: Try URL(string:) and then as file URL
+        if let nsURL = URL(string: url) {
+            if let data = try? Data(contentsOf: nsURL),
+               let image = UIImage(data: data) {
+                // print("✅ Loaded image via URL(string:)")
+                return image
+            }
+        }
+        
+        // Method 3: Try constructing file URL from path
+        let fileURL = URL(fileURLWithPath: url)
+        if let data = try? Data(contentsOf: fileURL),
+           let image = UIImage(data: data) {
+            // print("✅ Loaded image via fileURLWithPath")
+            return image
+        }
+        
+        // print("❌ Failed to load image from all methods")
+        return nil
     }
     
     private var placeholderImage: some View {
