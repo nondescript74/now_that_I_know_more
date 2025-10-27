@@ -137,22 +137,7 @@ struct RecipeDetail: View {
         // Display featured media or fall back to legacy image field
         if let featuredURL = recipe.featuredMediaURL, !featuredURL.isEmpty {
             let url = URL(string: featuredURL) ?? URL(filePath: featuredURL)
-            if url.scheme == "file" || url.pathComponents.first == "/" {
-                if let data = try? Data(contentsOf: url), let fileImage = UIImage(data: data) {
-                    Image(uiImage: fileImage)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(maxWidth: .infinity)
-                        .cornerRadius(8)
-                } else {
-                    Image(systemName: "photo")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 120, height: 120)
-                        .foregroundColor(.gray)
-                        .frame(maxWidth: .infinity)
-                }
-            } else if url.scheme == "http" || url.scheme == "https" {
+            if url.scheme == "http" || url.scheme == "https" {
                 AsyncImage(url: url) { phase in
                     switch phase {
                     case .empty:
@@ -174,6 +159,21 @@ struct RecipeDetail: View {
                     @unknown default:
                         EmptyView()
                     }
+                }
+            } else if url.scheme == "file" || url.pathComponents.first == "/" {
+                if let data = try? Data(contentsOf: url), let fileImage = UIImage(data: data) {
+                    Image(uiImage: fileImage)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(maxWidth: .infinity)
+                        .cornerRadius(8)
+                } else {
+                    Image(systemName: "photo")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 120, height: 120)
+                        .foregroundColor(.gray)
+                        .frame(maxWidth: .infinity)
                 }
             } else {
                 Image(systemName: "photo")
@@ -419,26 +419,14 @@ struct RecipeDetail: View {
         guard let imageUrlString = imageUrlString, let url = URL(string: imageUrlString) else {
             return nil
         }
+        // Only load file URLs synchronously, as they're local and won't block the UI
         if url.scheme == "file" {
             if let data = try? Data(contentsOf: url), let image = UIImage(data: data) {
                 return image
             }
             return nil
-        } else if url.scheme == "http" || url.scheme == "https" {
-            // Attempt to synchronously fetch image data (not recommended for production)
-            // but per instructions, do synchronously if possible.
-            let semaphore = DispatchSemaphore(value: 0)
-            var fetchedImage: UIImage? = nil
-            let task = URLSession.shared.dataTask(with: url) { data, _, _ in
-                if let data = data, let image = UIImage(data: data) {
-                    fetchedImage = image
-                }
-                semaphore.signal()
-            }
-            task.resume()
-            _ = semaphore.wait(timeout: .now() + 3) // wait max 3 seconds
-            return fetchedImage
         }
+        // For HTTP/HTTPS URLs, return nil and let the caller handle async loading
         return nil
     }
 }
