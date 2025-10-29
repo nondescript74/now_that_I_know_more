@@ -29,7 +29,7 @@ private struct MainTabView: View {
                     Label("API Key", systemImage: "key.fill")
                 }
                 .tag(2)
-            RecipeEditorView(recipe: store.recipes.first ?? Recipe(from: ["uuid": UUID(), "title": "New Recipe"])!)
+            RecipeEditorView(recipe: Recipe(from: ["uuid": UUID(), "title": "New Recipe"])!)
                 .tabItem {
                     Label("Edit Recipe", systemImage: "pencil")
                 }
