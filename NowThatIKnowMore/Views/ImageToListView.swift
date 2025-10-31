@@ -715,15 +715,64 @@ struct ImageToListView: View {
         newItems[keep] = merged
         newItems.remove(at: removeFirst)
         recognizedItems = newItems
-        // For safety, clear all selection/grouping states
-        selectedTitleIndicesState.removeAll()
-        selectedSummaryIndicesState.removeAll()
-        selectedIngredientIndices.removeAll()
-        selectedInstructionIndices.removeAll()
-        ingredientGroups.removeAll()
-        instructionGroups.removeAll()
-        groupingIngredient.removeAll()
-        groupingInstruction.removeAll()
+        
+        // Update indices in all selections and groups to account for the removed item
+        // Any index == removeFirst should be removed (merged away)
+        // Any index > removeFirst should be decremented by 1
+        
+        func updateIndices(_ indices: Set<Int>) -> Set<Int> {
+            var updated = Set<Int>()
+            for idx in indices {
+                if idx == removeFirst {
+                    // This item was merged away, don't include it
+                    continue
+                } else if idx > removeFirst {
+                    // Shift down by 1
+                    updated.insert(idx - 1)
+                } else {
+                    // Keep as is
+                    updated.insert(idx)
+                }
+            }
+            return updated
+        }
+        
+        func updateIndexArray(_ indices: [Int]) -> [Int] {
+            var updated: [Int] = []
+            for idx in indices {
+                if idx == removeFirst {
+                    // This item was merged away, don't include it
+                    continue
+                } else if idx > removeFirst {
+                    // Shift down by 1
+                    updated.append(idx - 1)
+                } else {
+                    // Keep as is
+                    updated.append(idx)
+                }
+            }
+            return updated
+        }
+        
+        // Update all selections
+        selectedTitleIndicesState = updateIndices(selectedTitleIndicesState)
+        selectedSummaryIndicesState = updateIndices(selectedSummaryIndicesState)
+        selectedIngredientIndices = updateIndices(selectedIngredientIndices)
+        selectedInstructionIndices = updateIndices(selectedInstructionIndices)
+        groupingIngredient = updateIndexArray(groupingIngredient)
+        groupingInstruction = updateIndexArray(groupingInstruction)
+        
+        // Update all groups
+        ingredientGroups = ingredientGroups.map { updateIndexArray($0) }.filter { !$0.isEmpty }
+        instructionGroups = instructionGroups.map { updateIndexArray($0) }.filter { !$0.isEmpty }
+        
+        // Update edited title and summary if needed
+        if !selectedTitleIndicesState.isEmpty {
+            editedTitle = joinedSelectedTitle
+        }
+        if !selectedSummaryIndicesState.isEmpty {
+            editedSummary = joinedSelectedSummary
+        }
     }
     
     private func cleanSummary(_ html: String) -> String {
