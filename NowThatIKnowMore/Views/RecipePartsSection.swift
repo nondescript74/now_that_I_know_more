@@ -41,6 +41,30 @@ struct RecipePartsSection: View {
     var joinedSelectedSummary: String
     var joinedSelectedIngredients: [String]
     var joinedSelectedInstructions: [String]
+    
+    // Computed property to get all used indices across all sections
+    private var usedIndices: Set<Int> {
+        var used = Set<Int>()
+        used.formUnion(selectedTitleIndicesState)
+        used.formUnion(selectedSummaryIndicesState)
+        used.formUnion(selectedIngredientIndices)
+        used.formUnion(selectedInstructionIndices)
+        used.formUnion(groupingIngredient)
+        used.formUnion(groupingInstruction)
+        for group in ingredientGroups {
+            used.formUnion(group)
+        }
+        for group in instructionGroups {
+            used.formUnion(group)
+        }
+        return used
+    }
+    
+    /// Returns available indices for a specific section (excluding its own selections)
+    private func availableIndices(excluding excludedSet: Set<Int>) -> [Int] {
+        let used = usedIndices.subtracting(excludedSet)
+        return recognizedItems.indices.filter { !used.contains($0) }
+    }
 
     private var trimmedUrlText: String { imageUrlText.trimmingCharacters(in: .whitespacesAndNewlines) }
     private var validUrl: URL? { URL(string: trimmedUrlText) }
@@ -185,24 +209,41 @@ struct RecipePartsSection: View {
                 // Replace Title Picker with multiple toggle buttons and drag-and-merge capability
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Title")
-                    ForEach(self.recognizedItems.indices, id: \.self) { i in
+                    // Show selected items first
+                    ForEach(Array(self.selectedTitleIndicesState).sorted(), id: \.self) { i in
                         ZStack {
                             Button(action: {
-                                if self.selectedTitleIndicesState.contains(i) {
-                                    self.selectedTitleIndicesState.remove(i)
-                                } else {
-                                    self.selectedTitleIndicesState.insert(i)
-                                }
+                                self.selectedTitleIndicesState.remove(i)
                             }) {
                                 HStack {
-                                    Image(systemName: self.selectedTitleIndicesState.contains(i) ? "checkmark.square.fill" : "square")
+                                    Image(systemName: "checkmark.square.fill")
                                     Text(self.recognizedItems[i])
                                 }
                             }
                             .buttonStyle(.plain)
                         }
-                        .background(self.dragOverIndex == i ? Color.accentColor.opacity(0.1) : Color.clear)
-                        // .onDrag and .onDrop commented out in original code remain same
+                        .background(Color.accentColor.opacity(0.05))
+                    }
+                    
+                    // Show available items (not used in any section)
+                    let availableForTitle = availableIndices(excluding: selectedTitleIndicesState)
+                    if !availableForTitle.isEmpty {
+                        Divider()
+                        ForEach(availableForTitle, id: \.self) { i in
+                            ZStack {
+                                Button(action: {
+                                    self.selectedTitleIndicesState.insert(i)
+                                }) {
+                                    HStack {
+                                        Image(systemName: "square")
+                                        Text(self.recognizedItems[i])
+                                    }
+                                }
+                                .buttonStyle(.plain)
+                            }
+                            .background(self.dragOverIndex == i ? Color.accentColor.opacity(0.1) : Color.clear)
+                            // .onDrag and .onDrop commented out in original code remain same
+                        }
                     }
                 }
                 TextField("Edit Title", text: $editedTitle)
@@ -221,20 +262,35 @@ struct RecipePartsSection: View {
                 // Replace Summary Picker with multiple toggle buttons
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Summary")
-                    ForEach(self.recognizedItems.indices, id: \.self) { i in
+                    // Show selected items first
+                    ForEach(Array(self.selectedSummaryIndicesState).sorted(), id: \.self) { i in
                         Button(action: {
-                            if self.selectedSummaryIndicesState.contains(i) {
-                                self.selectedSummaryIndicesState.remove(i)
-                            } else {
-                                self.selectedSummaryIndicesState.insert(i)
-                            }
+                            self.selectedSummaryIndicesState.remove(i)
                         }) {
                             HStack {
-                                Image(systemName: self.selectedSummaryIndicesState.contains(i) ? "checkmark.square.fill" : "square")
+                                Image(systemName: "checkmark.square.fill")
                                 Text(self.recognizedItems[i])
                             }
                         }
                         .buttonStyle(.plain)
+                        .background(Color.accentColor.opacity(0.05))
+                    }
+                    
+                    // Show available items (not used in any section)
+                    let availableForSummary = availableIndices(excluding: selectedSummaryIndicesState)
+                    if !availableForSummary.isEmpty {
+                        Divider()
+                        ForEach(availableForSummary, id: \.self) { i in
+                            Button(action: {
+                                self.selectedSummaryIndicesState.insert(i)
+                            }) {
+                                HStack {
+                                    Image(systemName: "square")
+                                    Text(self.recognizedItems[i])
+                                }
+                            }
+                            .buttonStyle(.plain)
+                        }
                     }
                 }
                 TextField("Edit Summary", text: $editedSummary)
@@ -376,33 +432,80 @@ struct RecipePartsSection: View {
                 
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Select Ingredients").font(.subheadline)
-                    ForEach(self.recognizedItems.indices, id: \.self) { i in
-                        ZStack {
-                            Button(action: { self.toggleIngredientGrouped(i) }) {
+                    
+                    // Show items currently being grouped
+                    if !self.groupingIngredient.isEmpty {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Items in current group (tap to remove):").font(.caption).foregroundColor(.blue)
+                            ForEach(self.groupingIngredient.sorted(), id: \.self) { i in
+                                Button(action: { self.toggleIngredientGrouped(i) }) {
+                                    HStack {
+                                        Image(systemName: "checkmark.square.fill")
+                                        Text(self.recognizedItems[i])
+                                    }
+                                }
+                                .buttonStyle(.plain)
+                                .background(Color.blue.opacity(0.1))
+                            }
+                        }
+                        Divider()
+                    }
+                    
+                    // Show already grouped items (in ingredientGroups)
+                    let alreadyGrouped = Set(ingredientGroups.flatMap { $0 })
+                    if !alreadyGrouped.isEmpty {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Already in groups:").font(.caption).foregroundColor(.green)
+                            ForEach(Array(alreadyGrouped).sorted(), id: \.self) { i in
                                 HStack {
-                                    Image(systemName: self.groupingIngredient.contains(i) ? "checkmark.square.fill" : "square")
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundColor(.green)
                                     Text(self.recognizedItems[i])
                                 }
+                                .font(.caption)
                             }
-                            .buttonStyle(.plain)
                         }
-                        .background(self.dragOverIndex == i ? Color.accentColor.opacity(0.1) : Color.clear)
-                         .onDrag {
-                             NSItemProvider(object: String(i) as NSString)
-                         }
-                         .onDrop(of: ["public.text"], isTargeted: Binding(get: { self.dragOverIndex == i }, set: { val in self.dragOverIndex = val ? i : nil })) { providers in
-                             if let provider = providers.first {
-                                 _ = provider.loadObject(ofClass: NSString.self) { (draggedIdxStr, _) in
-                                     guard let draggedIdxStr = draggedIdxStr as? String, let draggedIdx = Int(draggedIdxStr), draggedIdx != i else { return }
-                                     DispatchQueue.main.async {
-                                         self.mergeRecognizedItems(draggedIdx, i)
-                                     }
-                                 }
-                                 return true
-                             }
-                             return false
-                         }
+                        Divider()
                     }
+                    
+                    // Show available items
+                    let usedInIngredients = Set(groupingIngredient).union(alreadyGrouped).union(selectedIngredientIndices)
+                    let availableForIngredients = availableIndices(excluding: usedInIngredients)
+                    if !availableForIngredients.isEmpty {
+                        ForEach(availableForIngredients, id: \.self) { i in
+                            ZStack {
+                                Button(action: { self.toggleIngredientGrouped(i) }) {
+                                    HStack {
+                                        Image(systemName: "square")
+                                        Text(self.recognizedItems[i])
+                                    }
+                                }
+                                .buttonStyle(.plain)
+                            }
+                            .background(self.dragOverIndex == i ? Color.accentColor.opacity(0.1) : Color.clear)
+                             .onDrag {
+                                 NSItemProvider(object: String(i) as NSString)
+                             }
+                             .onDrop(of: ["public.text"], isTargeted: Binding(get: { self.dragOverIndex == i }, set: { val in self.dragOverIndex = val ? i : nil })) { providers in
+                                 if let provider = providers.first {
+                                     _ = provider.loadObject(ofClass: NSString.self) { (draggedIdxStr, _) in
+                                         guard let draggedIdxStr = draggedIdxStr as? String, let draggedIdx = Int(draggedIdxStr), draggedIdx != i else { return }
+                                         DispatchQueue.main.async {
+                                             self.mergeRecognizedItems(draggedIdx, i)
+                                         }
+                                     }
+                                     return true
+                                 }
+                                 return false
+                             }
+                        }
+                    } else if groupingIngredient.isEmpty && alreadyGrouped.isEmpty {
+                        Text("All items have been assigned to other sections")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .padding(.vertical, 8)
+                    }
+                    
                     HStack {
                         Button("Add Ingredient Group") {
                             if !self.groupingIngredient.isEmpty {
@@ -432,33 +535,80 @@ struct RecipePartsSection: View {
                 }
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Select Instructions").font(.subheadline)
-                    ForEach(self.recognizedItems.indices, id: \.self) { i in
-                        ZStack {
-                            Button(action: { self.toggleInstructionGrouped(i) }) {
+                    
+                    // Show items currently being grouped
+                    if !self.groupingInstruction.isEmpty {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Items in current group (tap to remove):").font(.caption).foregroundColor(.blue)
+                            ForEach(self.groupingInstruction.sorted(), id: \.self) { i in
+                                Button(action: { self.toggleInstructionGrouped(i) }) {
+                                    HStack {
+                                        Image(systemName: "checkmark.square.fill")
+                                        Text(self.recognizedItems[i])
+                                    }
+                                }
+                                .buttonStyle(.plain)
+                                .background(Color.blue.opacity(0.1))
+                            }
+                        }
+                        Divider()
+                    }
+                    
+                    // Show already grouped items (in instructionGroups)
+                    let alreadyGrouped = Set(instructionGroups.flatMap { $0 })
+                    if !alreadyGrouped.isEmpty {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Already in groups:").font(.caption).foregroundColor(.green)
+                            ForEach(Array(alreadyGrouped).sorted(), id: \.self) { i in
                                 HStack {
-                                    Image(systemName: self.groupingInstruction.contains(i) ? "checkmark.square.fill" : "square")
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundColor(.green)
                                     Text(self.recognizedItems[i])
                                 }
+                                .font(.caption)
                             }
-                            .buttonStyle(.plain)
                         }
-                        .background(self.dragOverIndex == i ? Color.accentColor.opacity(0.1) : Color.clear)
-                         .onDrag {
-                             NSItemProvider(object: String(i) as NSString)
-                         }
-                         .onDrop(of: ["public.text"], isTargeted: Binding(get: { self.dragOverIndex == i }, set: { val in self.dragOverIndex = val ? i : nil })) { providers in
-                             if let provider = providers.first {
-                                 _ = provider.loadObject(ofClass: NSString.self) { (draggedIdxStr, _) in
-                                     guard let draggedIdxStr = draggedIdxStr as? String, let draggedIdx = Int(draggedIdxStr), draggedIdx != i else { return }
-                                     DispatchQueue.main.async {
-                                         self.mergeRecognizedItems(draggedIdx, i)
-                                     }
-                                 }
-                                 return true
-                             }
-                             return false
-                         }
+                        Divider()
                     }
+                    
+                    // Show available items
+                    let usedInInstructions = Set(groupingInstruction).union(alreadyGrouped).union(selectedInstructionIndices)
+                    let availableForInstructions = availableIndices(excluding: usedInInstructions)
+                    if !availableForInstructions.isEmpty {
+                        ForEach(availableForInstructions, id: \.self) { i in
+                            ZStack {
+                                Button(action: { self.toggleInstructionGrouped(i) }) {
+                                    HStack {
+                                        Image(systemName: "square")
+                                        Text(self.recognizedItems[i])
+                                    }
+                                }
+                                .buttonStyle(.plain)
+                            }
+                            .background(self.dragOverIndex == i ? Color.accentColor.opacity(0.1) : Color.clear)
+                             .onDrag {
+                                 NSItemProvider(object: String(i) as NSString)
+                             }
+                             .onDrop(of: ["public.text"], isTargeted: Binding(get: { self.dragOverIndex == i }, set: { val in self.dragOverIndex = val ? i : nil })) { providers in
+                                 if let provider = providers.first {
+                                     _ = provider.loadObject(ofClass: NSString.self) { (draggedIdxStr, _) in
+                                         guard let draggedIdxStr = draggedIdxStr as? String, let draggedIdx = Int(draggedIdxStr), draggedIdx != i else { return }
+                                         DispatchQueue.main.async {
+                                             self.mergeRecognizedItems(draggedIdx, i)
+                                         }
+                                     }
+                                     return true
+                                 }
+                                 return false
+                             }
+                        }
+                    } else if groupingInstruction.isEmpty && alreadyGrouped.isEmpty {
+                        Text("All items have been assigned to other sections")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .padding(.vertical, 8)
+                    }
+                    
                     HStack {
                         Button("Add Instruction Group") {
                             if !self.groupingInstruction.isEmpty {
