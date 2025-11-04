@@ -37,6 +37,9 @@ struct RecipeEditorView: View {
     @State private var featuredMediaID: UUID?
     @State private var preferFeaturedMedia: Bool
     
+    // Photo picker for image URL field
+    @State private var selectedPhotoItem: PhotosPickerItem?
+    
     // Editing mode helper for complex fields
     private static let daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
     
@@ -216,22 +219,84 @@ struct RecipeEditorView: View {
     private var imageURLSection: some View {
         Section(header: Text("Image URL (optional)")) {
             HStack {
-                TextField("Paste image url", text: $imageUrl)
+                TextField("Paste image url or select from Photos", text: $imageUrl)
                     .keyboardType(.URL)
                     .autocapitalization(.none)
                     .disableAutocorrection(true)
                 Button("Clear") { imageUrl = "" }
             }
+            
+            // Photo picker button
+            HStack {
+                PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
+                    Label("Select from Photos", systemImage: "photo.on.rectangle")
+                }
+                .onChange(of: selectedPhotoItem) { _, newItem in
+                    Task {
+                        if let newItem,
+                           let data = try? await newItem.loadTransferable(type: Data.self) {
+                            // Save to temporary location
+                            if let savedURL = saveImageToDocuments(data: data) {
+                                imageUrl = savedURL.absoluteString
+                            }
+                        }
+                    }
+                }
+                
+                Spacer()
+                
+                Text("or paste a URL above")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            
             if isValidImageUrl(imageUrl) {
-                AsyncImage(url: URL(string: imageUrl)) { phase in
-                    switch phase {
-                    case .empty: ProgressView()
-                    case .success(let image): image.resizable().scaledToFit().frame(height: 120)
-                    case .failure: Image(systemName: "exclamationmark.triangle").foregroundColor(.red)
-                    @unknown default: EmptyView()
+                if let url = URL(string: imageUrl) {
+                    AsyncImage(url: url) { phase in
+                        switch phase {
+                        case .empty: ProgressView()
+                        case .success(let image): 
+                            image.resizable()
+                                .scaledToFit()
+                                .frame(height: 120)
+                                .cornerRadius(8)
+                        case .failure: 
+                            // For local files, try loading directly
+                            if url.scheme == "file", let data = try? Data(contentsOf: url), let uiImage = UIImage(data: data) {
+                                Image(uiImage: uiImage)
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(height: 120)
+                                    .cornerRadius(8)
+                            } else {
+                                Image(systemName: "exclamationmark.triangle")
+                                    .foregroundColor(.red)
+                            }
+                        @unknown default: EmptyView()
+                        }
                     }
                 }
             }
+        }
+    }
+    
+    // Helper function to save image to documents directory
+    private func saveImageToDocuments(data: Data) -> URL? {
+        let fileManager = FileManager.default
+        guard let documentsURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else {
+            return nil
+        }
+        
+        // Create a unique filename
+        let fileName = "recipe_image_\(UUID().uuidString).jpg"
+        let fileURL = documentsURL.appendingPathComponent(fileName)
+        
+        do {
+            try data.write(to: fileURL, options: .atomic)
+            return fileURL
+        } catch {
+            print("❌ Failed to save image: \(error)")
+            return nil
         }
     }
     
@@ -339,10 +404,27 @@ struct RecipeEditorView: View {
     }
     
     private func isValidImageUrl(_ url: String) -> Bool {
-        guard let url = URL(string: url.lowercased()), ["http", "https"].contains(url.scheme) else { return false }
-        let validExtensions = ["jpg", "jpeg", "png", "gif", "webp"]
-        let ext = url.pathExtension
-        return validExtensions.contains(ext)
+        guard let parsedUrl = URL(string: url) else { return false }
+        
+        let validExtensions = ["jpg", "jpeg", "png", "gif", "webp", "heic", "heif"]
+        let ext = parsedUrl.pathExtension.lowercased()
+        
+        // Check for remote URLs (http/https)
+        if ["http", "https"].contains(parsedUrl.scheme) {
+            return validExtensions.contains(ext)
+        }
+        
+        // Check for file URLs (Photos library or local files)
+        if ["file"].contains(parsedUrl.scheme) {
+            return validExtensions.contains(ext) || url.contains("assets-library://") || url.contains(".JPG") || url.contains(".PNG")
+        }
+        
+        // Check for Photos library asset URLs
+        if url.hasPrefix("assets-library://") || url.hasPrefix("ph://") {
+            return true
+        }
+        
+        return false
     }
 
     private func loadRecipe(_ selectedRecipe: Recipe) {
