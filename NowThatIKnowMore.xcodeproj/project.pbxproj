@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		F8127C552EB028FC0059160D /* RECIPE_IMPORT_SETUP.md in Resources */ = {isa = PBXBuildFile; fileRef = F8127C542EB028FC0059160D /* RECIPE_IMPORT_SETUP.md */; };
+		F85E69E22EBABF9200F187AB /* Testing.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F85E69E12EBABF9200F187AB /* Testing.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -23,6 +24,7 @@
 /* Begin PBXFileReference section */
 		F8127C542EB028FC0059160D /* RECIPE_IMPORT_SETUP.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = RECIPE_IMPORT_SETUP.md; sourceTree = "<group>"; };
 		F82259C42E84605B00840803 /* NowThatIKnowMoreTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NowThatIKnowMoreTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		F85E69E12EBABF9200F187AB /* Testing.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Testing.framework; path = Platforms/iPhoneOS.platform/Developer/Library/Frameworks/Testing.framework; sourceTree = DEVELOPER_DIR; };
 		F8B44A272E4E254E00BD0920 /* NowThatIKnowMore.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NowThatIKnowMore.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		F8EC9FF02E63AAD600211F03 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = Info.plist; path = NowThatIKnowMore.xcodeproj/Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -31,11 +33,25 @@
 		F8211A802E848F8B00815127 /* Exceptions for "NowThatIKnowMore" folder in "NowThatIKnowMoreTests" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				"Models/String+HTMLStripping.swift",
 				Models/Welcome.swift,
+				Observables/RecipeImportPreviewViewTests.swift,
 				Observables/RecipeStore.swift,
+				RecipeImportPreviewView.swift,
+				Views/MediaGalleryView.swift,
 				"Views/Recipe+Decoding.swift",
+				Views/RecipeDetail.swift,
+				Views/RecipeEditorView.swift,
+				Views/RecipeMedia.swift,
 			);
 			target = F82259C32E84605B00840803 /* NowThatIKnowMoreTests */;
+		};
+		F8C68D852EBAC0E5005939E7 /* Exceptions for "NowThatIKnowMore" folder in "NowThatIKnowMore" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Observables/RecipeImportPreviewViewTests.swift,
+			);
+			target = F8B44A262E4E254E00BD0920 /* NowThatIKnowMore */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
@@ -48,6 +64,7 @@
 		F8B44A292E4E254E00BD0920 /* NowThatIKnowMore */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
+				F8C68D852EBAC0E5005939E7 /* Exceptions for "NowThatIKnowMore" folder in "NowThatIKnowMore" target */,
 				F8211A802E848F8B00815127 /* Exceptions for "NowThatIKnowMore" folder in "NowThatIKnowMoreTests" target */,
 			);
 			path = NowThatIKnowMore;
@@ -59,6 +76,7 @@
 		F82259C12E84605B00840803 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			files = (
+				F85E69E22EBABF9200F187AB /* Testing.framework in Frameworks */,
 			);
 		};
 		F8B44A242E4E254E00BD0920 /* Frameworks */ = {
@@ -69,6 +87,14 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		F85E69E02EBABF9200F187AB /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				F85E69E12EBABF9200F187AB /* Testing.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		F8B44A1E2E4E254E00BD0920 = {
 			isa = PBXGroup;
 			children = (
@@ -77,6 +103,7 @@
 				F82259C52E84605B00840803 /* NowThatIKnowMoreTests */,
 				F8B44A282E4E254E00BD0920 /* Products */,
 				F8127C542EB028FC0059160D /* RECIPE_IMPORT_SETUP.md */,
+				F85E69E02EBABF9200F187AB /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -227,7 +254,7 @@
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/NowThatIKnowMore.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/NowThatIKnowMore";
 			};
@@ -254,7 +281,7 @@
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/NowThatIKnowMore.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/NowThatIKnowMore";
 				VALIDATE_PRODUCT = YES;
@@ -322,6 +349,7 @@
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
 			};
 			name = Debug;
 		};
@@ -378,6 +406,7 @@
 				MTL_FAST_MATH = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_VERSION = 6.0;
 			};
 			name = Release;
 		};
@@ -388,7 +417,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 47;
+				CURRENT_PROJECT_VERSION = 48;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = YKHW2TJ32G;
 				ENABLE_APP_SANDBOX = YES;
@@ -436,7 +465,7 @@
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				XROS_DEPLOYMENT_TARGET = 26.0;
 			};
@@ -449,7 +478,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 47;
+				CURRENT_PROJECT_VERSION = 48;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = YKHW2TJ32G;
 				ENABLE_APP_SANDBOX = YES;
@@ -497,7 +526,7 @@
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				XROS_DEPLOYMENT_TARGET = 26.0;
 			};
