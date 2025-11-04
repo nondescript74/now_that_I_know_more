@@ -4,4 +4,43 @@
    <FileRef
       location = "self:">
    </FileRef>
+   <FileRef
+      location = "group:docsREADME.md">
+   </FileRef>
+   <FileRef
+      location = "group:docssetuprecipe-import-setup.md">
+   </FileRef>
+   <FileRef
+      location = "group:docsguidesrecipe-sharing.md">
+   </FileRef>
+   <FileRef
+      location = "group:docsguidesrecipe-import.md">
+   </FileRef>
+   <FileRef
+      location = "group:docsarchitecturerecipe-import-implementation.md">
+   </FileRef>
+   <FileRef
+      location = "group:README.md">
+   </FileRef>
+   <FileRef
+      location = "group:docsMIGRATION.md">
+   </FileRef>
+   <FileRef
+      location = "group:docsarchiveREADME.md">
+   </FileRef>
+   <FileRef
+      location = "group:docsarchiveREADME_RECIPE_IMPORT.md">
+   </FileRef>
+   <FileRef
+      location = "group:docsarchiveRECIPE_IMPORT_IMPLEMENTATION.md">
+   </FileRef>
+   <FileRef
+      location = "group:docsarchiveRecipeSharingGuide.md">
+   </FileRef>
+   <FileRef
+      location = "group:docsarchiveRECIPE_SHARING_GUIDE.md">
+   </FileRef>
+   <FileRef
+      location = "group:REORGANIZATION_COMPLETE.md">
+   </FileRef>
 </Workspace>
