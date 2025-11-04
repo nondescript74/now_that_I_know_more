@@ -82,8 +82,21 @@ struct MealPlan: View {
                                             EmptyView()
                                         }
                                     }
+                                    .onAppear {
+                                        print("🖼️ [MealPlan] Showing image for '\(recipe.title ?? "nil")'")
+                                        print("🖼️ [MealPlan] featuredMediaURL: '\(urlString)'")
+                                        print("🖼️ [MealPlan] image field: '\(recipe.image ?? "nil")'")
+                                        print("🖼️ [MealPlan] mediaItems count: \(recipe.mediaItems?.count ?? 0)")
+                                        print("🖼️ [MealPlan] featuredMediaID: \(recipe.featuredMediaID?.uuidString ?? "nil")")
+                                        print("🖼️ [MealPlan] preferFeaturedMedia: \(recipe.preferFeaturedMedia ?? false)")
+                                    }
                                 } else {
                                     Image(systemName: "photo").resizable().frame(width: 44, height: 44).foregroundColor(.gray)
+                                        .onAppear {
+                                            print("📷 [MealPlan] No image for '\(recipe.title ?? "nil")'")
+                                            print("📷 [MealPlan] image field: '\(recipe.image ?? "nil")'")
+                                            print("📷 [MealPlan] mediaItems count: \(recipe.mediaItems?.count ?? 0)")
+                                        }
                                 }
                                 VStack(alignment: .leading) {
                                     Text(recipe.title ?? "No Title")
