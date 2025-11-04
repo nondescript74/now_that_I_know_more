@@ -30,8 +30,30 @@ import Combine
     
     func update(_ recipe: Recipe) {
         if let idx = recipes.firstIndex(where: { $0.uuid == recipe.uuid }) {
-            recipes[idx] = recipe
+            print("🔍 [RecipeStore] Updating recipe at index \(idx)")
+            print("🔍 [RecipeStore] Old title: '\(recipes[idx].title ?? "nil")'")
+            print("🔍 [RecipeStore] New title: '\(recipe.title ?? "nil")'")
+            print("🔍 [RecipeStore] Old image: '\(recipes[idx].image ?? "nil")'")
+            print("🔍 [RecipeStore] New image: '\(recipe.image ?? "nil")'")
+            print("🔍 [RecipeStore] Old mediaItems count: \(recipes[idx].mediaItems?.count ?? 0)")
+            print("🔍 [RecipeStore] New mediaItems count: \(recipe.mediaItems?.count ?? 0)")
+            print("🔍 [RecipeStore] Old featuredMediaID: \(recipes[idx].featuredMediaID?.uuidString ?? "nil")")
+            print("🔍 [RecipeStore] New featuredMediaID: \(recipe.featuredMediaID?.uuidString ?? "nil")")
+            print("🔍 [RecipeStore] Old preferFeaturedMedia: \(recipes[idx].preferFeaturedMedia ?? false)")
+            print("🔍 [RecipeStore] New preferFeaturedMedia: \(recipe.preferFeaturedMedia ?? false)")
+            print("🔍 [RecipeStore] Old featuredMediaURL: '\(recipes[idx].featuredMediaURL ?? "nil")'")
+            print("🔍 [RecipeStore] New featuredMediaURL: '\(recipe.featuredMediaURL ?? "nil")'")
+            
+            // Create a new array to ensure SwiftUI detects the change
+            var updatedRecipes = recipes
+            updatedRecipes[idx] = recipe
+            recipes = updatedRecipes
+            
             saveAll()
+            print("✅ [RecipeStore] Recipe updated and saved")
+        } else {
+            print("❌ [RecipeStore] Recipe with UUID \(recipe.uuid) not found in store")
+            print("❌ [RecipeStore] Available UUIDs: \(recipes.map { $0.uuid.uuidString }.joined(separator: ", "))")
         }
     }
     

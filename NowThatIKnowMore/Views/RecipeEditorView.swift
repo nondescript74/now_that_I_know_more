@@ -375,15 +375,28 @@ struct RecipeEditorView: View {
         }
         
         // Determine image and imageType to save based on imageUrl validity
-        var imageToSave = recipe?.image
-        var imageTypeToSave = recipe?.imageType
+        var imageToSave: String?
+        var imageTypeToSave: String?
+        
         if isValidImageUrl(imageUrl) {
+            // User entered a valid URL - use it
             imageToSave = imageUrl
             imageTypeToSave = URL(string: imageUrl)?.pathExtension.lowercased()
+        } else if imageUrl.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            // User cleared the field - explicitly set to nil
+            imageToSave = nil
+            imageTypeToSave = nil
+        } else {
+            // Field has invalid content - preserve original
+            imageToSave = recipe?.image
+            imageTypeToSave = recipe?.imageType
         }
         
+        // Ensure we preserve the UUID for existing recipes
+        let uuidToSave = recipe?.uuid ?? UUID()
+        
         var dict: [String: Any] = [
-            "uuid": recipe?.uuid ?? UUID(),
+            "uuid": uuidToSave, // Keep as UUID object, not string
             "title": title.trimmingCharacters(in: .whitespacesAndNewlines),
             "summary": summary.trimmingCharacters(in: .whitespacesAndNewlines),
             "creditsText": creditsText.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -432,19 +445,43 @@ struct RecipeEditorView: View {
         // Add image display preference
         dict["preferFeaturedMedia"] = preferFeaturedMedia
         
+        print("🔍 [RecipeEditor] Saving recipe with UUID: \(uuidToSave)")
+        
         // Add any additional fields from the original recipe that shouldn't be lost
-        if let existingRecipe = recipe {
-            let updated = Recipe(from: dict) ?? existingRecipe
-            recipeStore.update(updated)
+        if recipe != nil {
+            // Create updated recipe, ensuring we preserve the UUID
+            if let updated = Recipe(from: dict) {
+                print("🔍 [RecipeEditor] Updating existing recipe with UUID: \(updated.uuid)")
+                print("🔍 [RecipeEditor] Title: '\(updated.title ?? "nil")'")
+                recipeStore.update(updated)
+                print("✅ [RecipeEditor] Recipe updated in store")
+                alertMessage = "Saved changes."
+                showAlert = true
+                dismiss()
+            } else {
+                // Failed to create recipe from dict, show error
+                print("❌ [RecipeEditor] Failed to create Recipe from dictionary")
+                print("❌ [RecipeEditor] Dictionary keys: \(dict.keys.joined(separator: ", "))")
+                alertMessage = "Failed to save changes. Please check your inputs."
+                showAlert = true
+            }
         } else {
             // Creating a new recipe
             if let newRecipe = Recipe(from: dict) {
+                print("🔍 [RecipeEditor] Creating new recipe with UUID: \(newRecipe.uuid)")
                 recipeStore.add(newRecipe)
+                print("✅ [RecipeEditor] New recipe added to store")
+                alertMessage = "Created new recipe."
+                showAlert = true
+                dismiss()
+            } else {
+                // Failed to create recipe from dict, show error
+                print("❌ [RecipeEditor] Failed to create new Recipe from dictionary")
+                print("❌ [RecipeEditor] Dictionary keys: \(dict.keys.joined(separator: ", "))")
+                alertMessage = "Failed to create recipe. Please check your inputs."
+                showAlert = true
             }
         }
-        alertMessage = isEditingExisting ? "Saved changes." : "Created new recipe."
-        showAlert = true
-        dismiss()
     }
 }
 
