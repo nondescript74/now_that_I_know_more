@@ -41,8 +41,6 @@ import Combine
             print("🔍 [RecipeStore] New featuredMediaID: \(recipe.featuredMediaID?.uuidString ?? "nil")")
             print("🔍 [RecipeStore] Old preferFeaturedMedia: \(recipes[idx].preferFeaturedMedia ?? false)")
             print("🔍 [RecipeStore] New preferFeaturedMedia: \(recipe.preferFeaturedMedia ?? false)")
-            print("🔍 [RecipeStore] Old featuredMediaURL: '\(recipes[idx].featuredMediaURL ?? "nil")'")
-            print("🔍 [RecipeStore] New featuredMediaURL: '\(recipe.featuredMediaURL ?? "nil")'")
             
             // Create a new array to ensure SwiftUI detects the change
             var updatedRecipes = recipes

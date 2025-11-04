@@ -501,7 +501,6 @@ private struct IngredientListView: View {
     @State private var showReminderPicker = false
     @State private var selectedIndices: Set<Int> = []
     @State private var reminderMessage: String?
-    @State private var isAddingReminders = false
     
     // Added properties for reminder lists and selection
     @State private var availableReminderLists: [EKCalendar] = []
@@ -563,7 +562,6 @@ private struct IngredientListView: View {
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) {
                         Button("Add") {
-                            isAddingReminders = true
                             addIngredientsToReminders()
                         }
                         .disabled(selectedIndices.isEmpty)
@@ -589,9 +587,11 @@ private struct IngredientListView: View {
                     print("[DEBUG] requestFullAccessToReminders (onAppear): granted=\(granted), error=\(error?.localizedDescription ?? "none")")
                     DispatchQueue.main.async {
                         if granted {
-                            let calendars = store.calendars(for: .reminder)
+                            // Create a new store instance on the main thread
+                            let mainStore = EKEventStore()
+                            let calendars = mainStore.calendars(for: .reminder)
                             self.availableReminderLists = calendars
-                            self.selectedList = calendars.first(where: { $0.calendarIdentifier == store.defaultCalendarForNewReminders()?.calendarIdentifier }) ?? calendars.first
+                            self.selectedList = calendars.first(where: { $0.calendarIdentifier == mainStore.defaultCalendarForNewReminders()?.calendarIdentifier }) ?? calendars.first
                         } else {
                             self.reminderMessage = "Access to Reminders not granted."
                         }
@@ -608,41 +608,42 @@ private struct IngredientListView: View {
         store.requestFullAccessToReminders { granted, error in
             print("[DEBUG] requestFullAccessToReminders (add): granted=\(granted), error=\(error?.localizedDescription ?? "none")")
             DispatchQueue.main.async {
-                isAddingReminders = false
                 if let error = error {
-                    reminderMessage = "Error: \(error.localizedDescription)"
+                    self.reminderMessage = "Error: \(error.localizedDescription)"
                     return
                 }
                 guard granted else {
-                    reminderMessage = "Access to Reminders not granted."
+                    self.reminderMessage = "Access to Reminders not granted."
                     return
                 }
-                guard let calendar = selectedList else {
-                    reminderMessage = "No reminder list selected."
+                guard let calendar = self.selectedList else {
+                    self.reminderMessage = "No reminder list selected."
                     return
                 }
-                let selected = selectedIndices.sorted().compactMap { idx in ingredients[safe: idx]?.original }
+                let selected = self.selectedIndices.sorted().compactMap { idx in self.ingredients[safe: idx]?.original }
                 if selected.isEmpty {
-                    reminderMessage = "No ingredients selected."
+                    self.reminderMessage = "No ingredients selected."
                     return
                 }
+                // Create a new store instance on the main thread to avoid Sendable issues
+                let mainStore = EKEventStore()
                 for ingredient in selected where !ingredient.isEmpty {
-                    let reminder = EKReminder(eventStore: store)
+                    let reminder = EKReminder(eventStore: mainStore)
                     reminder.title = ingredient
                     reminder.calendar = calendar
                     do {
-                        try store.save(reminder, commit: false)
+                        try mainStore.save(reminder, commit: false)
                     } catch {
-                        reminderMessage = "Failed to save reminder: \(error.localizedDescription)"
+                        self.reminderMessage = "Failed to save reminder: \(error.localizedDescription)"
                         return
                     }
                 }
                 do {
-                    try store.commit()
-                    reminderMessage = "Added \(selected.count) reminders to \(selectedList?.title ?? "list")."
-                    showReminderPicker = false
+                    try mainStore.commit()
+                    self.reminderMessage = "Added \(selected.count) reminders to \(self.selectedList?.title ?? "list")."
+                    self.showReminderPicker = false
                 } catch {
-                    reminderMessage = "Failed to commit reminders: \(error.localizedDescription)"
+                    self.reminderMessage = "Failed to commit reminders: \(error.localizedDescription)"
                 }
             }
         }
@@ -883,7 +884,10 @@ private struct MailComposeView: UIViewControllerRepresentable {
         }
         
         func mailComposeController(_ controller: MFMailComposeViewController, didFinishWith result: MFMailComposeResult, error: Error?) {
-            dismiss()
+            let dismissAction = dismiss
+            Task { @MainActor in
+                dismissAction()
+            }
         }
     }
     
@@ -965,10 +969,13 @@ private struct MailComposeView: UIViewControllerRepresentable {
 
 
 extension String {
+    // Moved to String+HTMLStripping.swift to avoid redeclaration
+    /*
     var sanitizedForFileName: String {
         let invalidCharacters = CharacterSet(charactersIn: ":/\\?%*|\"<>")
         return components(separatedBy: invalidCharacters).joined(separator: "_")
     }
+    */
 }
 
 #Preview {

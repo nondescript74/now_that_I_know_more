@@ -448,7 +448,7 @@ final class JSONNull: Codable, Hashable, @unchecked Sendable {
     }
 }
 
-class JSONCodingKey: CodingKey {
+final class JSONCodingKey: CodingKey {
     let key: String
 
     required init?(intValue: Int) {

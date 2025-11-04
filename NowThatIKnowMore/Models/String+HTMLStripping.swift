@@ -3,7 +3,7 @@
 import Foundation
 import UIKit
 
-extension String {
+public extension String {
     /// Returns a plain string by parsing and stripping all HTML tags.
     var strippedHTML: String {
         guard let data = self.data(using: .utf8) else { return self }
@@ -16,5 +16,11 @@ extension String {
             return attributed.string
         }
         return self
+    }
+    
+    /// Returns a sanitized string suitable for use as a filename.
+    var sanitizedForFileName: String {
+        let invalidCharacters = CharacterSet(charactersIn: ":/\\?%*|\"<>")
+        return components(separatedBy: invalidCharacters).joined(separator: "_")
     }
 }

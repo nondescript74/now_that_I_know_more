@@ -257,7 +257,15 @@ private func cleanSummary(_ html: String) -> String {
 extension RecipeStore {
     static func previewStore(with recipes: [Recipe]) -> RecipeStore {
         let store = RecipeStore()
-        recipes.forEach { store.add($0) }
+        // Filter out duplicates based on UUID
+        var uniqueRecipes: [Recipe] = []
+        for recipe in recipes {
+            if !uniqueRecipes.contains(where: { $0.uuid == recipe.uuid }) {
+                uniqueRecipes.append(recipe)
+            }
+        }
+        // Set the recipes using the public method
+        store.set(uniqueRecipes)
         return store
     }
 }

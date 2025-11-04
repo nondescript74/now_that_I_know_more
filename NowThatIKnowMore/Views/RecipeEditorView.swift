@@ -4,6 +4,7 @@ import PhotosUI
 import AVKit
 import MessageUI
 
+
 struct RecipeEditorView: View {
     @Environment(RecipeStore.self) private var recipeStore
     @Environment(\.dismiss) private var dismiss
@@ -676,7 +677,10 @@ private struct MailComposeView: UIViewControllerRepresentable {
         }
         
         func mailComposeController(_ controller: MFMailComposeViewController, didFinishWith result: MFMailComposeResult, error: Error?) {
-            dismiss()
+            let dismissAction = dismiss
+            Task { @MainActor in
+                dismissAction()
+            }
         }
     }
     
@@ -699,13 +703,6 @@ private struct MailComposeView: UIViewControllerRepresentable {
         return html
     }
 }
-
-//extension String {
-//    var sanitizedForFileName: String {
-//        let invalidCharacters = CharacterSet(charactersIn: ":/\\?%*|\"<>")
-//        return components(separatedBy: invalidCharacters).joined(separator: "_")
-//    }
-//}
 
 #Preview("Edit Existing Recipe") {
     let store = RecipeStore()
