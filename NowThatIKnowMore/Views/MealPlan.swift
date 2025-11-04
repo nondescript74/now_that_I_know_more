@@ -69,26 +69,50 @@ struct MealPlan: View {
                     ForEach(filteredMealPlanRecipes, id: \.uuid) { recipe in
                         NavigationLink(destination: RecipeDetail(recipeID: recipe.uuid)) {
                             HStack {
-                                if let urlString = recipe.featuredMediaURL, !urlString.isEmpty, let url = URL(string: urlString) {
-                                    AsyncImage(url: url) { phase in
-                                        switch phase {
-                                        case .empty:
-                                            ProgressView().frame(width: 44, height: 44)
-                                        case .success(let image):
-                                            image.resizable().frame(width: 44, height: 44).clipShape(RoundedRectangle(cornerRadius: 8))
-                                        case .failure:
-                                            Image(systemName: "photo").resizable().frame(width: 44, height: 44).foregroundColor(.gray)
-                                        @unknown default:
-                                            EmptyView()
+                                if let urlString = recipe.featuredMediaURL, !urlString.isEmpty {
+                                    if let url = URL(string: urlString) {
+                                        // Handle remote URLs
+                                        if url.scheme == "http" || url.scheme == "https" {
+                                            AsyncImage(url: url) { phase in
+                                                switch phase {
+                                                case .empty:
+                                                    ProgressView().frame(width: 44, height: 44)
+                                                case .success(let image):
+                                                    image.resizable().frame(width: 44, height: 44).clipShape(RoundedRectangle(cornerRadius: 8))
+                                                case .failure:
+                                                    Image(systemName: "photo").resizable().frame(width: 44, height: 44).foregroundColor(.gray)
+                                                @unknown default:
+                                                    EmptyView()
+                                                }
+                                            }
+                                            .onAppear {
+                                                print("🖼️ [MealPlan] Showing remote image for '\(recipe.title ?? "nil")'")
+                                                print("🖼️ [MealPlan] featuredMediaURL: '\(urlString)'")
+                                                print("🖼️ [MealPlan] image field: '\(recipe.image ?? "nil")'")
+                                                print("🖼️ [MealPlan] mediaItems count: \(recipe.mediaItems?.count ?? 0)")
+                                                print("🖼️ [MealPlan] featuredMediaID: \(recipe.featuredMediaID?.uuidString ?? "nil")")
+                                                print("🖼️ [MealPlan] preferFeaturedMedia: \(recipe.preferFeaturedMedia ?? false)")
+                                            }
                                         }
-                                    }
-                                    .onAppear {
-                                        print("🖼️ [MealPlan] Showing image for '\(recipe.title ?? "nil")'")
-                                        print("🖼️ [MealPlan] featuredMediaURL: '\(urlString)'")
-                                        print("🖼️ [MealPlan] image field: '\(recipe.image ?? "nil")'")
-                                        print("🖼️ [MealPlan] mediaItems count: \(recipe.mediaItems?.count ?? 0)")
-                                        print("🖼️ [MealPlan] featuredMediaID: \(recipe.featuredMediaID?.uuidString ?? "nil")")
-                                        print("🖼️ [MealPlan] preferFeaturedMedia: \(recipe.preferFeaturedMedia ?? false)")
+                                        // Handle local file URLs
+                                        else if url.scheme == "file" {
+                                            if let data = try? Data(contentsOf: url), let uiImage = UIImage(data: data) {
+                                                Image(uiImage: uiImage)
+                                                    .resizable()
+                                                    .frame(width: 44, height: 44)
+                                                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                                                    .onAppear {
+                                                        print("🖼️ [MealPlan] Showing local file image for '\(recipe.title ?? "nil")'")
+                                                        print("🖼️ [MealPlan] file URL: '\(urlString)'")
+                                                    }
+                                            } else {
+                                                Image(systemName: "photo").resizable().frame(width: 44, height: 44).foregroundColor(.gray)
+                                            }
+                                        } else {
+                                            Image(systemName: "photo").resizable().frame(width: 44, height: 44).foregroundColor(.gray)
+                                        }
+                                    } else {
+                                        Image(systemName: "photo").resizable().frame(width: 44, height: 44).foregroundColor(.gray)
                                     }
                                 } else {
                                     Image(systemName: "photo").resizable().frame(width: 44, height: 44).foregroundColor(.gray)
