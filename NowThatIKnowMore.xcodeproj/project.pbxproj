@@ -46,6 +46,30 @@
 			);
 			target = F82259C32E84605B00840803 /* NowThatIKnowMoreTests */;
 		};
+		F8B253F82EBD0DC10091C8A0 /* Exceptions for "ImageParsing" folder in "NowThatIKnowMoreTests" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				AdvancedRecipeImageParser.swift,
+				FINAL_INTEGRATION_SUMMARY.md,
+				INTEGRATION_GUIDE_FOR_NOWTHATIKNOWMORE.md,
+				"OCR_PARSE_DEBUGGING 2.md",
+				OCR_PARSE_DEBUGGING.md,
+				OCR_PARSE_FIX.md,
+				ParsedRecipeAdapter.swift,
+				QUICKSTART_NOWTHATIKNOWMORE.md,
+				RECIPE_PARSER_ARCHITECTURE.md,
+				RecipeImageParser.swift,
+				RecipeImageParserView.swift,
+			);
+			target = F82259C32E84605B00840803 /* NowThatIKnowMoreTests */;
+		};
+		F8B2540E2EBD29E70091C8A0 /* Exceptions for "Licensing" folder in "NowThatIKnowMoreTests" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				license.md,
+			);
+			target = F82259C32E84605B00840803 /* NowThatIKnowMoreTests */;
+		};
 		F8C68D852EBAC0E5005939E7 /* Exceptions for "NowThatIKnowMore" folder in "NowThatIKnowMore" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -59,6 +83,22 @@
 		F82259C52E84605B00840803 /* NowThatIKnowMoreTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = NowThatIKnowMoreTests;
+			sourceTree = "<group>";
+		};
+		F827E8062EBC192A00353174 /* Licensing */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				F8B2540E2EBD29E70091C8A0 /* Exceptions for "Licensing" folder in "NowThatIKnowMoreTests" target */,
+			);
+			path = Licensing;
+			sourceTree = "<group>";
+		};
+		F8B253E22EBD0DA70091C8A0 /* ImageParsing */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				F8B253F82EBD0DC10091C8A0 /* Exceptions for "ImageParsing" folder in "NowThatIKnowMoreTests" target */,
+			);
+			path = ImageParsing;
 			sourceTree = "<group>";
 		};
 		F8B44A292E4E254E00BD0920 /* NowThatIKnowMore */ = {
@@ -98,6 +138,8 @@
 		F8B44A1E2E4E254E00BD0920 = {
 			isa = PBXGroup;
 			children = (
+				F8B253E22EBD0DA70091C8A0 /* ImageParsing */,
+				F827E8062EBC192A00353174 /* Licensing */,
 				F8EC9FF02E63AAD600211F03 /* Info.plist */,
 				F8B44A292E4E254E00BD0920 /* NowThatIKnowMore */,
 				F82259C52E84605B00840803 /* NowThatIKnowMoreTests */,
@@ -151,6 +193,8 @@
 			buildRules = (
 			);
 			fileSystemSynchronizedGroups = (
+				F827E8062EBC192A00353174 /* Licensing */,
+				F8B253E22EBD0DA70091C8A0 /* ImageParsing */,
 				F8B44A292E4E254E00BD0920 /* NowThatIKnowMore */,
 			);
 			name = NowThatIKnowMore;
@@ -417,7 +461,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 48;
+				CURRENT_PROJECT_VERSION = 49;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = YKHW2TJ32G;
 				ENABLE_APP_SANDBOX = YES;
@@ -478,7 +522,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 48;
+				CURRENT_PROJECT_VERSION = 49;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = YKHW2TJ32G;
 				ENABLE_APP_SANDBOX = YES;
