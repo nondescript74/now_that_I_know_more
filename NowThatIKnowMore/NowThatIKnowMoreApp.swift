@@ -12,39 +12,62 @@ import Combine
 private struct MainTabView: View {
     @Environment(RecipeStore.self) private var store: RecipeStore
     @State private var selectedTab: Int = 0
+    @State private var showSettings = false
+    
     var body: some View {
-        TabView(selection: $selectedTab) {
-            MealPlan()
-                .tabItem {
-                    Label("Meal Plan", systemImage: "fork.knife")
+        NavigationView {
+            TabView(selection: $selectedTab) {
+                MealPlan()
+                    .tabItem {
+                        Label("Meal Plan", systemImage: "fork.knife")
+                    }
+                    .tag(0)
+                ImageToListView()
+                    .tabItem {
+                        Label("From Image", systemImage: "text.viewfinder")
+                    }
+                    .tag(1)
+                RecipeImageParserView()
+                    .tabItem {
+                        Label("OCR Import", systemImage: "camera")
+                    }
+                    .tag(2)
+                APIKeyTabView()
+                    .tabItem {
+                        Label("API Key", systemImage: "key.fill")
+                    }
+                    .tag(3)
+                RecipeEditorView(recipe: Recipe(from: ["uuid": UUID(), "title": "New Recipe"])!)
+                    .tabItem {
+                        Label("Edit Recipe", systemImage: "pencil")
+                    }
+                    .tag(4)
+                DictionaryToRecipeView()
+                    .tabItem {
+                        Label("Dict to Recipe", systemImage: "rectangle.and.text.magnifyingglass")
+                    }
+                    .tag(5)
+                ClearRecipesTabView()
+                    .tabItem {
+                        Label("Clear Recipes", systemImage: "trash")
+                    }
+                    .tag(6)
+            }
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: {
+                        showSettings = true
+                    }) {
+                        Image(systemName: "gear")
+                            .foregroundStyle(.blue)
+                    }
                 }
-                .tag(0)
-            ImageToListView()
-                .tabItem {
-                    Label("From Image", systemImage: "text.viewfinder")
-                }
-                .tag(1)
-            APIKeyTabView()
-                .tabItem {
-                    Label("API Key", systemImage: "key.fill")
-                }
-                .tag(2)
-            RecipeEditorView(recipe: Recipe(from: ["uuid": UUID(), "title": "New Recipe"])!)
-                .tabItem {
-                    Label("Edit Recipe", systemImage: "pencil")
-                }
-                .tag(3)
-            DictionaryToRecipeView()
-                .tabItem {
-                    Label("Dict to Recipe", systemImage: "rectangle.and.text.magnifyingglass")
-                }
-                .tag(4)
-            ClearRecipesTabView()
-                .tabItem {
-                    Label("Clear Recipes", systemImage: "trash")
-                }
-                .tag(5)
+            }
+            .sheet(isPresented: $showSettings) {
+                SettingsView()
+            }
         }
+        .navigationViewStyle(.stack)
     }
 }
 
@@ -61,41 +84,43 @@ struct NowThatIKnowMoreApp: App {
     
     var body: some Scene {
         WindowGroup {
-            ZStack {
-                MainTabView()
-                    .environment(store)
-                    .onOpenURL { url in
-                        if url.pathExtension == "recipe" {
-                            handleRecipeImport(from: url)
+            LicenseGateView {
+                ZStack {
+                    MainTabView()
+                        .environment(store)
+                        .onOpenURL { url in
+                            if url.pathExtension == "recipe" {
+                                handleRecipeImport(from: url)
+                            }
                         }
-                    }
-                    .sheet(isPresented: $showImportPreview) {
-                        if let recipe = importedRecipe {
-                            RecipeImportPreviewView(recipe: recipe, onImport: {
-                                finalizeImport(recipe)
-                                showImportPreview = false
-                            }, onCancel: {
-                                showImportPreview = false
-                                importedRecipe = nil
-                            })
-                            .environment(store)
+                        .sheet(isPresented: $showImportPreview) {
+                            if let recipe = importedRecipe {
+                                RecipeImportPreviewView(recipe: recipe, onImport: {
+                                    finalizeImport(recipe)
+                                    showImportPreview = false
+                                }, onCancel: {
+                                    showImportPreview = false
+                                    importedRecipe = nil
+                                })
+                                .environment(store)
+                            }
                         }
+                        .alert(alertTitle, isPresented: $showAlert) {
+                            Button("OK", role: .cancel) { }
+                        } message: {
+                            Text(alertMessage)
+                        }
+                    
+                    if showLaunchScreen {
+                        LaunchScreenView()
+                            .transition(AnyTransition.opacity)
+                            .zIndex(1)
                     }
-                    .alert(alertTitle, isPresented: $showAlert) {
-                        Button("OK", role: .cancel) { }
-                    } message: {
-                        Text(alertMessage)
-                    }
-                
-                if showLaunchScreen {
-                    LaunchScreenView()
-                        .transition(AnyTransition.opacity)
-                        .zIndex(1)
                 }
-            }
-            .onAppear {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
-                    withAnimation { showLaunchScreen = false }
+                .onAppear {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+                        withAnimation { showLaunchScreen = false }
+                    }
                 }
             }
         }
