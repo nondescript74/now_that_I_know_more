@@ -332,7 +332,7 @@ struct RecipeDetail: View {
         
         IngredientListView(ingredients: recipe.extendedIngredients ?? [])
         
-        InstructionListView(instructions: recipe.analyzedInstructions)
+        InstructionListView(instructions: recipe.analyzedInstructions, plainInstructions: recipe.instructions)
         
         Spacer()
     }
@@ -658,23 +658,80 @@ extension Collection {
 
 private struct InstructionListView: View {
     let instructions: [AnalyzedInstruction]?
+    let plainInstructions: String?
+    
+    init(instructions: [AnalyzedInstruction]?, plainInstructions: String? = nil) {
+        self.instructions = instructions
+        self.plainInstructions = plainInstructions
+    }
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
+            // First, try to display structured instructions
             if let instructions = instructions, !instructions.isEmpty {
                 Text("Instructions")
                     .font(.headline)
                     .padding(.bottom, 4)
                 
                 ForEach(instructions) { instruction in
+                    if let name = instruction.name, !name.isEmpty {
+                        Text(name)
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .padding(.top, 4)
+                    }
                     ForEach(instruction.steps ?? []) { step in
                         let stepText = step.step ?? ""
-                        Text((step.number?.description ?? "0") + ". " + stepText)
+                        HStack(alignment: .top, spacing: 8) {
+                            Text("\(step.number ?? 0).")
+                                .fontWeight(.bold)
+                                .foregroundColor(.accentColor)
+                            Text(stepText)
+                                .font(.body)
+                        }
+                        .padding(.bottom, 4)
+                    }
+                }
+            }
+            // Fallback to plain text instructions (from OCR parsing)
+            else if let plainText = plainInstructions, !plainText.isEmpty {
+                Text("Instructions")
+                    .font(.headline)
+                    .padding(.bottom, 4)
+                
+                // Split text to detect and highlight "Variations:" section
+                let lines = plainText.components(separatedBy: .newlines)
+                ForEach(Array(lines.enumerated()), id: \.offset) { index, line in
+                    let trimmedLine = line.trimmingCharacters(in: .whitespaces)
+                    if trimmedLine.lowercased().hasPrefix("variations:") || trimmedLine.lowercased().hasPrefix("variation:") {
+                        // Highlight variation header
+                        Text(trimmedLine)
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.accentColor)
+                            .padding(.top, 12)
+                            .padding(.bottom, 4)
+                    } else if !trimmedLine.isEmpty {
+                        Text(trimmedLine)
                             .font(.body)
+                            .padding(.leading, isVariationItem(trimmedLine) ? 8 : 0)
                     }
                 }
             }
         }
+    }
+    
+    /// Determines if a line is a variation item (typically starts with a number)
+    private func isVariationItem(_ line: String) -> Bool {
+        let trimmed = line.trimmingCharacters(in: .whitespaces)
+        // Check if line starts with number followed by period or parenthesis
+        if let firstChar = trimmed.first, firstChar.isNumber {
+            if trimmed.count > 1 {
+                let secondChar = trimmed[trimmed.index(after: trimmed.startIndex)]
+                return secondChar == "." || secondChar == ")" || secondChar == ":"
+            }
+        }
+        return false
     }
 }
 

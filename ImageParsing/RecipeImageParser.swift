@@ -251,11 +251,14 @@ class TableFormatRecipeParser: RecipeImageParserProtocol {
     // MARK: - Ingredient Parsing
     
     private nonisolated func parseIngredients(from lines: [String]) -> [ParsedIngredient] {
-        var ingredients: [ParsedIngredient] = []
-        
         print("🥘 [Parser] Parsing \(lines.count) potential ingredient lines")
         
-        for line in lines {
+        // First, try to intelligently combine lines that form a single ingredient
+        let combinedLines = combineIngredientLines(lines)
+        
+        var ingredients: [ParsedIngredient] = []
+        
+        for line in combinedLines {
             // Check if this line looks like instructions rather than an ingredient
             if isInstructionLine(line) {
                 print("   ⏭️  Skipping instruction line: \"\(line)\"")
@@ -277,6 +280,106 @@ class TableFormatRecipeParser: RecipeImageParserProtocol {
         print("🥘 [Parser] Total ingredients parsed: \(ingredients.count)")
         
         return ingredients
+    }
+    
+    /// Combines lines that are part of the same ingredient (e.g., amount on one line, name on next)
+    private nonisolated func combineIngredientLines(_ lines: [String]) -> [String] {
+        var combined: [String] = []
+        var i = 0
+        
+        print("🔄 [Parser] Combining split ingredient lines...")
+        
+        while i < lines.count {
+            let line = lines[i]
+            
+            // Skip empty lines
+            guard !line.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                i += 1
+                continue
+            }
+            
+            // Check if this line is just a measurement/amount
+            if isJustMeasurement(line) && i + 1 < lines.count {
+                let nextLine = lines[i + 1]
+                
+                // If next line is also a measurement, keep them separate
+                if isJustMeasurement(nextLine) {
+                    combined.append(line)
+                    i += 1
+                } else {
+                    // Combine measurement with next line
+                    let combinedLine = "\(line) \(nextLine)"
+                    print("   📎 Combined: \"\(line)\" + \"\(nextLine)\" → \"\(combinedLine)\"")
+                    combined.append(combinedLine)
+                    i += 2
+                    continue
+                }
+            }
+            // Check if this line is just an ingredient name without amount
+            else if !startsWithAmount(line) && i > 0 {
+                let prevLine = lines[i - 1]
+                // Check if we already used the previous line
+                if !combined.isEmpty && combined.last == prevLine {
+                    // Already combined, just add this line
+                    combined.append(line)
+                } else if isJustMeasurement(prevLine) {
+                    // This shouldn't happen if we caught it above, but safety check
+                    combined.append(line)
+                } else {
+                    combined.append(line)
+                }
+                i += 1
+            } else {
+                combined.append(line)
+                i += 1
+            }
+        }
+        
+        print("🔄 [Parser] Combined \(lines.count) lines into \(combined.count) ingredient entries")
+        return combined
+    }
+    
+    /// Checks if a line is just a measurement without an ingredient name
+    private nonisolated func isJustMeasurement(_ line: String) -> Bool {
+        let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+        let components = trimmed.components(separatedBy: .whitespaces).filter { !$0.isEmpty }
+        
+        // Check for patterns like:
+        // "2 tsp."
+        // "10 mL"
+        // "1 cup"
+        // "1-2"
+        
+        if components.isEmpty { return false }
+        
+        // If it's just a number or measurement
+        if components.count == 1 {
+            return isAmount(components[0]) || isUnit(components[0])
+        }
+        
+        // If it's amount + unit only (2 components)
+        if components.count == 2 {
+            return isAmount(components[0]) && isUnit(components[1])
+        }
+        
+        // If it's amount + unit + maybe another amount (for ranges like "1-2 tsp.")
+        if components.count == 3 {
+            let hasAmount = isAmount(components[0])
+            let hasUnit = isUnit(components[1]) || isUnit(components[2])
+            let lastIsAmount = isAmount(components[2])
+            return hasAmount && (hasUnit || lastIsAmount)
+        }
+        
+        return false
+    }
+    
+    /// Checks if a line starts with an amount (number, fraction, etc.)
+    private nonisolated func startsWithAmount(_ line: String) -> Bool {
+        let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let firstComponent = trimmed.components(separatedBy: .whitespaces).first else {
+            return false
+        }
+        return isAmount(firstComponent)
     }
     
     private nonisolated func isInstructionLine(_ line: String) -> Bool {
@@ -354,6 +457,18 @@ class TableFormatRecipeParser: RecipeImageParserProtocol {
     }
     
     private nonisolated func parseSingleIngredient(_ components: [String]) -> ParsedIngredient? {
+        guard !components.isEmpty else { return nil }
+        
+        // Handle special case: ingredient without amount (e.g., "salt, to taste")
+        if components.count == 1 || !isAmount(components[0]) {
+            let ingredientName = components.joined(separator: " ")
+            return ParsedIngredient(
+                imperialAmount: "to taste",
+                name: cleanIngredientName(ingredientName),
+                metricAmount: nil
+            )
+        }
+        
         guard components.count >= 2 else { return nil }
         
         // Find where metric measurements start (if any)
