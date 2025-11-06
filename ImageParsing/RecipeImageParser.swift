@@ -76,6 +76,18 @@ class TableFormatRecipeParser: RecipeImageParserProtocol {
         print("📸 [TableFormatParser] Starting Vision text recognition...")
         print("   Image size: \(cgImage.width) x \(cgImage.height)")
         
+        // Resize image if needed to prevent Vision framework hangs
+        let processedImage = resizeImageIfNeeded(image)
+        guard let processedCGImage = processedImage.cgImage else {
+            print("❌ [TableFormatParser] Failed to get CGImage from resized image")
+            completion(.failure(.invalidImage))
+            return
+        }
+        
+        if processedImage !== image {
+            print("📐 [TableFormatParser] Image resized to: \(processedCGImage.width) x \(processedCGImage.height)")
+        }
+        
         // Perform Vision processing on background queue
         // Don't use [weak self] here - the parser needs to stay alive for the duration
         DispatchQueue.global(qos: .userInitiated).async {
@@ -89,7 +101,7 @@ class TableFormatRecipeParser: RecipeImageParserProtocol {
             print("   Recognition level: accurate")
             print("   Language correction: enabled")
             
-            let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
+            let handler = VNImageRequestHandler(cgImage: processedCGImage, options: [:])
             print("🔍 [TableFormatParser] Handler created, about to perform request...")
             
             do {
@@ -128,6 +140,30 @@ class TableFormatRecipeParser: RecipeImageParserProtocol {
                 completion(.failure(.visionError(error)))
             }
         }
+    }
+    
+    /// Resizes image if it exceeds maximum dimensions to prevent Vision framework hangs
+    /// Uses 512px max to keep memory usage low while maintaining OCR accuracy
+    private nonisolated func resizeImageIfNeeded(_ image: UIImage, maxDimension: CGFloat = 512) -> UIImage {
+        let size = image.size
+        let maxSize = max(size.width, size.height)
+        
+        // If image is already small enough, return it as-is
+        guard maxSize > maxDimension else {
+            return image
+        }
+        
+        // Calculate new size maintaining aspect ratio
+        let ratio = maxDimension / maxSize
+        let newSize = CGSize(width: size.width * ratio, height: size.height * ratio)
+        
+        // Render resized image
+        let renderer = UIGraphicsImageRenderer(size: newSize)
+        let resizedImage = renderer.image { context in
+            image.draw(in: CGRect(origin: .zero, size: newSize))
+        }
+        
+        return resizedImage
     }
     
     // MARK: - Text Extraction
