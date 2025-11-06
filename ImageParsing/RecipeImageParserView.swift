@@ -18,7 +18,6 @@ struct RecipeImageParserView: View {
     @State private var showCamera = false
     @State private var showSuccessAlert = false
     @State private var selectedParserType: RecipeParserType = .tableFormat
-    @State private var currentParser: (any RecipeImageParserProtocol)?
     
     @Environment(RecipeStore.self) private var recipeStore
     
@@ -176,21 +175,15 @@ struct RecipeImageParserView: View {
                 print("⏰ [RecipeImageParserView] Parse operation timed out after 30 seconds")
                 isProcessing = false
                 errorMessage = "Parsing timed out. The image may be too large or complex. Try a smaller or clearer image."
-                currentParser = nil
             }
         }
         
-        // Get the appropriate parser and store it to prevent deallocation
-        currentParser = RecipeParserFactory.parser(for: selectedParserType)
-        guard let parser = currentParser else {
-            errorMessage = "Failed to create parser"
-            isProcessing = false
-            return
-        }
+        // Get the appropriate parser for the selected type
+        let parser = RecipeParserFactory.parser(for: selectedParserType)
         print("📦 [RecipeImageParserView] Using parser: \(type(of: parser))")
         
-        parser.parseRecipeImage(resizedImage) { [self] result in
-            DispatchQueue.main.async {
+        parser.parseRecipeImage(resizedImage) { result in
+            DispatchQueue.main.async { [self] in
                 guard !hasCompleted else {
                     print("⚠️ [RecipeImageParserView] Completion called after timeout")
                     return
@@ -211,14 +204,11 @@ struct RecipeImageParserView: View {
                     print("❌ [RecipeImageParserView] Parse failed: \(error.localizedDescription)")
                     errorMessage = error.localizedDescription
                 }
-                
-                // Clear the parser reference after completion
-                currentParser = nil
             }
         }
     }
     
-    private func resizeImageIfNeeded(_ image: UIImage, maxDimension: CGFloat = 2048) -> UIImage {
+    private func resizeImageIfNeeded(_ image: UIImage, maxDimension: CGFloat = 512) -> UIImage {
         let size = image.size
         let maxSize = max(size.width, size.height)
         
