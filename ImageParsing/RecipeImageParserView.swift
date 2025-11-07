@@ -118,10 +118,10 @@ struct RecipeImageParserView: View {
             }
             .navigationTitle("Recipe Parser")
             .sheet(isPresented: $showImagePicker) {
-                ImagePicker(image: $selectedImage, sourceType: .photoLibrary)
+                RecipeImagePicker(image: $selectedImage, sourceType: .photoLibrary)
             }
             .sheet(isPresented: $showCamera) {
-                ImagePicker(image: $selectedImage, sourceType: .camera)
+                RecipeImagePicker(image: $selectedImage, sourceType: .camera)
             }
             .alert("Recipe Saved", isPresented: $showSuccessAlert) {
                 Button("OK", role: .cancel) { }
@@ -417,7 +417,7 @@ struct ParsedRecipeDisplayView: View {
 
 // MARK: - Image Picker
 
-struct ImagePicker: UIViewControllerRepresentable {
+struct RecipeImagePicker: UIViewControllerRepresentable {
     @Binding var image: UIImage?
     let sourceType: UIImagePickerController.SourceType
     @Environment(\.presentationMode) var presentationMode
@@ -436,9 +436,9 @@ struct ImagePicker: UIViewControllerRepresentable {
     }
     
     class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
-        let parent: ImagePicker
+        let parent: RecipeImagePicker
         
-        init(_ parent: ImagePicker) {
+        init(_ parent: RecipeImagePicker) {
             self.parent = parent
         }
         

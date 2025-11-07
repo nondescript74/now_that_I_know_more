@@ -6,13 +6,16 @@
 //
 
 import SwiftUI
+import SwiftData
 import OSLog
 import Combine
 
 private struct MainTabView: View {
+    @Environment(\.modelContext) private var modelContext
     @Environment(RecipeStore.self) private var store: RecipeStore
     @State private var selectedTab: Int = 0
     @State private var showSettings = false
+    @State private var recipeService: RecipeService?
     
     var body: some View {
         NavigationView {
@@ -22,9 +25,9 @@ private struct MainTabView: View {
                         Label("Meal Plan", systemImage: "fork.knife")
                     }
                     .tag(0)
-                ImageToListView()
+                RecipeBooksView()
                     .tabItem {
-                        Label("From Image", systemImage: "text.viewfinder")
+                        Label("Books", systemImage: "books.vertical")
                     }
                     .tag(1)
                 RecipeImageParserView()
@@ -68,6 +71,13 @@ private struct MainTabView: View {
             }
         }
         .navigationViewStyle(.stack)
+        .onAppear {
+            if recipeService == nil {
+                recipeService = RecipeService(modelContext: modelContext)
+                // Create default books if needed
+                recipeService?.createDefaultBooksIfNeeded()
+            }
+        }
     }
 }
 
@@ -81,6 +91,33 @@ struct NowThatIKnowMoreApp: App {
     @State private var showAlert = false
     @State private var alertTitle = ""
     @State private var alertMessage = ""
+    
+    // SwiftData ModelContainer
+    let modelContainer: ModelContainer
+    
+    init() {
+        do {
+            let schema = Schema([
+                RecipeModel.self,
+                RecipeMediaModel.self,
+                RecipeNoteModel.self,
+                RecipeBookModel.self
+            ])
+            
+            let modelConfiguration = ModelConfiguration(
+                schema: schema,
+                isStoredInMemoryOnly: false,
+                allowsSave: true
+            )
+            
+            modelContainer = try ModelContainer(
+                for: schema,
+                configurations: [modelConfiguration]
+            )
+        } catch {
+            fatalError("Failed to create ModelContainer: \(error)")
+        }
+    }
     
     var body: some Scene {
         WindowGroup {
@@ -110,6 +147,10 @@ struct NowThatIKnowMoreApp: App {
                         } message: {
                             Text(alertMessage)
                         }
+                        .task {
+                            // Migrate legacy recipes on first launch
+                            await migrateLegacyRecipes()
+                        }
                     
                     if showLaunchScreen {
                         LaunchScreenView()
@@ -123,6 +164,30 @@ struct NowThatIKnowMoreApp: App {
                     }
                 }
             }
+        }
+        .modelContainer(modelContainer)
+    }
+    
+    private func migrateLegacyRecipes() async {
+        // Check if migration has already been done
+        let migrationKey = "hasCompletedSwiftDataMigration"
+        guard !UserDefaults.standard.bool(forKey: migrationKey) else { return }
+        
+        // Get legacy recipes from RecipeStore
+        let legacyRecipes = store.recipes
+        guard !legacyRecipes.isEmpty else {
+            UserDefaults.standard.set(true, forKey: migrationKey)
+            return
+        }
+        
+        // Migrate to SwiftData
+        let context = modelContainer.mainContext
+        let service = RecipeService(modelContext: context)
+        
+        await MainActor.run {
+            service.batchMigrateLegacyRecipes(legacyRecipes)
+            UserDefaults.standard.set(true, forKey: migrationKey)
+            print("✅ Successfully migrated \(legacyRecipes.count) recipes to SwiftData")
         }
     }
     
