@@ -16,6 +16,7 @@ struct RecipeSharingTipsView: View {
         case addingRecipes = "Adding Recipes"
         case organizing = "Organizing"
         case sharing = "Sharing"
+        case glossary = "Glossary"
         case tips = "Tips & Tricks"
         
         var id: String { rawValue }
@@ -26,6 +27,7 @@ struct RecipeSharingTipsView: View {
             case .addingRecipes: return "plus.circle.fill"
             case .organizing: return "calendar.badge.clock"
             case .sharing: return "envelope.circle.fill"
+            case .glossary: return "book.closed.fill"
             case .tips: return "lightbulb.fill"
             }
         }
@@ -101,6 +103,8 @@ struct RecipeSharingTipsView: View {
             organizingContent
         case .sharing:
             sharingContent
+        case .glossary:
+            glossaryContent
         case .tips:
             tipsContent
         }
@@ -699,6 +703,39 @@ struct RecipeSharingTipsView: View {
         .padding()
     }
 
+    
+    
+    private var glossaryContent: some View {
+        VStack(spacing: 20) {
+            // Header
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Image(systemName: "book.closed.circle.fill")
+                        .font(.system(size: 50))
+                        .foregroundStyle(.brown.gradient)
+                    
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Ingredient Glossary")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                        
+                        Text("Learn about Asian & Indian ingredients")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .padding(.vertical, 8)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding()
+            .background(Color(uiColor: .secondarySystemGroupedBackground))
+            .cornerRadius(12)
+            
+            // Glossary embedded view
+            EmbeddedGlossaryView()
+        }
+        .padding()
+    }
     
     private var tipsContent: some View {
         VStack(spacing: 20) {
