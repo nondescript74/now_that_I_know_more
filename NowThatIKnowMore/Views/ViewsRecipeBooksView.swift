@@ -149,8 +149,7 @@ struct RecipeBookDetailView: View {
             } else {
                 ForEach(recipes) { recipe in
                     NavigationLink {
-                        // RecipeDetailView(recipe: recipe)
-                        Text("Recipe Detail: \(recipe.title ?? "Untitled")")
+                        RecipeDetail(recipeID: recipe.uuid)
                     } label: {
                         RecipeRowView(recipe: recipe)
                     }
@@ -284,7 +283,7 @@ struct AddRecipesToBookView: View {
     
     var body: some View {
         NavigationStack {
-            List(recipesNotInBook) { recipe in
+            List(recipesNotInBook, id: \.uuid) { recipe in
                 Button {
                     toggleSelection(recipe)
                 } label: {
@@ -303,6 +302,11 @@ struct AddRecipesToBookView: View {
                     }
                 }
                 .buttonStyle(.plain)
+            }
+            .onAppear {
+                print("📚 [AddRecipesToBookView] Total recipes in SwiftData: \(allRecipes.count)")
+                print("📚 [AddRecipesToBookView] Recipes not in book: \(recipesNotInBook.count)")
+                print("📚 [AddRecipesToBookView] Recipe UUIDs: \(allRecipes.map { $0.uuid.uuidString }.joined(separator: ", "))")
             }
             .navigationTitle("Add Recipes")
             .navigationBarTitleDisplayMode(.inline)
