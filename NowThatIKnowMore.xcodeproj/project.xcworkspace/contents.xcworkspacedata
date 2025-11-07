@@ -5,42 +5,33 @@
       location = "self:">
    </FileRef>
    <FileRef
-      location = "group:docsREADME.md">
+      location = "group:ModelsRecipeModel.swift">
    </FileRef>
    <FileRef
-      location = "group:docssetuprecipe-import-setup.md">
+      location = "group:ModelsRecipeMediaModel.swift">
    </FileRef>
    <FileRef
-      location = "group:docsguidesrecipe-sharing.md">
+      location = "group:ModelsRecipeNoteModel.swift">
    </FileRef>
    <FileRef
-      location = "group:docsguidesrecipe-import.md">
+      location = "group:ModelsRecipeBookModel.swift">
    </FileRef>
    <FileRef
-      location = "group:docsarchitecturerecipe-import-implementation.md">
+      location = "group:ModelsModelContainer+Configuration.swift">
    </FileRef>
    <FileRef
-      location = "group:README.md">
+      location = "group:ServicesRecipeMigrationService.swift">
    </FileRef>
    <FileRef
-      location = "group:docsMIGRATION.md">
+      location = "group:ServicesRecipeService.swift">
    </FileRef>
    <FileRef
-      location = "group:docsarchiveREADME.md">
+      location = "group:SWIFTDATA_QUICK_REFERENCE.md">
    </FileRef>
    <FileRef
-      location = "group:docsarchiveREADME_RECIPE_IMPORT.md">
+      location = "group:SWIFTDATA_IMPLEMENTATION_SUMMARY.md">
    </FileRef>
    <FileRef
-      location = "group:docsarchiveRECIPE_IMPORT_IMPLEMENTATION.md">
-   </FileRef>
-   <FileRef
-      location = "group:docsarchiveRecipeSharingGuide.md">
-   </FileRef>
-   <FileRef
-      location = "group:docsarchiveRECIPE_SHARING_GUIDE.md">
-   </FileRef>
-   <FileRef
-      location = "group:REORGANIZATION_COMPLETE.md">
+      location = "group:SWIFTDATA_INTEGRATION_CHECKLIST.md">
    </FileRef>
 </Workspace>
