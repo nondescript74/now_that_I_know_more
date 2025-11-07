@@ -4,11 +4,14 @@
 // Created for user meal planning.
 
 import SwiftUI
+import SwiftData
 import Combine
 import OSLog
 
 struct MealPlan: View {
     @Environment(RecipeStore.self) private var recipeStore
+    @Environment(\.modelContext) private var modelContext
+    @Query private var swiftDataRecipes: [RecipeModel]
     @State private var urlString = ""
     @State private var resultText = ""
     @State private var isLoading = false
@@ -255,7 +258,12 @@ struct MealPlan: View {
             let decoder = JSONDecoder()
             decoder.keyDecodingStrategy = .convertFromSnakeCase
             if let recipe = try? decoder.decode(Recipe.self, from: data) {
+                // Add to legacy RecipeStore
                 recipeStore.add(recipe)
+                
+                // Also add to SwiftData
+                await addToSwiftData(recipe)
+                
                 resultText = ""
                 urlString = ""
                 return
@@ -281,7 +289,12 @@ struct MealPlan: View {
                     updatedDict["image"] = suffixedImage
                 }
                 if let fallback = Recipe(from: updatedDict) {
+                    // Add to legacy RecipeStore
                     recipeStore.add(fallback)
+                    
+                    // Also add to SwiftData
+                    await addToSwiftData(fallback)
+                    
                     resultText = ""
                     urlString = ""
                     return
@@ -290,6 +303,26 @@ struct MealPlan: View {
             resultText = "Could not parse recipe."
         } catch {
             resultText = error.localizedDescription
+        }
+    }
+    
+    @MainActor
+    private func addToSwiftData(_ recipe: Recipe) async {
+        // Check if recipe already exists in SwiftData
+        guard !swiftDataRecipes.contains(where: { $0.uuid == recipe.uuid }) else {
+            logger.info("[MealPlan] Recipe already exists in SwiftData, skipping")
+            return
+        }
+        
+        // Convert legacy Recipe to RecipeModel
+        let recipeModel = RecipeModel(from: recipe)
+        modelContext.insert(recipeModel)
+        
+        do {
+            try modelContext.save()
+            logger.info("[MealPlan] Successfully added recipe to SwiftData")
+        } catch {
+            logger.error("[MealPlan] Failed to save recipe to SwiftData: \(error.localizedDescription)")
         }
     }
     
@@ -304,8 +337,29 @@ struct MealPlan: View {
             guard index < filteredRecipes.count else { return nil }
             return filteredRecipes[index]
         }
+        
+        // Delete from both systems
         for recipe in recipesToDelete {
+            logger.info("[MealPlan] Deleting recipe: '\(recipe.title ?? "nil")' (UUID: \(recipe.uuid.uuidString))")
+            
+            // Delete from legacy RecipeStore
             recipeStore.remove(recipe)
+            
+            // Also delete from SwiftData
+            if let swiftDataRecipe = swiftDataRecipes.first(where: { $0.uuid == recipe.uuid }) {
+                logger.info("[MealPlan] Found recipe in SwiftData, deleting...")
+                modelContext.delete(swiftDataRecipe)
+            } else {
+                logger.warning("[MealPlan] Recipe NOT found in SwiftData!")
+            }
+        }
+        
+        // Save SwiftData changes
+        do {
+            try modelContext.save()
+            logger.info("[MealPlan] Successfully saved SwiftData deletion")
+        } catch {
+            logger.error("[MealPlan] Failed to save SwiftData deletion: \(error.localizedDescription)")
         }
     }
 }
