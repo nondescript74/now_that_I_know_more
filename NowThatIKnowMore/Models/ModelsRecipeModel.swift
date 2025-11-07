@@ -320,6 +320,7 @@ extension RecipeModel {
     func toLegacyRecipe() -> Recipe? {
         // This is complex due to the JSONAny types - create a dictionary and use Recipe(from:)
         var dict: [String: Any] = [
+            "recipeFormatVersion": Recipe.currentFormatVersion,
             "uuid": uuid.uuidString,
             "title": title ?? "",
             "summary": summary ?? "",

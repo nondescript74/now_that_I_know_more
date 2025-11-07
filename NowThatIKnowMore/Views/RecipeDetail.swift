@@ -949,6 +949,7 @@ private struct MailComposeView: UIViewControllerRepresentable {
     }
     
     private func exportRecipeAsJSON(_ recipe: Recipe) -> Data? {
+        // Export with current recipe format version for compatibility tracking
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         return try? encoder.encode(recipe)

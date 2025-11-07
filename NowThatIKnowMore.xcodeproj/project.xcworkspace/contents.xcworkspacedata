@@ -5,33 +5,12 @@
       location = "self:">
    </FileRef>
    <FileRef
-      location = "group:ModelsRecipeModel.swift">
+      location = "group:RECIPE_VERSION_GUIDE.md">
    </FileRef>
    <FileRef
-      location = "group:ModelsRecipeMediaModel.swift">
+      location = "group:LaunchScreenView.swift">
    </FileRef>
    <FileRef
-      location = "group:ModelsRecipeNoteModel.swift">
-   </FileRef>
-   <FileRef
-      location = "group:ModelsRecipeBookModel.swift">
-   </FileRef>
-   <FileRef
-      location = "group:ModelsModelContainer+Configuration.swift">
-   </FileRef>
-   <FileRef
-      location = "group:ServicesRecipeMigrationService.swift">
-   </FileRef>
-   <FileRef
-      location = "group:ServicesRecipeService.swift">
-   </FileRef>
-   <FileRef
-      location = "group:SWIFTDATA_QUICK_REFERENCE.md">
-   </FileRef>
-   <FileRef
-      location = "group:SWIFTDATA_IMPLEMENTATION_SUMMARY.md">
-   </FileRef>
-   <FileRef
-      location = "group:SWIFTDATA_INTEGRATION_CHECKLIST.md">
+      location = "group:LAUNCH_SCREEN_GUIDE.md">
    </FileRef>
 </Workspace>
