@@ -14,6 +14,9 @@ import Foundation
 
 // MARK: - Welcome
 struct Recipe: Codable, Sendable, Identifiable {
+    // Recipe format version for compatibility tracking
+    let recipeFormatVersion: String
+    
     let uuid: UUID
     let id: Int?
     let image: String?
@@ -46,8 +49,12 @@ struct Recipe: Codable, Sendable, Identifiable {
     let mediaItems: [RecipeMedia]?
     let featuredMediaID: UUID?
     let preferFeaturedMedia: Bool?
+    
+    // Current version constant
+    static let currentFormatVersion = "2.0"
 
     enum CodingKeys: String, CodingKey {
+        case recipeFormatVersion
         case uuid
         case id, image, imageType, title, readyInMinutes, servings
         case sourceURL = "sourceUrl"
@@ -62,6 +69,10 @@ struct Recipe: Codable, Sendable, Identifiable {
     // UUID is decoded from JSON and not generated during decode.
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
+        
+        // Version field with default for backward compatibility
+        self.recipeFormatVersion = try container.decodeIfPresent(String.self, forKey: .recipeFormatVersion) ?? "1.0"
+        
         self.uuid = try container.decode(UUID.self, forKey: .uuid)
         self.id = try container.decodeIfPresent(Int.self, forKey: .id)
         self.image = try container.decodeIfPresent(String.self, forKey: .image)
@@ -108,6 +119,10 @@ struct Recipe: Codable, Sendable, Identifiable {
 
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
+        
+        // Always encode the current version
+        try container.encode(Recipe.currentFormatVersion, forKey: .recipeFormatVersion)
+        
         try container.encode(uuid, forKey: .uuid)
         try container.encodeIfPresent(id, forKey: .id)
         try container.encodeIfPresent(image, forKey: .image)
@@ -154,6 +169,9 @@ struct Recipe: Codable, Sendable, Identifiable {
 
     // Convenience failable initializer for Recipe from [String: Any] dictionary
     init?(from dict: [String: Any]) {
+        // Version field with default for backward compatibility
+        self.recipeFormatVersion = dict["recipeFormatVersion"] as? String ?? "1.0"
+        
         self.uuid = dict["uuid"] as? UUID ?? UUID()
         self.id = dict["id"] as? Int
         self.image = dict["image"] as? String
