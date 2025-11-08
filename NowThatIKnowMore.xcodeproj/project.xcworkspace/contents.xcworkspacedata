@@ -5,12 +5,24 @@
       location = "self:">
    </FileRef>
    <FileRef
-      location = "group:RECIPE_VERSION_GUIDE.md">
+      location = "group:SWIFTDATA_CONSOLIDATION_PLAN.md">
    </FileRef>
    <FileRef
-      location = "group:LaunchScreenView.swift">
+      location = "group:ViewsRecipeDiagnosticView.swift">
    </FileRef>
    <FileRef
-      location = "group:LAUNCH_SCREEN_GUIDE.md">
+      location = "group:MEALPLAN_SWIFTDATA_FIX_GUIDE.md">
+   </FileRef>
+   <FileRef
+      location = "group:SWIFTDATA_QUICK_REFERENCE 2.md">
+   </FileRef>
+   <FileRef
+      location = "group:SWIFTDATA_CONSOLIDATION_SUMMARY.md">
+   </FileRef>
+   <FileRef
+      location = "group:SWIFTDATA_CONSOLIDATION_SUMMARY 2.md">
+   </FileRef>
+   <FileRef
+      location = "group:MEALPLAN_FIX_CHECKLIST.md">
    </FileRef>
 </Workspace>

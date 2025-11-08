@@ -62,15 +62,34 @@
 				Models/Welcome.swift,
 				Observables/RecipeImportPreviewViewTests.swift,
 				Observables/RecipeStore.swift,
-				RecipeImportPreviewView.swift,
 				Views/GlossaryView.swift,
 				Views/MediaGalleryView.swift,
 				"Views/Recipe+Decoding.swift",
 				Views/RecipeDetail.swift,
 				Views/RecipeEditorView.swift,
+				Views/RecipeImportPreviewView.swift,
 				Views/RecipeMedia.swift,
 			);
 			target = F82259C32E84605B00840803 /* NowThatIKnowMoreTests */;
+		};
+		F828BF172EBFC0B400BD3BFE /* Exceptions for "SomeDocs" folder in "NowThatIKnowMore" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				BUG_FIX_GROUPING.md,
+				HELP_SYSTEM_SUMMARY.md,
+				HELP_UI_VISUAL_GUIDE.md,
+				HELP_VIEW_ENHANCEMENT.md,
+				HELP_VIEW_PREVIEW.md,
+				IMAGETOLIST_IMPROVEMENTS.md,
+				MEDIA_GALLERY_IMPLEMENTATION.md,
+				README_RECIPE_IMPORT.md,
+				RECIPE_FLOW_DIAGRAM.md,
+				RECIPE_IMAGE_PREFERENCE_GUIDE.md,
+				RECIPE_IMPORT_IMPLEMENTATION.md,
+				RECIPE_SHARING_GUIDE.md,
+				RecipeSharingGuide.md,
+			);
+			target = F8B44A262E4E254E00BD0920 /* NowThatIKnowMore */;
 		};
 		F8B253F82EBD0DC10091C8A0 /* Exceptions for "ImageParsing" folder in "NowThatIKnowMoreTests" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
@@ -104,19 +123,6 @@
 				SWIFTDATA_ARCHITECTURE.md,
 				SWIFTDATA_DATA_FLOW.md,
 				Views/INSTRUCTIONS_DISPLAY_FIX.md,
-				Views/SomeDocs/BUG_FIX_GROUPING.md,
-				Views/SomeDocs/HELP_SYSTEM_SUMMARY.md,
-				Views/SomeDocs/HELP_UI_VISUAL_GUIDE.md,
-				Views/SomeDocs/HELP_VIEW_ENHANCEMENT.md,
-				Views/SomeDocs/HELP_VIEW_PREVIEW.md,
-				Views/SomeDocs/IMAGETOLIST_IMPROVEMENTS.md,
-				Views/SomeDocs/MEDIA_GALLERY_IMPLEMENTATION.md,
-				Views/SomeDocs/README_RECIPE_IMPORT.md,
-				Views/SomeDocs/RECIPE_FLOW_DIAGRAM.md,
-				Views/SomeDocs/RECIPE_IMAGE_PREFERENCE_GUIDE.md,
-				Views/SomeDocs/RECIPE_IMPORT_IMPLEMENTATION.md,
-				Views/SomeDocs/RECIPE_SHARING_GUIDE.md,
-				Views/SomeDocs/RecipeSharingGuide.md,
 			);
 			target = F8B44A262E4E254E00BD0920 /* NowThatIKnowMore */;
 		};
@@ -135,6 +141,14 @@
 				F8B2540E2EBD29E70091C8A0 /* Exceptions for "Licensing" folder in "NowThatIKnowMoreTests" target */,
 			);
 			path = Licensing;
+			sourceTree = "<group>";
+		};
+		F828BF162EBFC0B400BD3BFE /* SomeDocs */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				F828BF172EBFC0B400BD3BFE /* Exceptions for "SomeDocs" folder in "NowThatIKnowMore" target */,
+			);
+			path = SomeDocs;
 			sourceTree = "<group>";
 		};
 		F8B253E22EBD0DA70091C8A0 /* ImageParsing */ = {
@@ -183,6 +197,7 @@
 		F8B44A1E2E4E254E00BD0920 = {
 			isa = PBXGroup;
 			children = (
+				F828BF162EBFC0B400BD3BFE /* SomeDocs */,
 				F8B253E22EBD0DA70091C8A0 /* ImageParsing */,
 				F827E8062EBC192A00353174 /* Licensing */,
 				F8EC9FF02E63AAD600211F03 /* Info.plist */,
@@ -239,6 +254,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				F827E8062EBC192A00353174 /* Licensing */,
+				F828BF162EBFC0B400BD3BFE /* SomeDocs */,
 				F8B253E22EBD0DA70091C8A0 /* ImageParsing */,
 				F8B44A292E4E254E00BD0920 /* NowThatIKnowMore */,
 			);
@@ -505,7 +521,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 55;
+				CURRENT_PROJECT_VERSION = 56;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = YKHW2TJ32G;
 				ENABLE_APP_SANDBOX = YES;
@@ -566,7 +582,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 55;
+				CURRENT_PROJECT_VERSION = 56;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = YKHW2TJ32G;
 				ENABLE_APP_SANDBOX = YES;

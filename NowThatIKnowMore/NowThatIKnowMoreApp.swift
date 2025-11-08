@@ -45,16 +45,21 @@ private struct MainTabView: View {
                         Label("Edit Recipe", systemImage: "pencil")
                     }
                     .tag(4)
-                DictionaryToRecipeView()
+//                DictionaryToRecipeView()
+//                    .tabItem {
+//                        Label("Dict to Recipe", systemImage: "rectangle.and.text.magnifyingglass")
+//                    }
+//                    .tag(5)
+//                ClearRecipesTabView()
+//                    .tabItem {
+//                        Label("Clear Recipes", systemImage: "trash")
+//                    }
+//                    .tag(6)
+                RecipeDiagnosticView()
                     .tabItem {
-                        Label("Dict to Recipe", systemImage: "rectangle.and.text.magnifyingglass")
+                        Label("Diagnostics", systemImage: "exclamationmark.trianglepath.fill")
                     }
                     .tag(5)
-                ClearRecipesTabView()
-                    .tabItem {
-                        Label("Clear Recipes", systemImage: "trash")
-                    }
-                    .tag(6)
             }
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
