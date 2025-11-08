@@ -6,20 +6,21 @@
 //
 
 import SwiftUI
+import SwiftData
 import PhotosUI
 
 struct RecipeImageParserView: View {
+    @Environment(\.modelContext) private var modelContext
+    
     @State private var selectedImage: UIImage?
     @State private var parsedRecipe: ParsedRecipe?
-    @State private var fullRecipe: Recipe?
+    @State private var parsedRecipeModel: RecipeModel?
     @State private var isProcessing = false
     @State private var errorMessage: String?
     @State private var showImagePicker = false
     @State private var showCamera = false
     @State private var showSuccessAlert = false
     @State private var selectedParserType: RecipeParserType = .tableFormat
-    
-    @Environment(RecipeStore.self) private var recipeStore
     
     var body: some View {
         NavigationView {
@@ -109,8 +110,8 @@ struct RecipeImageParserView: View {
                     }
                     
                     // Parsed Recipe Display
-                    if let recipe = fullRecipe {
-                        ParsedRecipeDisplayView(recipe: recipe, recipeStore: recipeStore, showSuccessAlert: $showSuccessAlert)
+                    if let recipe = parsedRecipeModel {
+                        ParsedRecipeDisplayView(recipe: recipe, showSuccessAlert: $showSuccessAlert)
                             .padding()
                     }
                 }
@@ -158,7 +159,7 @@ struct RecipeImageParserView: View {
         isProcessing = true
         errorMessage = nil
         parsedRecipe = nil
-        fullRecipe = nil
+        parsedRecipeModel = nil
         
         // Resize image if it's too large (this often causes Vision to hang)
         let resizedImage = resizeImageIfNeeded(image)
@@ -197,9 +198,9 @@ struct RecipeImageParserView: View {
                     print("   Title: \(parsed.title)")
                     print("   Ingredients: \(parsed.ingredients.count)")
                     parsedRecipe = parsed
-                    // Convert to full Recipe model
-                    fullRecipe = ParsedRecipeAdapter.convert(parsed)
-                    print("✅ [RecipeImageParserView] Converted to full recipe")
+                    // Convert to RecipeModel (SwiftData)
+                    parsedRecipeModel = ParsedRecipeAdapter.convertToRecipeModel(parsed)
+                    print("✅ [RecipeImageParserView] Converted to RecipeModel")
                 case .failure(let error):
                     print("❌ [RecipeImageParserView] Parse failed: \(error.localizedDescription)")
                     errorMessage = error.localizedDescription
@@ -234,8 +235,9 @@ struct RecipeImageParserView: View {
 // MARK: - Parsed Recipe Display View
 
 struct ParsedRecipeDisplayView: View {
-    let recipe: Recipe
-    let recipeStore: RecipeStore
+    @Environment(\.modelContext) private var modelContext
+    
+    let recipe: RecipeModel
     @Binding var showSuccessAlert: Bool
     @State private var showEditSheet = false
     
@@ -345,8 +347,10 @@ struct ParsedRecipeDisplayView: View {
         .cornerRadius(12)
         .shadow(radius: 2)
         .sheet(isPresented: $showEditSheet) {
-            RecipeEditorView(recipe: recipe)
-                .environment(recipeStore)
+            // TODO: Create a RecipeModel editor view
+            // For now, editing is not supported for parsed recipes
+            Text("Recipe editing coming soon!")
+                .padding()
         }
     }
     
@@ -359,14 +363,19 @@ struct ParsedRecipeDisplayView: View {
     }
     
     private func saveToRecipesApp() {
-        // Save the recipe to the RecipeStore
-        recipeStore.add(recipe)
+        // Insert the recipe into SwiftData
+        modelContext.insert(recipe)
         
-        // Show success feedback
-        showSuccessAlert = true
-        
-        print("✅ Recipe saved to store: \(recipe.title ?? "Untitled")")
-        print("   UUID: \(recipe.uuid)")
+        do {
+            try modelContext.save()
+            // Show success feedback
+            showSuccessAlert = true
+            
+            print("✅ Recipe saved to SwiftData: \(recipe.title ?? "Untitled")")
+            print("   UUID: \(recipe.uuid)")
+        } catch {
+            print("❌ Failed to save recipe: \(error.localizedDescription)")
+        }
     }
     
     private func shareRecipe() {
