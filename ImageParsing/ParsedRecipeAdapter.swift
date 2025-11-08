@@ -239,4 +239,35 @@ struct ParsedRecipeAdapter {
         
         return dict
     }
+    
+    // MARK: - RecipeModel Conversion (SwiftData)
+    
+    /// Convert a ParsedRecipe to a RecipeModel for SwiftData persistence
+    static func convertToRecipeModel(_ parsed: ParsedRecipe) -> RecipeModel {
+        // Parse servings to Int
+        let servingsInt: Int? = {
+            guard let servingsStr = parsed.servings else { return nil }
+            // Extract first number from string
+            let numbers = servingsStr.components(separatedBy: CharacterSet.decimalDigits.inverted)
+                .joined()
+            return Int(numbers)
+        }()
+        
+        // Convert ParsedIngredients to ExtendedIngredients
+        let extendedIngredients = parsed.ingredients.enumerated().map { index, parsedIng in
+            convertToExtendedIngredient(parsedIng, index: index)
+        }
+        
+        // Create the RecipeModel
+        let recipe = RecipeModel(
+            title: parsed.title.isEmpty ? "Untitled Recipe" : parsed.title,
+            servings: servingsInt,
+            creditsText: "Parsed from image", summary: nil,
+            instructions: parsed.instructions
+        )
+        
+        recipe.extendedIngredients = extendedIngredients
+        
+        return recipe
+    }
 }

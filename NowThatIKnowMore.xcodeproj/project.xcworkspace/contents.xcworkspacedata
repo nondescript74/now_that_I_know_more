@@ -4,25 +4,4 @@
    <FileRef
       location = "self:">
    </FileRef>
-   <FileRef
-      location = "group:SWIFTDATA_CONSOLIDATION_PLAN.md">
-   </FileRef>
-   <FileRef
-      location = "group:ViewsRecipeDiagnosticView.swift">
-   </FileRef>
-   <FileRef
-      location = "group:MEALPLAN_SWIFTDATA_FIX_GUIDE.md">
-   </FileRef>
-   <FileRef
-      location = "group:SWIFTDATA_QUICK_REFERENCE 2.md">
-   </FileRef>
-   <FileRef
-      location = "group:SWIFTDATA_CONSOLIDATION_SUMMARY.md">
-   </FileRef>
-   <FileRef
-      location = "group:SWIFTDATA_CONSOLIDATION_SUMMARY 2.md">
-   </FileRef>
-   <FileRef
-      location = "group:MEALPLAN_FIX_CHECKLIST.md">
-   </FileRef>
 </Workspace>
