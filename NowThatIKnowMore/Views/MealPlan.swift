@@ -273,48 +273,10 @@ struct MealPlan: View {
                 resultText = ""
                 urlString = ""
                 return
+            } else {
+                print("Could not decode Recipe")
             }
             
-            // If that fails, try to patch the image field and decode again
-            if let jsonObject = try? JSONSerialization.jsonObject(with: data, options: []),
-               let dict = jsonObject as? [String: Any] {
-                var updatedDict = dict
-                
-                // Ensure UUID exists
-                if updatedDict["uuid"] == nil {
-                    updatedDict["uuid"] = UUID().uuidString
-                }
-                
-                // Patch image field if needed
-                if let image = dict["image"] as? String,
-                   let imageType = dict["imageType"] as? String,
-                   !image.isEmpty,
-                   !image.lowercased().hasSuffix(".jpg") &&
-                   !image.lowercased().hasSuffix(".jpeg") &&
-                   !image.lowercased().hasSuffix(".png") &&
-                   !image.lowercased().hasSuffix(".gif") &&
-                   !image.lowercased().hasSuffix(".webp") {
-                    var suffixedImage = image + "." + imageType
-                    if suffixedImage.lowercased().hasSuffix(".jpg") || suffixedImage.lowercased().hasSuffix(".jpeg") || suffixedImage.lowercased().hasSuffix(".png") || suffixedImage.lowercased().hasSuffix(".gif") || suffixedImage.lowercased().hasSuffix(".webp") {
-                        // do nothing all is ok
-                    } else {
-                        // imageType is blank, add .jpg
-                        suffixedImage = image + ".jpg"
-                    }
-                    updatedDict["image"] = suffixedImage
-                }
-                
-                // Convert dictionary back to JSON data and decode as RecipeModel
-                if let fallbackData = try? JSONSerialization.data(withJSONObject: updatedDict, options: []),
-                   let fallback = try? decoder.decode(RecipeModel.self, from: fallbackData) {
-                    // Add to SwiftData
-                    await addToSwiftData(fallback)
-                    
-                    resultText = ""
-                    urlString = ""
-                    return
-                }
-            }
             resultText = "Could not parse recipe."
         } catch {
             resultText = error.localizedDescription
