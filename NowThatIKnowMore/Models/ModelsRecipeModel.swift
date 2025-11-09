@@ -38,7 +38,7 @@ final class RecipeModel: Codable, Identifiable {
     var pricePerServing: Int?
     var summary: String?
     var instructions: String?
-    var spoonacularScore: Int?
+    var spoonacularScore: Double?
     var spoonacularSourceURL: String?
     var createdAt: Date
     var modifiedAt: Date
@@ -96,7 +96,7 @@ final class RecipeModel: Codable, Identifiable {
         pricePerServing: Int? = nil,
         summary: String? = nil,
         instructions: String? = nil,
-        spoonacularScore: Int? = nil,
+        spoonacularScore: Double? = nil,
         spoonacularSourceURL: String? = nil,
         cuisinesString: String? = nil,
         dishTypesString: String? = nil,
@@ -197,7 +197,7 @@ extension RecipeModel {
             pricePerServing: try container.decodeIfPresent(Int.self, forKey: .pricePerServing),
             summary: try container.decodeIfPresent(String.self, forKey: .summary),
             instructions: try container.decodeIfPresent(String.self, forKey: .instructions),
-            spoonacularScore: try container.decodeIfPresent(Int.self, forKey: .spoonacularScore),
+            spoonacularScore: try container.decodeIfPresent(Double.self, forKey: .spoonacularScore),
             spoonacularSourceURL: try container.decodeIfPresent(String.self, forKey: .spoonacularSourceURL),
             cuisinesString: try container.decodeIfPresent(String.self, forKey: .cuisinesString),
             dishTypesString: try container.decodeIfPresent(String.self, forKey: .dishTypesString),
@@ -380,18 +380,13 @@ extension RecipeModel {
         
         let daysOfWeek = recipe.daysOfWeek?.joined(separator: ",")
         
-        // Handle readyInMinutes, preparationMinutes, cookingMinutes (which were JSONNull?)
-        let readyInMinutes: Int? = nil // These were JSONNull in original
-        let preparationMinutes: Int? = nil
-        let cookingMinutes: Int? = nil
-        
         return RecipeModel(
             uuid: recipe.uuid,
             id: recipe.id,
             image: recipe.image,
             imageType: recipe.imageType,
             title: recipe.title,
-            readyInMinutes: readyInMinutes,
+            readyInMinutes: recipe.readyInMinutes,
             servings: recipe.servings,
             sourceURL: recipe.sourceURL,
             vegetarian: recipe.vegetarian ?? false,
@@ -405,8 +400,8 @@ extension RecipeModel {
             lowFodmap: recipe.lowFodmap ?? false,
             weightWatcherSmartPoints: recipe.weightWatcherSmartPoints,
             gaps: recipe.gaps,
-            preparationMinutes: preparationMinutes,
-            cookingMinutes: cookingMinutes,
+            preparationMinutes: recipe.preparationMinutes,
+            cookingMinutes: recipe.cookingMinutes,
             aggregateLikes: recipe.aggregateLikes,
             healthScore: recipe.healthScore.map { Int($0) },
             creditsText: recipe.creditsText,

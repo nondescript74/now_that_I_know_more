@@ -21,7 +21,7 @@ struct Recipe: Codable, Sendable, Identifiable {
     let id: Int?
     let image: String?
     let imageType, title: String?
-    let readyInMinutes: JSONNull?
+    let readyInMinutes: Int?
     let servings: Int?
     let sourceURL: String?
     let vegetarian, vegan, glutenFree, dairyFree: Bool?
@@ -29,7 +29,7 @@ struct Recipe: Codable, Sendable, Identifiable {
     let lowFodmap: Bool?
     let weightWatcherSmartPoints: Int?
     let gaps: String?
-    let preparationMinutes, cookingMinutes: JSONNull?
+    let preparationMinutes, cookingMinutes: Int?
     let aggregateLikes: Int?
     let healthScore: Double?
     let creditsText: String?
@@ -43,7 +43,7 @@ struct Recipe: Codable, Sendable, Identifiable {
     let instructions: String?
     let analyzedInstructions: [AnalyzedInstruction]?
     let originalID: JSONNull?
-    let spoonacularScore: Int?
+    let spoonacularScore: Double?
     let spoonacularSourceURL: String?
     
     // New media fields
@@ -80,7 +80,7 @@ struct Recipe: Codable, Sendable, Identifiable {
         self.image = try container.decodeIfPresent(String.self, forKey: .image)
         self.imageType = try container.decodeIfPresent(String.self, forKey: .imageType)
         self.title = try container.decodeIfPresent(String.self, forKey: .title)
-        self.readyInMinutes = try container.decodeIfPresent(JSONNull.self, forKey: .readyInMinutes)
+        self.readyInMinutes = try container.decodeIfPresent(Int.self, forKey: .readyInMinutes)
         self.servings = try container.decodeIfPresent(Int.self, forKey: .servings)
         self.sourceURL = try container.decodeIfPresent(String.self, forKey: .sourceURL)
         self.vegetarian = try container.decodeIfPresent(Bool.self, forKey: .vegetarian)
@@ -94,8 +94,8 @@ struct Recipe: Codable, Sendable, Identifiable {
         self.lowFodmap = try container.decodeIfPresent(Bool.self, forKey: .lowFodmap)
         self.weightWatcherSmartPoints = try container.decodeIfPresent(Int.self, forKey: .weightWatcherSmartPoints)
         self.gaps = try container.decodeIfPresent(String.self, forKey: .gaps)
-        self.preparationMinutes = try container.decodeIfPresent(JSONNull.self, forKey: .preparationMinutes)
-        self.cookingMinutes = try container.decodeIfPresent(JSONNull.self, forKey: .cookingMinutes)
+        self.preparationMinutes = try container.decodeIfPresent(Int.self, forKey: .preparationMinutes)
+        self.cookingMinutes = try container.decodeIfPresent(Int.self, forKey: .cookingMinutes)
         self.aggregateLikes = try container.decodeIfPresent(Int.self, forKey: .aggregateLikes)
         self.healthScore = try container.decodeIfPresent(Double.self, forKey: .healthScore)
         self.creditsText = try container.decodeIfPresent(String.self, forKey: .creditsText)
@@ -112,7 +112,7 @@ struct Recipe: Codable, Sendable, Identifiable {
         self.instructions = try container.decodeIfPresent(String.self, forKey: .instructions)
         self.analyzedInstructions = try container.decodeIfPresent([AnalyzedInstruction].self, forKey: .analyzedInstructions)
         self.originalID = try container.decodeIfPresent(JSONNull.self, forKey: .originalID)
-        self.spoonacularScore = try container.decodeIfPresent(Int.self, forKey: .spoonacularScore)
+        self.spoonacularScore = try container.decodeIfPresent(Double.self, forKey: .spoonacularScore)
         self.spoonacularSourceURL = try container.decodeIfPresent(String.self, forKey: .spoonacularSourceURL)
         self.mediaItems = try container.decodeIfPresent([RecipeMedia].self, forKey: .mediaItems)
         self.featuredMediaID = try container.decodeIfPresent(UUID.self, forKey: .featuredMediaID)
@@ -179,7 +179,7 @@ struct Recipe: Codable, Sendable, Identifiable {
         self.image = dict["image"] as? String
         self.imageType = dict["imageType"] as? String
         self.title = dict["title"] as? String
-        self.readyInMinutes = dict["readyInMinutes"] as? JSONNull
+        self.readyInMinutes = dict["readyInMinutes"] as? Int
         self.servings = dict["servings"] as? Int
         self.sourceURL = dict["sourceUrl"] as? String ?? dict["sourceURL"] as? String
         self.vegetarian = dict["vegetarian"] as? Bool
@@ -193,8 +193,8 @@ struct Recipe: Codable, Sendable, Identifiable {
         self.lowFodmap = dict["lowFodmap"] as? Bool
         self.weightWatcherSmartPoints = dict["weightWatcherSmartPoints"] as? Int
         self.gaps = dict["gaps"] as? String
-        self.preparationMinutes = dict["preparationMinutes"] as? JSONNull
-        self.cookingMinutes = dict["cookingMinutes"] as? JSONNull
+        self.preparationMinutes = dict["preparationMinutes"] as? Int
+        self.cookingMinutes = dict["cookingMinutes"] as? Int
         self.aggregateLikes = dict["aggregateLikes"] as? Int
         self.healthScore = dict["healthScore"] as? Double
         self.creditsText = dict["creditsText"] as? String
@@ -228,7 +228,7 @@ struct Recipe: Codable, Sendable, Identifiable {
             self.analyzedInstructions = nil
         }
         self.originalID = dict["originalId"] as? JSONNull
-        self.spoonacularScore = dict["spoonacularScore"] as? Int
+        self.spoonacularScore = dict["spoonacularScore"] as? Double
         self.spoonacularSourceURL = dict["spoonacularSourceUrl"] as? String ?? dict["spoonacularSourceURL"] as? String
         
         // Decode media items
@@ -297,7 +297,7 @@ extension Recipe: Equatable {
             lhs.image == rhs.image &&
             lhs.imageType == rhs.imageType &&
             lhs.title == rhs.title &&
-            (lhs.readyInMinutes == nil) == (rhs.readyInMinutes == nil) &&
+            lhs.readyInMinutes == rhs.readyInMinutes &&
             lhs.servings == rhs.servings &&
             lhs.sourceURL == rhs.sourceURL &&
             lhs.vegetarian == rhs.vegetarian &&
@@ -311,8 +311,8 @@ extension Recipe: Equatable {
             lhs.lowFodmap == rhs.lowFodmap &&
             lhs.weightWatcherSmartPoints == rhs.weightWatcherSmartPoints &&
             lhs.gaps == rhs.gaps &&
-            (lhs.preparationMinutes == nil) == (rhs.preparationMinutes == nil) &&
-            (lhs.cookingMinutes == nil) == (rhs.cookingMinutes == nil) &&
+            lhs.preparationMinutes == rhs.preparationMinutes &&
+            lhs.cookingMinutes == rhs.cookingMinutes &&
             lhs.aggregateLikes == rhs.aggregateLikes &&
             lhs.healthScore == rhs.healthScore &&
             lhs.creditsText == rhs.creditsText &&
@@ -341,6 +341,7 @@ extension Recipe: Hashable {
         hasher.combine(image)
         hasher.combine(imageType)
         hasher.combine(title)
+        hasher.combine(readyInMinutes)
         hasher.combine(servings)
         hasher.combine(sourceURL)
         hasher.combine(vegetarian)
@@ -354,6 +355,8 @@ extension Recipe: Hashable {
         hasher.combine(lowFodmap)
         hasher.combine(weightWatcherSmartPoints)
         hasher.combine(gaps)
+        hasher.combine(preparationMinutes)
+        hasher.combine(cookingMinutes)
         hasher.combine(aggregateLikes)
         hasher.combine(healthScore)
         hasher.combine(creditsText)
@@ -366,9 +369,6 @@ extension Recipe: Hashable {
         hasher.combine(spoonacularScore)
         hasher.combine(spoonacularSourceURL)
         // For optionals that are not Hashable (JSONNull, JSONAny arrays), hash their nil-ness or count
-        hasher.combine(readyInMinutes != nil)
-        hasher.combine(preparationMinutes != nil)
-        hasher.combine(cookingMinutes != nil)
         hasher.combine(license != nil)
         hasher.combine(originalID != nil)
         hasher.combine(cuisines?.count ?? 0)
