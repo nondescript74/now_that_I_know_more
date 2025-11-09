@@ -9,7 +9,6 @@ import Combine
 import OSLog
 
 struct MealPlan: View {
-    @Environment(RecipeStore.self) private var recipeStore
     @Environment(\.modelContext) private var modelContext
     @Query private var swiftDataRecipes: [RecipeModel]
     @State private var urlString = ""
@@ -19,16 +18,16 @@ struct MealPlan: View {
     @State private var showingSharingTips = false
     
     @State private var selectedDay: String = "All"
-    @State private var showingDaySheetForRecipe: Recipe? = nil
+    @State private var showingDaySheetForRecipe: RecipeModel? = nil
     private static let daysOfWeek = ["All", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
     
     let logger: Logger = .init(subsystem: "com.headydiscy.NowThatIKnowMore", category: "MealPlan")
     
-    private var filteredMealPlanRecipes: [Recipe] {
+    private var filteredMealPlanRecipes: [RecipeModel] {
         if selectedDay == "All" {
-            return recipeStore.recipes
+            return swiftDataRecipes
         } else {
-            return recipeStore.recipes.filter { $0.daysOfWeek?.contains(selectedDay) == true }
+            return swiftDataRecipes.filter { $0.daysOfWeek.contains(selectedDay) }
         }
     }
     
@@ -94,7 +93,7 @@ struct MealPlan: View {
                                                 print("🖼️ [MealPlan] image field: '\(recipe.image ?? "nil")'")
                                                 print("🖼️ [MealPlan] mediaItems count: \(recipe.mediaItems?.count ?? 0)")
                                                 print("🖼️ [MealPlan] featuredMediaID: \(recipe.featuredMediaID?.uuidString ?? "nil")")
-                                                print("🖼️ [MealPlan] preferFeaturedMedia: \(recipe.preferFeaturedMedia ?? false)")
+                                                print("🖼️ [MealPlan] preferFeaturedMedia: \(recipe.preferFeaturedMedia)")
                                             }
                                         }
                                         // Handle local file URLs
@@ -168,7 +167,6 @@ struct MealPlan: View {
             }
             .sheet(isPresented: $showingImportSheet) {
                 RecipeImportView()
-                    .environment(recipeStore)
             }
             .sheet(isPresented: $showingSharingTips) {
                 RecipeSharingTipsView()
@@ -185,7 +183,7 @@ struct MealPlan: View {
                                 HStack {
                                     Text(day)
                                     Spacer()
-                                    if recipe.daysOfWeek?.contains(day) == true {
+                                    if recipe.daysOfWeek.contains(day) {
                                         Image(systemName: "checkmark.circle.fill")
                                             .foregroundColor(.accentColor)
                                     }
@@ -208,25 +206,35 @@ struct MealPlan: View {
         }
     }
     
-    private func toggleAssignment(for recipe: Recipe, day: String) {
-        guard let index = recipeStore.recipes.firstIndex(where: { $0.uuid == recipe.uuid }) else { return }
-        var updatedRecipe = recipeStore.recipes[index]
-        var assignedDays = updatedRecipe.daysOfWeek ?? []
+    private func toggleAssignment(for recipe: RecipeModel, day: String) {
+        var assignedDays = recipe.daysOfWeek
         
         if let dayIndex = assignedDays.firstIndex(of: day) {
             assignedDays.remove(at: dayIndex)
         } else {
             assignedDays.append(day)
         }
-        updatedRecipe.daysOfWeek = assignedDays.sorted()
-        recipeStore.update(updatedRecipe)
+        recipe.daysOfWeek = assignedDays.sorted()
+        
+        // Save changes
+        do {
+            try modelContext.save()
+            logger.info("[MealPlan] Updated days for recipe: \(recipe.title ?? "nil")")
+        } catch {
+            logger.error("[MealPlan] Failed to save recipe days: \(error.localizedDescription)")
+        }
     }
     
-    private func clearAssignments(for recipe: Recipe) {
-        guard let index = recipeStore.recipes.firstIndex(where: { $0.uuid == recipe.uuid }) else { return }
-        var updatedRecipe = recipeStore.recipes[index]
-        updatedRecipe.daysOfWeek = []
-        recipeStore.update(updatedRecipe)
+    private func clearAssignments(for recipe: RecipeModel) {
+        recipe.daysOfWeek = []
+        
+        // Save changes
+        do {
+            try modelContext.save()
+            logger.info("[MealPlan] Cleared all days for recipe: \(recipe.title ?? "nil")")
+        } catch {
+            logger.error("[MealPlan] Failed to save recipe days: \(error.localizedDescription)")
+        }
     }
     
     private func addRecipeToMealPlan() async {
@@ -257,20 +265,26 @@ struct MealPlan: View {
             logger.info("[MealPlan] API call succeeded, data len: \(data.count)")
             let decoder = JSONDecoder()
             decoder.keyDecodingStrategy = .convertFromSnakeCase
-            if let recipe = try? decoder.decode(Recipe.self, from: data) {
-                // Add to legacy RecipeStore
-                recipeStore.add(recipe)
-                
-                // Also add to SwiftData
-                await addToSwiftData(recipe)
-                
+            
+            // First, try to decode directly as RecipeModel
+            if let recipeModel = try? decoder.decode(RecipeModel.self, from: data) {
+                await addToSwiftData(recipeModel)
                 resultText = ""
                 urlString = ""
                 return
             }
+            
+            // If that fails, try to patch the image field and decode again
             if let jsonObject = try? JSONSerialization.jsonObject(with: data, options: []),
                let dict = jsonObject as? [String: Any] {
                 var updatedDict = dict
+                
+                // Ensure UUID exists
+                if updatedDict["uuid"] == nil {
+                    updatedDict["uuid"] = UUID().uuidString
+                }
+                
+                // Patch image field if needed
                 if let image = dict["image"] as? String,
                    let imageType = dict["imageType"] as? String,
                    !image.isEmpty,
@@ -284,15 +298,15 @@ struct MealPlan: View {
                         // do nothing all is ok
                     } else {
                         // imageType is blank, add .jpg
-                        suffixedImage = image + "jpg"
+                        suffixedImage = image + ".jpg"
                     }
                     updatedDict["image"] = suffixedImage
                 }
-                if let fallback = Recipe(from: updatedDict) {
-                    // Add to legacy RecipeStore
-                    recipeStore.add(fallback)
-                    
-                    // Also add to SwiftData
+                
+                // Convert dictionary back to JSON data and decode as RecipeModel
+                if let fallbackData = try? JSONSerialization.data(withJSONObject: updatedDict, options: []),
+                   let fallback = try? decoder.decode(RecipeModel.self, from: fallbackData) {
+                    // Add to SwiftData
                     await addToSwiftData(fallback)
                     
                     resultText = ""
@@ -307,16 +321,15 @@ struct MealPlan: View {
     }
     
     @MainActor
-    private func addToSwiftData(_ recipe: Recipe) async {
+    private func addToSwiftData(_ recipe: RecipeModel) async {
         // Check if recipe already exists in SwiftData
         guard !swiftDataRecipes.contains(where: { $0.uuid == recipe.uuid }) else {
             logger.info("[MealPlan] Recipe already exists in SwiftData, skipping")
             return
         }
         
-        // Convert legacy Recipe to RecipeModel
-        let recipeModel = RecipeModel(from: recipe)
-        modelContext.insert(recipeModel)
+        // Insert the recipe directly
+        modelContext.insert(recipe)
         
         do {
             try modelContext.save()
@@ -327,31 +340,15 @@ struct MealPlan: View {
     }
     
     private func deleteRecipeFromPlan(at offsets: IndexSet) {
-        let recipesToDelete = offsets.compactMap { index -> Recipe? in
-            let filteredRecipes: [Recipe]
-            if selectedDay == "All" {
-                filteredRecipes = recipeStore.recipes
-            } else {
-                filteredRecipes = recipeStore.recipes.filter { $0.daysOfWeek?.isEmpty != false || $0.daysOfWeek?.contains(selectedDay) == true }
-            }
-            guard index < filteredRecipes.count else { return nil }
-            return filteredRecipes[index]
+        let recipesToDelete = offsets.compactMap { index -> RecipeModel? in
+            guard index < filteredMealPlanRecipes.count else { return nil }
+            return filteredMealPlanRecipes[index]
         }
         
-        // Delete from both systems
+        // Delete from SwiftData
         for recipe in recipesToDelete {
             logger.info("[MealPlan] Deleting recipe: '\(recipe.title ?? "nil")' (UUID: \(recipe.uuid.uuidString))")
-            
-            // Delete from legacy RecipeStore
-            recipeStore.remove(recipe)
-            
-            // Also delete from SwiftData
-            if let swiftDataRecipe = swiftDataRecipes.first(where: { $0.uuid == recipe.uuid }) {
-                logger.info("[MealPlan] Found recipe in SwiftData, deleting...")
-                modelContext.delete(swiftDataRecipe)
-            } else {
-                logger.warning("[MealPlan] Recipe NOT found in SwiftData!")
-            }
+            modelContext.delete(recipe)
         }
         
         // Save SwiftData changes
@@ -365,6 +362,7 @@ struct MealPlan: View {
 }
 
 #Preview {
-    MealPlan().environment(RecipeStore())
+    MealPlan()
+        .modelContainer(for: [RecipeModel.self, RecipeBookModel.self, RecipeMediaModel.self, RecipeNoteModel.self])
 }
 

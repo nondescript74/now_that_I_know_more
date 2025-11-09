@@ -8,63 +8,23 @@
 import SwiftUI
 import PhotosUI
 import AVKit
+import SwiftData
 
 /// A view that displays a gallery of media items and allows selection of a featured item
 struct MediaGalleryView: View {
-    let mediaItems: [RecipeMedia]
-    let featuredMediaID: UUID?
-    let onSelectFeatured: (UUID) -> Void
-    let onAddMedia: ([RecipeMedia]) -> Void
-    let onRemoveMedia: (UUID) -> Void
+    let mediaItems: [RecipeMediaModel]
+    let featuredMediaID: PersistentIdentifier?
+    let onSelectFeatured: (PersistentIdentifier) -> Void
+    let onAddMedia: ([RecipeMediaModel]) -> Void
+    let onRemoveMedia: (PersistentIdentifier) -> Void
     
     @State private var selectedPhotoItems: [PhotosPickerItem] = []
     @State private var showingPhotoPicker = false
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Media Gallery")
-                    .font(.headline)
-                Spacer()
-                Button {
-                    showingPhotoPicker = true
-                } label: {
-                    Label("Add Photos/Videos", systemImage: "plus.circle.fill")
-                        .font(.subheadline)
-                }
-            }
-            
-            if mediaItems.isEmpty {
-                ContentUnavailableView {
-                    Label("No Media", systemImage: "photo.on.rectangle.angled")
-                } description: {
-                    Text("Add photos or videos to your recipe")
-                } actions: {
-                    Button("Add Media") {
-                        showingPhotoPicker = true
-                    }
-                    .buttonStyle(.borderedProminent)
-                }
-                .frame(height: 200)
-            } else {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 12) {
-                        ForEach(mediaItems) { media in
-                            MediaThumbnailView(
-                                media: media,
-                                isFeatured: media.id == featuredMediaID,
-                                onTap: {
-                                    onSelectFeatured(media.id)
-                                },
-                                onRemove: {
-                                    onRemoveMedia(media.id)
-                                }
-                            )
-                        }
-                    }
-                    .padding(.vertical, 4)
-                }
-            }
+            headerView
+            contentView
         }
         .photosPicker(
             isPresented: $showingPhotoPicker,
@@ -79,8 +39,65 @@ struct MediaGalleryView: View {
         }
     }
     
+    private var headerView: some View {
+        HStack {
+            Text("Media Gallery")
+                .font(.headline)
+            Spacer()
+            Button {
+                showingPhotoPicker = true
+            } label: {
+                Label("Add Photos/Videos", systemImage: "plus.circle.fill")
+                    .font(.subheadline)
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private var contentView: some View {
+        if mediaItems.isEmpty {
+            emptyStateView
+        } else {
+            mediaScrollView
+        }
+    }
+    
+    private var emptyStateView: some View {
+        ContentUnavailableView {
+            Label("No Media", systemImage: "photo.on.rectangle.angled")
+        } description: {
+            Text("Add photos or videos to your recipe")
+        } actions: {
+            Button("Add Media") {
+                showingPhotoPicker = true
+            }
+            .buttonStyle(.borderedProminent)
+        }
+        .frame(height: 200)
+    }
+    
+    private var mediaScrollView: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 12) {
+                ForEach(mediaItems) { media in
+                    MediaThumbnailView(
+                        media: media,
+                        isFeatured: media.id == featuredMediaID,
+                        onTap: {
+                            onSelectFeatured(media.id)
+                        },
+                        onRemove: {
+                            onRemoveMedia(media.id)
+                        }
+                    )
+                }
+            }
+            .padding(.vertical, 4)
+        }
+    }
+    
     private func loadMediaItems(from items: [PhotosPickerItem]) async {
-        var newMediaItems: [RecipeMedia] = []
+        var newMediaItems: [RecipeMediaModel] = []
         
         for item in items {
             // Try to load as image first
@@ -88,7 +105,7 @@ struct MediaGalleryView: View {
                let image = UIImage(data: data) {
                 // Save to documents directory
                 if let url = saveImageToDocuments(image: image) {
-                    let media = RecipeMedia(url: url.path, type: .photo)
+                    let media = RecipeMediaModel(fileURL: url.path, type: .photo)
                     newMediaItems.append(media)
                 }
             }
@@ -122,7 +139,7 @@ struct MediaGalleryView: View {
 
 /// A thumbnail view for a single media item
 private struct MediaThumbnailView: View {
-    let media: RecipeMedia
+    let media: RecipeMediaModel
     let isFeatured: Bool
     let onTap: () -> Void
     let onRemove: () -> Void
@@ -134,9 +151,9 @@ private struct MediaThumbnailView: View {
             Button(action: onTap) {
                 ZStack {
                     if media.type == .photo {
-                        PhotoThumbnail(url: media.url)
+                        PhotoThumbnail(url: media.fileURL)
                     } else {
-                        VideoThumbnail(url: media.url)
+                        VideoThumbnail(url: media.fileURL)
                     }
                     
                     if isFeatured {
@@ -297,16 +314,21 @@ private struct VideoThumbnail: View {
 }
 
 #Preview {
+    @Previewable @State var mediaItems: [RecipeMediaModel] = [
+        RecipeMediaModel(fileURL: "https://example.com/image1.jpg", type: .photo),
+        RecipeMediaModel(fileURL: "https://example.com/image2.jpg", type: .photo),
+        RecipeMediaModel(fileURL: "https://example.com/video1.mp4", type: .video)
+    ]
+    
     MediaGalleryView(
-        mediaItems: [
-            RecipeMedia(url: "https://example.com/image1.jpg", type: .photo),
-            RecipeMedia(url: "https://example.com/image2.jpg", type: .photo),
-            RecipeMedia(url: "https://example.com/video1.mp4", type: .video)
-        ],
+        mediaItems: mediaItems,
         featuredMediaID: nil,
         onSelectFeatured: { _ in },
-        onAddMedia: { _ in },
+        onAddMedia: { newItems in
+            mediaItems.append(contentsOf: newItems)
+        },
         onRemoveMedia: { _ in }
     )
     .padding()
+    .modelContainer(for: [RecipeMediaModel.self], inMemory: true)
 }

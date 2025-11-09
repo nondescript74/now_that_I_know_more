@@ -6,14 +6,16 @@
 //
 
 import SwiftUI
+import SwiftData
 internal import UniformTypeIdentifiers
 
 struct RecipeImportView: View {
-    @Environment(RecipeStore.self) private var recipeStore
+    @Environment(\.modelContext) private var modelContext
+    @Query private var swiftDataRecipes: [RecipeModel]
     @Environment(\.dismiss) private var dismiss
     
     @State private var isImporting = false
-    @State private var importedRecipe: Recipe?
+    @State private var importedRecipe: RecipeModel?
     @State private var showAlert = false
     @State private var alertMessage = ""
     @State private var alertTitle = ""
@@ -148,21 +150,13 @@ struct RecipeImportView: View {
             do {
                 let data = try Data(contentsOf: url)
                 
-                // Try to decode as Recipe
+                // Try to decode as RecipeModel
                 let decoder = JSONDecoder()
-                if let recipe = try? decoder.decode(Recipe.self, from: data) {
-                    importedRecipe = recipe
-                } else if let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                          let recipe = Recipe(from: dict) {
-                    importedRecipe = recipe
-                } else {
-                    alertTitle = "Error"
-                    alertMessage = "Unable to parse recipe file. The file may be corrupted or in an invalid format."
-                    showAlert = true
-                }
+                let recipe = try decoder.decode(RecipeModel.self, from: data)
+                importedRecipe = recipe
             } catch {
                 alertTitle = "Error"
-                alertMessage = "Failed to read file: \(error.localizedDescription)"
+                alertMessage = "Unable to parse recipe file: \(error.localizedDescription)"
                 showAlert = true
             }
             
@@ -173,26 +167,106 @@ struct RecipeImportView: View {
         }
     }
     
-    private func importRecipe(_ recipe: Recipe) {
+    private func importRecipe(_ recipe: RecipeModel) {
         // Check if recipe already exists
-        if recipeStore.recipe(with: recipe.uuid) != nil {
+        if swiftDataRecipes.first(where: { $0.uuid == recipe.uuid }) != nil {
             alertTitle = "Already Exists"
             alertMessage = "A recipe with this ID already exists in your collection."
             showAlert = true
             return
         }
         
-        // Add the recipe
-        recipeStore.add(recipe)
+        // Convert Recipe to RecipeModel
+        // Convert cuisines, dishTypes, diets, occasions from JSONAny arrays to comma-separated strings
+        let cuisinesString = recipe.cuisines.compactMap { $0 }.joined(separator: ",")
+        let dishTypesString = recipe.dishTypes.compactMap { $0 }.joined(separator: ",")
+        let dietsString = recipe.diets.compactMap { $0 }.joined(separator: ",")
+        let occasionsString = recipe.occasions.compactMap { $0 }.joined(separator: ",")
+        let daysOfWeekString = recipe.daysOfWeek.joined(separator: ",")
         
-        alertTitle = "Success"
-        alertMessage = "Recipe '\(recipe.title ?? "Untitled")' has been imported successfully!"
-        showAlert = true
+        // Encode extendedIngredients and analyzedInstructions to JSON
+        let ingredientsData = try? JSONEncoder().encode(recipe.extendedIngredients)
+        let instructionsData = try? JSONEncoder().encode(recipe.analyzedInstructions)
+        
+        let recipeModel = RecipeModel(
+            uuid: recipe.uuid,
+            id: recipe.id,
+            image: recipe.image,
+            imageType: recipe.imageType,
+            title: recipe.title ?? "Untitled Recipe",
+            servings: recipe.servings,
+            sourceURL: recipe.sourceURL,
+            vegetarian: recipe.vegetarian,
+            vegan: recipe.vegan,
+            glutenFree: recipe.glutenFree,
+            dairyFree: recipe.dairyFree,
+            veryHealthy: recipe.veryHealthy,
+            cheap: recipe.cheap,
+            veryPopular: recipe.veryPopular,
+            sustainable: recipe.sustainable,
+            lowFodmap: recipe.lowFodmap,
+            weightWatcherSmartPoints: recipe.weightWatcherSmartPoints,
+            gaps: recipe.gaps,
+            aggregateLikes: recipe.aggregateLikes,
+            healthScore: recipe.healthScore,
+            creditsText: recipe.creditsText,
+            sourceName: recipe.sourceName,
+            pricePerServing: recipe.pricePerServing,
+            summary: recipe.summary,
+            instructions: recipe.instructions,
+            spoonacularScore: recipe.spoonacularScore,
+            spoonacularSourceURL: recipe.spoonacularSourceURL,
+            cuisinesString: cuisinesString,
+            dishTypesString: dishTypesString,
+            dietsString: dietsString,
+            occasionsString: occasionsString,
+            daysOfWeekString: daysOfWeekString,
+            extendedIngredientsJSON: ingredientsData,
+            analyzedInstructionsJSON: instructionsData,
+            featuredMediaID: recipe.featuredMediaID,
+            preferFeaturedMedia: recipe.preferFeaturedMedia
+        )
+        
+        // Migrate media items if any
+        if let mediaItems = recipe.mediaItems {
+            for media in mediaItems {
+                // Convert legacy MediaType to RecipeMediaModel.MediaType
+                let mediaType: RecipeMediaModel.MediaType = switch media.type {
+                case .photo: .photo
+                case .video: .video
+                }
+                
+                let mediaModel = RecipeMediaModel(
+                    uuid: media.uuid,
+                    fileURL: media.fileURL,
+                    thumbnailURL: media.thumbnailURL,
+                    caption: media.caption,
+                    type: mediaType,
+                    recipe: recipeModel
+                )
+                modelContext.insert(mediaModel)
+            }
+        }
+        
+        modelContext.insert(recipeModel)
+        
+        do {
+            try modelContext.save()
+            alertTitle = "Success"
+            alertMessage = "Recipe '\(recipe.title ?? "Untitled")' has been imported successfully!"
+            showAlert = true
+        } catch {
+            alertTitle = "Error"
+            alertMessage = "Failed to save recipe: \(error.localizedDescription)"
+            showAlert = true
+        }
     }
 }
 
 #Preview {
-    let store = RecipeStore()
+    let config = ModelConfiguration(isStoredInMemoryOnly: true)
+    let container = try! ModelContainer(for: RecipeModel.self, configurations: config)
+    
     return RecipeImportView()
-        .environment(store)
+        .modelContainer(container)
 }

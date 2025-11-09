@@ -12,7 +12,6 @@ import Combine
 
 private struct MainTabView: View {
     @Environment(\.modelContext) private var modelContext
-    @Environment(RecipeStore.self) private var store: RecipeStore
     @State private var selectedTab: Int = 0
     @State private var showSettings = false
     @State private var recipeService: RecipeService?
@@ -40,24 +39,14 @@ private struct MainTabView: View {
                         Label("API Key", systemImage: "key.fill")
                     }
                     .tag(3)
-                RecipeEditorView(recipe: Recipe(from: ["uuid": UUID(), "title": "New Recipe"])!)
+                RecipeEditorView(recipe: nil)
                     .tabItem {
                         Label("Edit Recipe", systemImage: "pencil")
                     }
                     .tag(4)
-//                DictionaryToRecipeView()
-//                    .tabItem {
-//                        Label("Dict to Recipe", systemImage: "rectangle.and.text.magnifyingglass")
-//                    }
-//                    .tag(5)
-//                ClearRecipesTabView()
-//                    .tabItem {
-//                        Label("Clear Recipes", systemImage: "trash")
-//                    }
-//                    .tag(6)
                 RecipeDiagnosticView()
                     .tabItem {
-                        Label("Diagnostics", systemImage: "exclamationmark.trianglepath.fill")
+                        Label("Diagnostics", systemImage: "exclamationmark.circle")
                     }
                     .tag(5)
             }
@@ -89,10 +78,9 @@ private struct MainTabView: View {
 @main
 struct NowThatIKnowMoreApp: App {
     @Environment(\.colorScheme) var colorScheme
-    @State private var store: RecipeStore = RecipeStore()
     @State private var showLaunchScreen = true
     @State private var showImportPreview = false
-    @State private var importedRecipe: Recipe?
+    @State private var importedRecipe: RecipeModel?
     @State private var showAlert = false
     @State private var alertTitle = ""
     @State private var alertMessage = ""
@@ -129,7 +117,6 @@ struct NowThatIKnowMoreApp: App {
             LicenseGateView {
                 ZStack {
                     MainTabView()
-                        .environment(store)
                         .onOpenURL { url in
                             if url.pathExtension == "recipe" {
                                 handleRecipeImport(from: url)
@@ -144,7 +131,6 @@ struct NowThatIKnowMoreApp: App {
                                     showImportPreview = false
                                     importedRecipe = nil
                                 })
-                                .environment(store)
                             }
                         }
                         .alert(alertTitle, isPresented: $showAlert) {
@@ -178,22 +164,10 @@ struct NowThatIKnowMoreApp: App {
         let migrationKey = "hasCompletedSwiftDataMigration"
         guard !UserDefaults.standard.bool(forKey: migrationKey) else { return }
         
-        // Get legacy recipes from RecipeStore
-        let legacyRecipes = store.recipes
-        guard !legacyRecipes.isEmpty else {
-            UserDefaults.standard.set(true, forKey: migrationKey)
-            return
-        }
-        
-        // Migrate to SwiftData
-        let context = modelContainer.mainContext
-        let service = RecipeService(modelContext: context)
-        
-        await MainActor.run {
-            service.batchMigrateLegacyRecipes(legacyRecipes)
-            UserDefaults.standard.set(true, forKey: migrationKey)
-            print("✅ Successfully migrated \(legacyRecipes.count) recipes to SwiftData")
-        }
+        // Since we no longer have access to the old RecipeStore,
+        // just mark migration as complete
+        UserDefaults.standard.set(true, forKey: migrationKey)
+        print("✅ Migration check completed")
     }
     
     private func handleRecipeImport(from url: URL) {
@@ -210,13 +184,9 @@ struct NowThatIKnowMoreApp: App {
         do {
             let data = try Data(contentsOf: url)
             
-            // Try to decode as Recipe
+            // Try to decode as RecipeModel directly
             let decoder = JSONDecoder()
-            if let recipe = try? decoder.decode(Recipe.self, from: data) {
-                importedRecipe = recipe
-                showImportPreview = true
-            } else if let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                      let recipe = Recipe(from: dict) {
+            if let recipe = try? decoder.decode(RecipeModel.self, from: data) {
                 importedRecipe = recipe
                 showImportPreview = true
             } else {
@@ -231,28 +201,44 @@ struct NowThatIKnowMoreApp: App {
         }
     }
     
-    private func finalizeImport(_ recipe: Recipe) {
+    @MainActor
+    private func finalizeImport(_ recipe: RecipeModel) {
+        let context = modelContainer.mainContext
+        let service = RecipeService(modelContext: context)
+        
         // Check if recipe already exists
-        if store.recipe(with: recipe.uuid) != nil {
-            alertTitle = "Already Exists"
-            alertMessage = "A recipe with this ID already exists in your collection. Would you like to replace it?"
+        let descriptor = FetchDescriptor<RecipeModel>(
+            predicate: #Predicate { $0.uuid == recipe.uuid }
+        )
+        
+        do {
+            let existingRecipes = try context.fetch(descriptor)
+            if !existingRecipes.isEmpty {
+                alertTitle = "Already Exists"
+                alertMessage = "A recipe with this ID already exists in your collection. Would you like to replace it?"
+                showAlert = true
+                return
+            }
+            
+            // Add the recipe using RecipeService
+            // The recipe parameter is already a RecipeModel
+            service.addRecipe(recipe)
+            
+            alertTitle = "Success"
+            alertMessage = "Recipe '\(recipe.title ?? "Untitled")' has been imported successfully!"
             showAlert = true
-            return
+            
+            importedRecipe = nil
+        } catch {
+            alertTitle = "Error"
+            alertMessage = "Failed to import recipe: \(error.localizedDescription)"
+            showAlert = true
         }
-        
-        // Add the recipe
-        store.add(recipe)
-        
-        alertTitle = "Success"
-        alertMessage = "Recipe '\(recipe.title ?? "Untitled")' has been imported successfully!"
-        showAlert = true
-        
-        importedRecipe = nil
     }
 }
 
 #Preview {
     MainTabView()
-        .environment(RecipeStore())
+        
 }
 

@@ -1,16 +1,20 @@
 import SwiftUI
+import SwiftUI
 import Foundation
 import PhotosUI
 import AVKit
 import MessageUI
+import SwiftData
+import UIKit
 
 
 struct RecipeEditorView: View {
-    @Environment(RecipeStore.self) private var recipeStore
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
+    @Query private var swiftDataRecipes: [RecipeModel]
     
     // The recipe to edit (optional - if nil, we're creating a new recipe)
-    @State var recipe: Recipe?
+    @State var recipe: RecipeModel?
     
     // Recipe selection state
     @State private var showRecipePicker = false
@@ -34,7 +38,7 @@ struct RecipeEditorView: View {
     @State private var showingEmailComposer = false
     
     // Media gallery state
-    @State private var mediaItems: [RecipeMedia]
+    @State private var mediaItems: [RecipeMediaModel]
     @State private var featuredMediaID: UUID?
     @State private var preferFeaturedMedia: Bool
     
@@ -44,7 +48,7 @@ struct RecipeEditorView: View {
     // Editing mode helper for complex fields
     private static let daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
     
-    init(recipe: Recipe? = nil) {
+    init(recipe: RecipeModel? = nil) {
         self._recipe = State(initialValue: recipe)
         self._isEditingExisting = State(initialValue: recipe != nil)
         self._title = State(initialValue: recipe?.title ?? "")
@@ -53,18 +57,15 @@ struct RecipeEditorView: View {
         self._servings = State(initialValue: recipe?.servings.map { String($0) } ?? "")
         self._instructions = State(initialValue: recipe?.instructions ?? "")
         self._selectedDays = State(initialValue: recipe?.daysOfWeek ?? [])
-        self._cuisines = State(initialValue: (recipe?.cuisines)?.compactMap { $0.value as? String }.joined(separator: ", ") ?? "")
+        self._cuisines = State(initialValue: recipe?.cuisines.joined(separator: ", ") ?? "")
         self._imageUrl = State(initialValue: recipe?.image ?? "")
         self._mediaItems = State(initialValue: recipe?.mediaItems ?? [])
         self._featuredMediaID = State(initialValue: recipe?.featuredMediaID)
-        self._preferFeaturedMedia = State(initialValue: recipe?.preferFeaturedMedia ?? true)
-//        if let list = recipe.extendedIngredients as? [[String: Any]] {
-//            self._ingredients = State(initialValue: list.compactMap { $0["original"] as? String }.joined(separator: "\n"))
-//        } else if let list = recipe.ingredients as? [String] {
-//            self._ingredients = State(initialValue: list.joined(separator: "\n"))
-//        } else {
-//            self._ingredients = State(initialValue: "")
-//        }
+        self._preferFeaturedMedia = State(initialValue: recipe?.preferFeaturedMedia ?? false)
+        
+        // Initialize ingredients from extendedIngredients if available
+        // Note: For now, we leave this empty as ingredients editing is not fully implemented
+        self._ingredients = State(initialValue: "")
     }
     
     var body: some View {
@@ -108,7 +109,7 @@ struct RecipeEditorView: View {
     
     @ViewBuilder
     private var recipeSelectionSection: some View {
-        if !recipeStore.recipes.isEmpty && !isEditingExisting {
+        if !swiftDataRecipes.isEmpty && !isEditingExisting {
             Section(header: Text("Choose Recipe")) {
                 Button("Select Existing Recipe to Edit") {
                     showRecipePicker = true
@@ -175,24 +176,25 @@ struct RecipeEditorView: View {
     
     private var mediaSection: some View {
         Section(header: Text("Photos & Videos")) {
-            MediaGalleryView(
+            // Convert UUID-based state to PersistentIdentifier for MediaGalleryView
+            MediaGalleryWrapper(
                 mediaItems: mediaItems,
-                featuredMediaID: featuredMediaID,
-                onSelectFeatured: { mediaID in
-                    featuredMediaID = mediaID
+                featuredMediaUUID: featuredMediaID,
+                onSelectFeaturedUUID: { uuid in
+                    featuredMediaID = uuid
                 },
                 onAddMedia: { newMedia in
                     mediaItems.append(contentsOf: newMedia)
                     // If no featured media is set, make the first one featured
                     if featuredMediaID == nil, let first = newMedia.first {
-                        featuredMediaID = first.id
+                        featuredMediaID = first.uuid
                     }
                 },
-                onRemoveMedia: { mediaID in
-                    mediaItems.removeAll { $0.id == mediaID }
+                onRemoveMediaUUID: { uuid in
+                    mediaItems.removeAll { $0.uuid == uuid }
                     // If we removed the featured media, select a new one
-                    if featuredMediaID == mediaID {
-                        featuredMediaID = mediaItems.first?.id
+                    if featuredMediaID == uuid {
+                        featuredMediaID = mediaItems.first?.uuid
                     }
                 }
             )
@@ -428,7 +430,7 @@ struct RecipeEditorView: View {
         return false
     }
 
-    private func loadRecipe(_ selectedRecipe: Recipe) {
+    private func loadRecipe(_ selectedRecipe: RecipeModel) {
         recipe = selectedRecipe
         isEditingExisting = true
         title = selectedRecipe.title ?? ""
@@ -436,26 +438,16 @@ struct RecipeEditorView: View {
         creditsText = selectedRecipe.creditsText ?? ""
         servings = selectedRecipe.servings.map { String($0) } ?? ""
         instructions = selectedRecipe.instructions ?? ""
-        selectedDays = selectedRecipe.daysOfWeek ?? []
-        cuisines = (selectedRecipe.cuisines)?.compactMap { $0.value as? String }.joined(separator: ", ") ?? ""
+        selectedDays = selectedRecipe.daysOfWeek
+        cuisines = selectedRecipe.cuisines.joined(separator: ", ")
         imageUrl = selectedRecipe.image ?? ""
         mediaItems = selectedRecipe.mediaItems ?? []
         featuredMediaID = selectedRecipe.featuredMediaID
-        preferFeaturedMedia = selectedRecipe.preferFeaturedMedia ?? true
+        preferFeaturedMedia = selectedRecipe.preferFeaturedMedia
     }
     
     private func saveEdits() {
         let servingsValue: Int? = Int(servings) ?? recipe?.servings
-        
-        let idValue = recipe?.id
-        let sourceUrlValue = recipe?.sourceURL
-        let extendedIngredientsValue = recipe?.extendedIngredients?.compactMap { ingredient in
-            if let data = try? JSONEncoder().encode(ingredient),
-               let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                return dict
-            }
-            return nil
-        }
         
         // Determine image and imageType to save based on imageUrl validity
         var imageToSave: String?
@@ -475,93 +467,83 @@ struct RecipeEditorView: View {
             imageTypeToSave = recipe?.imageType
         }
         
-        // Ensure we preserve the UUID for existing recipes
-        let uuidToSave = recipe?.uuid ?? UUID()
+        // Parse cuisines
+        let cuisinesArray = cuisines
+            .split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
         
-        var dict: [String: Any] = [
-            "uuid": uuidToSave, // Keep as UUID object, not string
-            "title": title.trimmingCharacters(in: .whitespacesAndNewlines),
-            "summary": summary.trimmingCharacters(in: .whitespacesAndNewlines),
-            "creditsText": creditsText.trimmingCharacters(in: .whitespacesAndNewlines),
-            "instructions": instructions.trimmingCharacters(in: .whitespacesAndNewlines),
-            "daysOfWeek": selectedDays,
-            "cuisines": cuisines.split(separator: ",").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) },
-            "ingredients": ingredients.components(separatedBy: "\n").map { $0.trimmingCharacters(in: .whitespaces) },
-            // Add other properties as needed
-        ]
-        if let idValue {
-            dict["id"] = idValue
-        }
-        if let imageToSave {
-            dict["image"] = imageToSave
-        }
-        if let imageTypeToSave {
-            dict["imageType"] = imageTypeToSave
-        }
-        if let sourceUrlValue {
-            dict["sourceUrl"] = sourceUrlValue
-        }
-        if let extendedIngredientsValue, !extendedIngredientsValue.isEmpty {
-            dict["extendedIngredients"] = extendedIngredientsValue
-        }
-        if let servingsValue {
-            dict["servings"] = servingsValue
-        }
-        
-        // Add media items
-        if !mediaItems.isEmpty {
-            let mediaArray = mediaItems.map { media -> [String: Any] in
-                return [
-                    "id": media.id.uuidString,
-                    "url": media.url,
-                    "type": media.type.rawValue
-                ]
-            }
-            dict["mediaItems"] = mediaArray
-        }
-        
-        // Add featured media ID
-        if let featuredID = featuredMediaID {
-            dict["featuredMediaID"] = featuredID.uuidString
-        }
-        
-        // Add image display preference
-        dict["preferFeaturedMedia"] = preferFeaturedMedia
-        
-        print("🔍 [RecipeEditor] Saving recipe with UUID: \(uuidToSave)")
-        
-        // Add any additional fields from the original recipe that shouldn't be lost
-        if recipe != nil {
-            // Create updated recipe, ensuring we preserve the UUID
-            if let updated = Recipe(from: dict) {
-                print("🔍 [RecipeEditor] Updating existing recipe with UUID: \(updated.uuid)")
-                print("🔍 [RecipeEditor] Title: '\(updated.title ?? "nil")'")
-                recipeStore.update(updated)
-                print("✅ [RecipeEditor] Recipe updated in store")
+        if let existingRecipe = recipe {
+            // Update existing recipe
+            print("🔍 [RecipeEditor] Updating existing recipe with UUID: \(existingRecipe.uuid)")
+            
+            existingRecipe.title = title.trimmingCharacters(in: .whitespacesAndNewlines)
+            existingRecipe.summary = summary.trimmingCharacters(in: .whitespacesAndNewlines)
+            existingRecipe.creditsText = creditsText.trimmingCharacters(in: .whitespacesAndNewlines)
+            existingRecipe.instructions = instructions.trimmingCharacters(in: .whitespacesAndNewlines)
+            existingRecipe.servings = servingsValue
+            existingRecipe.image = imageToSave
+            existingRecipe.imageType = imageTypeToSave
+            existingRecipe.cuisines = cuisinesArray
+            existingRecipe.daysOfWeek = selectedDays
+            existingRecipe.featuredMediaID = featuredMediaID
+            existingRecipe.preferFeaturedMedia = preferFeaturedMedia
+            existingRecipe.modifiedAt = Date()
+            
+            // Update media items relationship
+            // Note: mediaItems are already managed through the relationship
+            
+            print("✅ [RecipeEditor] Recipe updated - Title: '\(existingRecipe.title ?? "nil")'")
+            
+            // Save context
+            do {
+                try modelContext.save()
                 alertMessage = "Saved changes."
                 showAlert = true
                 dismiss()
-            } else {
-                // Failed to create recipe from dict, show error
-                print("❌ [RecipeEditor] Failed to create Recipe from dictionary")
-                print("❌ [RecipeEditor] Dictionary keys: \(dict.keys.joined(separator: ", "))")
-                alertMessage = "Failed to save changes. Please check your inputs."
+            } catch {
+                print("❌ [RecipeEditor] Failed to save context: \(error)")
+                alertMessage = "Failed to save changes: \(error.localizedDescription)"
                 showAlert = true
             }
         } else {
-            // Creating a new recipe
-            if let newRecipe = Recipe(from: dict) {
-                print("🔍 [RecipeEditor] Creating new recipe with UUID: \(newRecipe.uuid)")
-                recipeStore.add(newRecipe)
-                print("✅ [RecipeEditor] New recipe added to store")
+            // Create new recipe
+            print("🔍 [RecipeEditor] Creating new recipe")
+            
+            let newRecipe = RecipeModel(
+                title: title.trimmingCharacters(in: .whitespacesAndNewlines),
+                servings: servingsValue,
+                creditsText: creditsText.trimmingCharacters(in: .whitespacesAndNewlines),
+                instructions: instructions.trimmingCharacters(in: .whitespacesAndNewlines),
+                cuisinesString: cuisinesArray.joined(separator: ","),
+                daysOfWeekString: selectedDays.joined(separator: ","),
+                featuredMediaID: featuredMediaID,
+                preferFeaturedMedia: preferFeaturedMedia
+            )
+            
+            newRecipe.image = imageToSave
+            newRecipe.imageType = imageTypeToSave
+            
+            // Add media items
+            for mediaItem in mediaItems {
+                mediaItem.recipe = newRecipe
+                modelContext.insert(mediaItem)
+            }
+            
+            // Insert the new recipe
+            modelContext.insert(newRecipe)
+            
+            print("✅ [RecipeEditor] New recipe created with UUID: \(newRecipe.uuid)")
+            
+            // Save context
+            do {
+                try modelContext.save()
                 alertMessage = "Created new recipe."
                 showAlert = true
                 dismiss()
-            } else {
-                // Failed to create recipe from dict, show error
-                print("❌ [RecipeEditor] Failed to create new Recipe from dictionary")
-                print("❌ [RecipeEditor] Dictionary keys: \(dict.keys.joined(separator: ", "))")
-                alertMessage = "Failed to create recipe. Please check your inputs."
+            } catch {
+                print("❌ [RecipeEditor] Failed to save new recipe: \(error)")
+                alertMessage = "Failed to create recipe: \(error.localizedDescription)"
                 showAlert = true
             }
         }
@@ -570,16 +552,17 @@ struct RecipeEditorView: View {
 
 // MARK: - Recipe Picker View
 private struct RecipePickerView: View {
-    @Environment(RecipeStore.self) private var recipeStore
-    let onSelect: (Recipe) -> Void
+    @Environment(\.modelContext) private var modelContext
+    @Query private var swiftDataRecipes: [RecipeModel]
+    let onSelect: (RecipeModel) -> Void
     
     @State private var searchText = ""
     
-    var filteredRecipes: [Recipe] {
+    var filteredRecipes: [RecipeModel] {
         if searchText.isEmpty {
-            return recipeStore.recipes
+            return swiftDataRecipes
         }
-        return recipeStore.recipes.filter { recipe in
+        return swiftDataRecipes.filter { recipe in
             (recipe.title?.localizedCaseInsensitiveContains(searchText) ?? false)
         }
     }
@@ -641,7 +624,7 @@ struct BindableTextView: UIViewRepresentable {
 
 // MARK: - Mail Compose View for RecipeEditor
 private struct MailComposeView: UIViewControllerRepresentable {
-    let recipe: Recipe
+    let recipe: RecipeModel
     @Environment(\.dismiss) private var dismiss
     
     func makeUIViewController(context: Context) -> MFMailComposeViewController {
@@ -684,7 +667,7 @@ private struct MailComposeView: UIViewControllerRepresentable {
         }
     }
     
-    private func createEmailBody(_ recipe: Recipe) -> String {
+    private func createEmailBody(_ recipe: RecipeModel) -> String {
         let html = """
         <html>
         <head>
@@ -704,25 +687,41 @@ private struct MailComposeView: UIViewControllerRepresentable {
     }
 }
 
-#Preview("Edit Existing Recipe") {
-    let store = RecipeStore()
-    let recipe = store.recipes.first ?? Recipe(from: ["uuid": UUID(), "title": "Sample Recipe"])!
-    if store.recipes.isEmpty {
-        store.add(recipe)
+// MARK: - Media Gallery Wrapper to convert UUID <-> PersistentIdentifier
+private struct MediaGalleryWrapper: View {
+    let mediaItems: [RecipeMediaModel]
+    let featuredMediaUUID: UUID?
+    let onSelectFeaturedUUID: (UUID) -> Void
+    let onAddMedia: ([RecipeMediaModel]) -> Void
+    let onRemoveMediaUUID: (UUID) -> Void
+    
+    var body: some View {
+        MediaGalleryView(
+            mediaItems: mediaItems,
+            featuredMediaID: convertUUIDToID(featuredMediaUUID),
+            onSelectFeatured: { persistentID in
+                if let uuid = convertIDToUUID(persistentID) {
+                    onSelectFeaturedUUID(uuid)
+                }
+            },
+            onAddMedia: onAddMedia,
+            onRemoveMedia: { persistentID in
+                if let uuid = convertIDToUUID(persistentID) {
+                    onRemoveMediaUUID(uuid)
+                }
+            }
+        )
     }
-    return NavigationStack {
-        RecipeEditorView(recipe: recipe).environment(store)
+    
+    private func convertUUIDToID(_ uuid: UUID?) -> PersistentIdentifier? {
+        guard let uuid = uuid else { return nil }
+        return mediaItems.first(where: { $0.uuid == uuid })?.id
+    }
+    
+    private func convertIDToUUID(_ id: PersistentIdentifier) -> UUID? {
+        return mediaItems.first(where: { $0.id == id })?.uuid
     }
 }
 
-#Preview("Create New Recipe") {
-    let store = RecipeStore()
-    // Add a few recipes to demonstrate the picker
-    let recipe1 = Recipe(from: ["uuid": UUID(), "title": "Pasta Carbonara", "creditsText": "Italian Chef"])!
-    let recipe2 = Recipe(from: ["uuid": UUID(), "title": "Chicken Tikka Masala", "creditsText": "Indian Chef"])!
-    store.add(recipe1)
-    store.add(recipe2)
-    return NavigationStack {
-        RecipeEditorView().environment(store)
-    }
-}
+
+

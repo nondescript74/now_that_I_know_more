@@ -23,4 +23,22 @@ public extension String {
         let invalidCharacters = CharacterSet(charactersIn: ":/\\?%*|\"<>")
         return components(separatedBy: invalidCharacters).joined(separator: "_")
     }
+    
+    /// Cleans HTML by converting common tags to plain text with formatting.
+    var cleanedHTML: String {
+        var text = self.replacingOccurrences(of: "<br ?/?>", with: "\n", options: .regularExpression)
+        text = text.replacingOccurrences(of: "<li>", with: "• ", options: .caseInsensitive)
+        text = text.replacingOccurrences(of: "</li>", with: "\n", options: .caseInsensitive)
+        text = text.replacingOccurrences(of: "<ul>|</ul>", with: "", options: .regularExpression)
+        text = text.replacingOccurrences(of: "<b>(.*?)</b>", with: "**$1**", options: .regularExpression)
+        text = text.replacingOccurrences(of: "<i>(.*?)</i>", with: "*$1*", options: .regularExpression)
+        text = text.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+        let lines = text.components(separatedBy: .newlines).map { $0.trimmingCharacters(in: .whitespaces) }
+        return lines.filter { !$0.isEmpty }.map { $0 + "\n" }.joined()
+    }
 }
+
+/// Global helper function for cleaning HTML summaries
+//public func cleanSummary(_ html: String) -> String {
+//    return html.cleanedHTML
+//}
