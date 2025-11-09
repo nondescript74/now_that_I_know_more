@@ -21,7 +21,6 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		F8127C542EB028FC0059160D /* RECIPE_IMPORT_SETUP.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = RECIPE_IMPORT_SETUP.md; sourceTree = "<group>"; };
 		F82259C42E84605B00840803 /* NowThatIKnowMoreTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NowThatIKnowMoreTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		F85E69E12EBABF9200F187AB /* Testing.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Testing.framework; path = Platforms/iPhoneOS.platform/Developer/Library/Frameworks/Testing.framework; sourceTree = DEVELOPER_DIR; };
 		F8B44A272E4E254E00BD0920 /* NowThatIKnowMore.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NowThatIKnowMore.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -47,6 +46,7 @@
 				"Models/String+HTMLStripping.swift",
 				Models/Welcome.swift,
 				Observables/RecipeImportPreviewViewTests.swift,
+				ServicesRecipeService.swift,
 				Views/GlossaryView.swift,
 				Views/MediaGalleryView.swift,
 				"Views/Recipe+Decoding.swift",
@@ -69,18 +69,29 @@
 				IMAGETOLIST_IMPROVEMENTS.md,
 				IMPROVED_INGREDIENT_PARSING.md,
 				INTEGRATION_GUIDE_FOR_NOWTHATIKNOWMORE.md,
+				LAUNCH_SCREEN_APPICON_GUIDE.md,
+				LICENSE_ARCHITECTURE_DIAGRAMS.md,
+				LICENSE_COMPLETE_SUMMARY.md,
+				LICENSE_IMPLEMENTATION_CHECKLIST.md,
+				LICENSE_QUICK_REFERENCE.md,
+				LICENSE_SYSTEM_SUMMARY.md,
 				MEDIA_GALLERY_IMPLEMENTATION.md,
+				MIGRATION_GUIDE.md,
 				"OCR_PARSE_DEBUGGING 2.md",
 				OCR_PARSE_DEBUGGING.md,
 				OCR_PARSE_FIX.md,
 				QUICKSTART_NOWTHATIKNOWMORE.md,
 				README_RECIPE_IMPORT.md,
+				README_SWIFTDATA.md,
 				RECIPE_FLOW_DIAGRAM.md,
 				RECIPE_IMAGE_PREFERENCE_GUIDE.md,
 				RECIPE_IMPORT_IMPLEMENTATION.md,
+				RECIPE_IMPORT_SETUP.md,
 				RECIPE_PARSER_ARCHITECTURE.md,
 				RECIPE_SHARING_GUIDE.md,
 				RecipeSharingGuide.md,
+				SWIFTDATA_ARCHITECTURE.md,
+				SWIFTDATA_DATA_FLOW.md,
 			);
 			target = F8B44A262E4E254E00BD0920 /* NowThatIKnowMore */;
 		};
@@ -104,17 +115,7 @@
 		F8C68D852EBAC0E5005939E7 /* Exceptions for "NowThatIKnowMore" folder in "NowThatIKnowMore" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				LAUNCH_SCREEN_APPICON_GUIDE.md,
-				LICENSE_ARCHITECTURE_DIAGRAMS.md,
-				LICENSE_COMPLETE_SUMMARY.md,
-				LICENSE_IMPLEMENTATION_CHECKLIST.md,
-				LICENSE_QUICK_REFERENCE.md,
-				LICENSE_SYSTEM_SUMMARY.md,
-				MIGRATION_GUIDE.md,
 				Observables/RecipeImportPreviewViewTests.swift,
-				README_SWIFTDATA.md,
-				SWIFTDATA_ARCHITECTURE.md,
-				SWIFTDATA_DATA_FLOW.md,
 				Views/INSTRUCTIONS_DISPLAY_FIX.md,
 			);
 			target = F8B44A262E4E254E00BD0920 /* NowThatIKnowMore */;
@@ -196,7 +197,6 @@
 				F8B44A292E4E254E00BD0920 /* NowThatIKnowMore */,
 				F82259C52E84605B00840803 /* NowThatIKnowMoreTests */,
 				F8B44A282E4E254E00BD0920 /* Products */,
-				F8127C542EB028FC0059160D /* RECIPE_IMPORT_SETUP.md */,
 				F85E69E02EBABF9200F187AB /* Frameworks */,
 			);
 			sourceTree = "<group>";
@@ -513,7 +513,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 58;
+				CURRENT_PROJECT_VERSION = 59;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = YKHW2TJ32G;
 				ENABLE_APP_SANDBOX = YES;
@@ -574,7 +574,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 58;
+				CURRENT_PROJECT_VERSION = 59;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = YKHW2TJ32G;
 				ENABLE_APP_SANDBOX = YES;
