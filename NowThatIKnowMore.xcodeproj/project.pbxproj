@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		F82656472EC151DA008D91F8 /* Info-Recipe-DocumentType.plist in Resources */ = {isa = PBXBuildFile; fileRef = F826560D2EC151DA008D91F8 /* Info-Recipe-DocumentType.plist */; };
 		F85E69E22EBABF9200F187AB /* Testing.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F85E69E12EBABF9200F187AB /* Testing.framework */; };
 /* End PBXBuildFile section */
 
@@ -22,6 +23,7 @@
 
 /* Begin PBXFileReference section */
 		F82259C42E84605B00840803 /* NowThatIKnowMoreTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NowThatIKnowMoreTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		F826560D2EC151DA008D91F8 /* Info-Recipe-DocumentType.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Info-Recipe-DocumentType.plist"; sourceTree = "<group>"; };
 		F85E69E12EBABF9200F187AB /* Testing.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Testing.framework; path = Platforms/iPhoneOS.platform/Developer/Library/Frameworks/Testing.framework; sourceTree = DEVELOPER_DIR; };
 		F8B44A272E4E254E00BD0920 /* NowThatIKnowMore.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NowThatIKnowMore.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		F8EC9FF02E63AAD600211F03 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = Info.plist; path = NowThatIKnowMore.xcodeproj/Info.plist; sourceTree = "<group>"; };
@@ -67,6 +69,7 @@
 				HELP_VIEW_PREVIEW.md,
 				IMAGETOLIST_IMPROVEMENTS.md,
 				IMPROVED_INGREDIENT_PARSING.md,
+				INSTRUCTIONS_DISPLAY_FIX.md,
 				INTEGRATION_GUIDE_FOR_NOWTHATIKNOWMORE.md,
 				LAUNCH_SCREEN_APPICON_GUIDE.md,
 				LICENSE_ARCHITECTURE_DIAGRAMS.md,
@@ -111,13 +114,6 @@
 			);
 			target = F82259C32E84605B00840803 /* NowThatIKnowMoreTests */;
 		};
-		F8C68D852EBAC0E5005939E7 /* Exceptions for "NowThatIKnowMore" folder in "NowThatIKnowMore" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Views/INSTRUCTIONS_DISPLAY_FIX.md,
-			);
-			target = F8B44A262E4E254E00BD0920 /* NowThatIKnowMore */;
-		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -154,7 +150,6 @@
 		F8B44A292E4E254E00BD0920 /* NowThatIKnowMore */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				F8C68D852EBAC0E5005939E7 /* Exceptions for "NowThatIKnowMore" folder in "NowThatIKnowMore" target */,
 				F8211A802E848F8B00815127 /* Exceptions for "NowThatIKnowMore" folder in "NowThatIKnowMoreTests" target */,
 			);
 			path = NowThatIKnowMore;
@@ -192,6 +187,7 @@
 				F8B253E22EBD0DA70091C8A0 /* ImageParsing */,
 				F827E8062EBC192A00353174 /* Licensing */,
 				F8EC9FF02E63AAD600211F03 /* Info.plist */,
+				F826560D2EC151DA008D91F8 /* Info-Recipe-DocumentType.plist */,
 				F8B44A292E4E254E00BD0920 /* NowThatIKnowMore */,
 				F82259C52E84605B00840803 /* NowThatIKnowMoreTests */,
 				F8B44A282E4E254E00BD0920 /* Products */,
@@ -301,6 +297,7 @@
 		F8B44A252E4E254E00BD0920 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			files = (
+				F82656472EC151DA008D91F8 /* Info-Recipe-DocumentType.plist in Resources */,
 			);
 		};
 /* End PBXResourcesBuildPhase section */
@@ -511,7 +508,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 60;
+				CURRENT_PROJECT_VERSION = 61;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = YKHW2TJ32G;
 				ENABLE_APP_SANDBOX = YES;
@@ -547,7 +544,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 5.0;
+				MARKETING_VERSION = 6.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.headydiscy.NowThatIKnowMore;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -572,7 +569,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 60;
+				CURRENT_PROJECT_VERSION = 61;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = YKHW2TJ32G;
 				ENABLE_APP_SANDBOX = YES;
@@ -608,7 +605,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 5.0;
+				MARKETING_VERSION = 6.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.headydiscy.NowThatIKnowMore;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;

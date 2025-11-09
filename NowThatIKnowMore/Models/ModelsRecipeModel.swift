@@ -8,7 +8,6 @@
 import Foundation
 import SwiftData
 
-
 @Model
 final class RecipeModel: Codable, Identifiable {
     @Attribute(.unique) var uuid: UUID
@@ -351,140 +350,81 @@ extension RecipeModel {
 }
 
 // MARK: - Conversion to/from legacy Recipe struct
-//extension RecipeModel {
-//    /// Convert from legacy Recipe struct
-//    @MainActor
-//    convenience init(from recipe: Recipe) {
-//        let ingredientsData = try? JSONEncoder().encode(recipe.extendedIngredients)
-//        let instructionsData = try? JSONEncoder().encode(recipe.analyzedInstructions)
-//        
-//        // Extract cuisines, dishTypes, diets, occasions from JSONAny arrays
-//        let cuisines = recipe.cuisines?.compactMap { jsonAny -> String? in
-//            if let str = jsonAny.value as? String { return str }
-//            return nil
-//        }.joined(separator: ",")
-//        
-//        let dishTypes = recipe.dishTypes?.compactMap { jsonAny -> String? in
-//            if let str = jsonAny.value as? String { return str }
-//            return nil
-//        }.joined(separator: ",")
-//        
-//        let diets = recipe.diets?.compactMap { jsonAny -> String? in
-//            if let str = jsonAny.value as? String { return str }
-//            return nil
-//        }.joined(separator: ",")
-//        
-//        let occasions = recipe.occasions?.compactMap { jsonAny -> String? in
-//            if let str = jsonAny.value as? String { return str }
-//            return nil
-//        }.joined(separator: ",")
-//        
-//        let daysOfWeek = recipe.daysOfWeek?.joined(separator: ",")
-//        
-//        // Handle readyInMinutes, preparationMinutes, cookingMinutes (which were JSONNull?)
-//        let readyInMinutes: Int? = nil // These were JSONNull in original
-//        let preparationMinutes: Int? = nil
-//        let cookingMinutes: Int? = nil
-//        
-//        self.init(
-//            uuid: recipe.uuid,
-//            id: recipe.id,
-//            image: recipe.image,
-//            imageType: recipe.imageType,
-//            title: recipe.title,
-//            readyInMinutes: readyInMinutes,
-//            servings: recipe.servings,
-//            sourceURL: recipe.sourceURL,
-//            vegetarian: recipe.vegetarian ?? false,
-//            vegan: recipe.vegan ?? false,
-//            glutenFree: recipe.glutenFree ?? false,
-//            dairyFree: recipe.dairyFree ?? false,
-//            veryHealthy: recipe.veryHealthy ?? false,
-//            cheap: recipe.cheap ?? false,
-//            veryPopular: recipe.veryPopular ?? false,
-//            sustainable: recipe.sustainable ?? false,
-//            lowFodmap: recipe.lowFodmap ?? false,
-//            weightWatcherSmartPoints: recipe.weightWatcherSmartPoints,
-//            gaps: recipe.gaps,
-//            preparationMinutes: preparationMinutes,
-//            cookingMinutes: cookingMinutes,
-//            aggregateLikes: recipe.aggregateLikes,
-//            healthScore: recipe.healthScore,
-//            creditsText: recipe.creditsText,
-//            sourceName: recipe.sourceName,
-//            pricePerServing: recipe.pricePerServing,
-//            summary: recipe.summary,
-//            instructions: recipe.instructions,
-//            spoonacularScore: recipe.spoonacularScore,
-//            spoonacularSourceURL: recipe.spoonacularSourceURL,
-//            cuisinesString: cuisines,
-//            dishTypesString: dishTypes,
-//            dietsString: diets,
-//            occasionsString: occasions,
-//            daysOfWeekString: daysOfWeek,
-//            extendedIngredientsJSON: ingredientsData,
-//            analyzedInstructionsJSON: instructionsData,
-//            featuredMediaID: recipe.featuredMediaID,
-//            preferFeaturedMedia: recipe.preferFeaturedMedia ?? false
-//        )
-//    }
-//    
-//    /// Convert to legacy Recipe struct (for backward compatibility)
-//    @MainActor
-//    func toLegacyRecipe() -> Recipe? {
-//        // This is complex due to the JSONAny types - create a dictionary and use Recipe(from:)
-//        var dict: [String: Any] = [
-//            "recipeFormatVersion": Recipe.currentFormatVersion,
-//            "uuid": uuid.uuidString,
-//            "title": title ?? "",
-//            "summary": summary ?? "",
-//            "creditsText": creditsText ?? ""
-//        ]
-//        
-//        if let id = id { dict["id"] = id }
-//        if let image = image { dict["image"] = image }
-//        if let imageType = imageType { dict["imageType"] = imageType }
-//        if let servings = servings { dict["servings"] = servings }
-//        if let sourceURL = sourceURL { dict["sourceUrl"] = sourceURL }
-//        dict["vegetarian"] = vegetarian
-//        dict["vegan"] = vegan
-//        dict["glutenFree"] = glutenFree
-//        dict["dairyFree"] = dairyFree
-//        dict["veryHealthy"] = veryHealthy
-//        dict["cheap"] = cheap
-//        dict["veryPopular"] = veryPopular
-//        dict["sustainable"] = sustainable
-//        dict["lowFodmap"] = lowFodmap
-//        if let weightWatcherSmartPoints = weightWatcherSmartPoints { dict["weightWatcherSmartPoints"] = weightWatcherSmartPoints }
-//        if let gaps = gaps { dict["gaps"] = gaps }
-//        if let aggregateLikes = aggregateLikes { dict["aggregateLikes"] = aggregateLikes }
-//        if let healthScore = healthScore { dict["healthScore"] = healthScore }
-//        if let sourceName = sourceName { dict["sourceName"] = sourceName }
-//        if let pricePerServing = pricePerServing { dict["pricePerServing"] = pricePerServing }
-//        if let instructions = instructions { dict["instructions"] = instructions }
-//        if let spoonacularScore = spoonacularScore { dict["spoonacularScore"] = spoonacularScore }
-//        if let spoonacularSourceURL = spoonacularSourceURL { dict["spoonacularSourceUrl"] = spoonacularSourceURL }
-//        
-//        if let daysOfWeek = daysOfWeekString?.components(separatedBy: ",").filter({ !$0.isEmpty }) {
-//            dict["daysOfWeek"] = daysOfWeek
-//        }
-//        
-//        if let ingredients = extendedIngredients {
-//            dict["extendedIngredients"] = try? ingredients.map { ingredient -> [String: Any] in
-//                let encoder = JSONEncoder()
-//                let data = try encoder.encode(ingredient)
-//                return (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] ?? [:]
-//            }
-//        }
-//        
-//        if let instructions = analyzedInstructions {
-//            dict["analyzedInstructions"] = try? instructions.map { instruction -> [String: Any] in
-//                let encoder = JSONEncoder()
-//                let data = try encoder.encode(instruction)
-//                return (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] ?? [:]
-//            }
-//        }
-//        
-//        return Recipe(from: dict)
-//    }
-//}
+extension RecipeModel {
+    /// Convert from legacy Recipe struct
+    @MainActor
+    static func from(recipe: Recipe) -> RecipeModel {
+        let ingredientsData = try? JSONEncoder().encode(recipe.extendedIngredients)
+        let instructionsData = try? JSONEncoder().encode(recipe.analyzedInstructions)
+        
+        // Extract cuisines, dishTypes, diets, occasions from JSONAny arrays
+        let cuisines = recipe.cuisines?.compactMap { jsonAny -> String? in
+            if let str = jsonAny.value as? String { return str }
+            return nil
+        }.joined(separator: ",")
+        
+        let dishTypes = recipe.dishTypes?.compactMap { jsonAny -> String? in
+            if let str = jsonAny.value as? String { return str }
+            return nil
+        }.joined(separator: ",")
+        
+        let diets = recipe.diets?.compactMap { jsonAny -> String? in
+            if let str = jsonAny.value as? String { return str }
+            return nil
+        }.joined(separator: ",")
+        
+        let occasions = recipe.occasions?.compactMap { jsonAny -> String? in
+            if let str = jsonAny.value as? String { return str }
+            return nil
+        }.joined(separator: ",")
+        
+        let daysOfWeek = recipe.daysOfWeek?.joined(separator: ",")
+        
+        // Handle readyInMinutes, preparationMinutes, cookingMinutes (which were JSONNull?)
+        let readyInMinutes: Int? = nil // These were JSONNull in original
+        let preparationMinutes: Int? = nil
+        let cookingMinutes: Int? = nil
+        
+        return RecipeModel(
+            uuid: recipe.uuid,
+            id: recipe.id,
+            image: recipe.image,
+            imageType: recipe.imageType,
+            title: recipe.title,
+            readyInMinutes: readyInMinutes,
+            servings: recipe.servings,
+            sourceURL: recipe.sourceURL,
+            vegetarian: recipe.vegetarian ?? false,
+            vegan: recipe.vegan ?? false,
+            glutenFree: recipe.glutenFree ?? false,
+            dairyFree: recipe.dairyFree ?? false,
+            veryHealthy: recipe.veryHealthy ?? false,
+            cheap: recipe.cheap ?? false,
+            veryPopular: recipe.veryPopular ?? false,
+            sustainable: recipe.sustainable ?? false,
+            lowFodmap: recipe.lowFodmap ?? false,
+            weightWatcherSmartPoints: recipe.weightWatcherSmartPoints,
+            gaps: recipe.gaps,
+            preparationMinutes: preparationMinutes,
+            cookingMinutes: cookingMinutes,
+            aggregateLikes: recipe.aggregateLikes,
+            healthScore: recipe.healthScore.map { Int($0) },
+            creditsText: recipe.creditsText,
+            sourceName: recipe.sourceName,
+            pricePerServing: recipe.pricePerServing.map { Int($0) },
+            summary: recipe.summary,
+            instructions: recipe.instructions,
+            spoonacularScore: recipe.spoonacularScore,
+            spoonacularSourceURL: recipe.spoonacularSourceURL,
+            cuisinesString: cuisines,
+            dishTypesString: dishTypes,
+            dietsString: diets,
+            occasionsString: occasions,
+            daysOfWeekString: daysOfWeek,
+            extendedIngredientsJSON: ingredientsData,
+            analyzedInstructionsJSON: instructionsData,
+            featuredMediaID: recipe.featuredMediaID,
+            preferFeaturedMedia: recipe.preferFeaturedMedia ?? false
+        )
+    }
+}

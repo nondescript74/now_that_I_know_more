@@ -30,11 +30,12 @@ struct Recipe: Codable, Sendable, Identifiable {
     let weightWatcherSmartPoints: Int?
     let gaps: String?
     let preparationMinutes, cookingMinutes: JSONNull?
-    let aggregateLikes, healthScore: Int?
+    let aggregateLikes: Int?
+    let healthScore: Double?
     let creditsText: String?
     let license: JSONNull?
     let sourceName: String?
-    let pricePerServing: Int?
+    let pricePerServing: Double?
     let extendedIngredients: [ExtendedIngredient]?
     let summary: String?
     let cuisines, dishTypes, diets, occasions: [JSONAny]?
@@ -66,14 +67,15 @@ struct Recipe: Codable, Sendable, Identifiable {
         case mediaItems, featuredMediaID, preferFeaturedMedia
     }
 
-    // UUID is decoded from JSON and not generated during decode.
+    // UUID is decoded from JSON, or generated if not present (e.g., from Spoonacular API)
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         
         // Version field with default for backward compatibility
         self.recipeFormatVersion = try container.decodeIfPresent(String.self, forKey: .recipeFormatVersion) ?? "1.0"
         
-        self.uuid = try container.decode(UUID.self, forKey: .uuid)
+        // Generate UUID if not present in JSON (e.g., from Spoonacular API)
+        self.uuid = try container.decodeIfPresent(UUID.self, forKey: .uuid) ?? UUID()
         self.id = try container.decodeIfPresent(Int.self, forKey: .id)
         self.image = try container.decodeIfPresent(String.self, forKey: .image)
         self.imageType = try container.decodeIfPresent(String.self, forKey: .imageType)
@@ -95,11 +97,11 @@ struct Recipe: Codable, Sendable, Identifiable {
         self.preparationMinutes = try container.decodeIfPresent(JSONNull.self, forKey: .preparationMinutes)
         self.cookingMinutes = try container.decodeIfPresent(JSONNull.self, forKey: .cookingMinutes)
         self.aggregateLikes = try container.decodeIfPresent(Int.self, forKey: .aggregateLikes)
-        self.healthScore = try container.decodeIfPresent(Int.self, forKey: .healthScore)
+        self.healthScore = try container.decodeIfPresent(Double.self, forKey: .healthScore)
         self.creditsText = try container.decodeIfPresent(String.self, forKey: .creditsText)
         self.license = try container.decodeIfPresent(JSONNull.self, forKey: .license)
         self.sourceName = try container.decodeIfPresent(String.self, forKey: .sourceName)
-        self.pricePerServing = try container.decodeIfPresent(Int.self, forKey: .pricePerServing)
+        self.pricePerServing = try container.decodeIfPresent(Double.self, forKey: .pricePerServing)
         self.extendedIngredients = try container.decodeIfPresent([ExtendedIngredient].self, forKey: .extendedIngredients)
         self.summary = try container.decodeIfPresent(String.self, forKey: .summary)
         self.cuisines = try container.decodeIfPresent([JSONAny].self, forKey: .cuisines)
@@ -194,11 +196,11 @@ struct Recipe: Codable, Sendable, Identifiable {
         self.preparationMinutes = dict["preparationMinutes"] as? JSONNull
         self.cookingMinutes = dict["cookingMinutes"] as? JSONNull
         self.aggregateLikes = dict["aggregateLikes"] as? Int
-        self.healthScore = dict["healthScore"] as? Int
+        self.healthScore = dict["healthScore"] as? Double
         self.creditsText = dict["creditsText"] as? String
         self.license = dict["license"] as? JSONNull
         self.sourceName = dict["sourceName"] as? String
-        self.pricePerServing = dict["pricePerServing"] as? Int
+        self.pricePerServing = dict["pricePerServing"] as? Double
 
         if let extArray = dict["extendedIngredients"] as? [[String: Any]] {
             self.extendedIngredients = extArray.compactMap { dict in

@@ -266,9 +266,10 @@ struct MealPlan: View {
             let decoder = JSONDecoder()
             decoder.keyDecodingStrategy = .convertFromSnakeCase
             
-            // First, try to decode directly as RecipeModel
-            if let recipeModel = try? decoder.decode(RecipeModel.self, from: data) {
-                await addToSwiftData(recipeModel)
+            // First, try to decode as Recipe struct and convert to RecipeModel
+            if let recipe = try? decoder.decode(Recipe.self, from: data) {
+                await addToSwiftDataFromRecipe(recipe)
+                
                 resultText = ""
                 urlString = ""
                 return
@@ -317,6 +318,28 @@ struct MealPlan: View {
             resultText = "Could not parse recipe."
         } catch {
             resultText = error.localizedDescription
+        }
+    }
+    
+    @MainActor
+    private func addToSwiftDataFromRecipe(_ recipe: Recipe) async {
+        // Check if recipe already exists in SwiftData
+        guard !swiftDataRecipes.contains(where: { $0.uuid == recipe.uuid }) else {
+            logger.info("[MealPlan] Recipe already exists in SwiftData, skipping")
+            return
+        }
+        
+        // Convert Recipe to RecipeModel on MainActor
+        let recipeModel = RecipeModel.from(recipe: recipe)
+        
+        // Insert the recipe directly
+        modelContext.insert(recipeModel)
+        
+        do {
+            try modelContext.save()
+            logger.info("[MealPlan] Successfully added recipe to SwiftData")
+        } catch {
+            logger.error("[MealPlan] Failed to save recipe to SwiftData: \(error.localizedDescription)")
         }
     }
     
