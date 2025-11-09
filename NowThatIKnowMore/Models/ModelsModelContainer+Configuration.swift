@@ -11,42 +11,26 @@ import SwiftData
 extension ModelContainer {
     /// Create the shared model container for the app
     static func create() throws -> ModelContainer {
-        let schema = Schema([
-            RecipeModel.self,
+        let config = ModelConfiguration(isStoredInMemoryOnly: false)
+        return try ModelContainer(
+            for: RecipeModel.self,
             RecipeMediaModel.self,
             RecipeNoteModel.self,
-            RecipeBookModel.self
-        ])
-        
-        let modelConfiguration = ModelConfiguration(
-            schema: schema,
-            isStoredInMemoryOnly: false,
-            allowsSave: true
-        )
-        
-        return try ModelContainer(
-            for: schema,
-            configurations: [modelConfiguration]
+            RecipeBookModel.self,
+            configurations: config
         )
     }
     
     /// Create an in-memory container for previews and testing
+    @MainActor
     static func preview() throws -> ModelContainer {
-        let schema = Schema([
-            RecipeModel.self,
+        let config = ModelConfiguration(isStoredInMemoryOnly: true)
+        let container = try ModelContainer(
+            for: RecipeModel.self,
             RecipeMediaModel.self,
             RecipeNoteModel.self,
-            RecipeBookModel.self
-        ])
-        
-        let modelConfiguration = ModelConfiguration(
-            schema: schema,
-            isStoredInMemoryOnly: true
-        )
-        
-        let container = try ModelContainer(
-            for: schema,
-            configurations: [modelConfiguration]
+            RecipeBookModel.self,
+            configurations: config
         )
         
         // Add sample data for previews

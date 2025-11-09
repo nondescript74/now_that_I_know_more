@@ -120,7 +120,7 @@ struct RecipeImportPreviewViewTests {
         }
     }
     
-    // MARK: - Recipe Model Tests
+    // MARK: - RecipeModel Tests (SwiftData)
     
     @Suite("RecipeModel Creation and Properties")
     struct RecipeModelTests {
@@ -130,7 +130,8 @@ struct RecipeImportPreviewViewTests {
             let recipe = RecipeModel(
                 title: "Test Recipe",
                 servings: 4,
-                creditsText: "Test Chef", summary: "A test summary"
+                creditsText: "Test Chef",
+                summary: "A test summary"
             )
             
             #expect(recipe.title == "Test Recipe")
@@ -148,7 +149,7 @@ struct RecipeImportPreviewViewTests {
             let ingredients = [
                 ExtendedIngredient(
                     id: 1,
-                    aisle: nil,
+                    aisle: "Spices",
                     image: nil,
                     consistency: nil,
                     name: "Salt",
@@ -236,13 +237,34 @@ struct RecipeImportPreviewViewTests {
             #expect(recipe.modifiedAt >= beforeCreation)
             #expect(recipe.modifiedAt <= afterCreation)
         }
+        
+        @Test("Recipe model with media items")
+        @MainActor
+        func recipeModelWithMediaItems() async throws {
+            // Create in-memory model container
+            let config = ModelConfiguration(isStoredInMemoryOnly: true)
+            let container = try ModelContainer(
+                for: RecipeModel.self, RecipeMediaModel.self,
+                configurations: config
+            )
+            let context = container.mainContext
+            
+            let recipe = RecipeModel(title: "Recipe with Media")
+            context.insert(recipe)
+            
+            let media = RecipeMediaModel(
+                fileURL: "/path/to/image.jpg",
+                type: .photo,
+                recipe: recipe
+            )
+            context.insert(media)
+            
+            try context.save()
+            
+            #expect(recipe.mediaItems?.count == 1)
+            #expect(recipe.mediaItems?.first?.type == .photo)
+        }
     }
-    
-    // MARK: - Preview Store Tests (Removed - RecipeStore deleted)
-    
-    // @Suite("RecipeStore Preview Creation")
-    // struct PreviewStoreTests {
-    // }
     
     // MARK: - Info Card Display Tests
     
