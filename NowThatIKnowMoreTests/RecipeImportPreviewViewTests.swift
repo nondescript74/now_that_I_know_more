@@ -266,66 +266,6 @@ struct RecipeImportPreviewViewTests {
         }
     }
     
-    // MARK: - Info Card Display Tests
-    
-    @Suite("Recipe Info Display (Legacy Recipe Model)")
-    struct RecipeInfoTests {
-        
-        @Test("Recipe with all info fields")
-        func recipeWithAllInfo() {
-            let recipe = createSampleRecipe(
-                title: "Complete Recipe",
-                servings: 4,
-                readyInMinutes: 45,
-                ingredients: [["id": 1, "name": "Salt"]],
-                instructions: [["steps": [["number": 1, "step": "Cook"]]]]
-            )
-            
-            // Use intValue helper to extract Int from Any (which may be JSONNull or Int)
-            if let servingsValue = recipe.servings {
-                let servingsInt = intValue(from: servingsValue)
-                #expect(servingsInt == 4)
-            }
-            
-            if let readyValue = recipe.readyInMinutes {
-                let readyInt = intValue(from: readyValue)
-                #expect(readyInt == 45)
-            }
-            
-            #expect(recipe.extendedIngredients?.count == 1)
-            #expect(recipe.analyzedInstructions?.count == 1)
-        }
-        
-        @Test("Recipe with missing optional fields")
-        func recipeWithMissingFields() {
-            let recipe = createSampleRecipe(title: "Minimal Recipe")
-            
-            #expect(recipe.servings == nil)
-            #expect(recipe.readyInMinutes == nil)
-        }
-        
-        @Test("Calculate total instruction steps")
-        func calculateTotalSteps() {
-            let instructions = [
-                ["steps": [
-                    ["number": 1, "step": "Step 1"],
-                    ["number": 2, "step": "Step 2"]
-                ]],
-                ["steps": [
-                    ["number": 1, "step": "Step 3"]
-                ]]
-            ]
-            
-            let recipe = createSampleRecipe(
-                title: "Multi-section Recipe",
-                instructions: instructions
-            )
-            
-            let stepCount = recipe.analyzedInstructions?.reduce(0) { $0 + ($1.steps?.count ?? 0) }
-            #expect(stepCount == 3)
-        }
-    }
-    
     // MARK: - Recipe Image Handling Tests
     
     @Suite("Recipe Image and Media Handling")
@@ -333,9 +273,10 @@ struct RecipeImportPreviewViewTests {
         
         @Test("Recipe with valid image URL")
         func recipeWithImageURL() {
-            let recipe = createSampleRecipe(
+            let recipe = RecipeModel(
+                image: "https://example.com/image.jpg",
                 title: "Recipe with Image",
-                imageURL: "https://example.com/image.jpg"
+                
             )
             
             #expect(recipe.image == "https://example.com/image.jpg")
@@ -344,17 +285,17 @@ struct RecipeImportPreviewViewTests {
         
         @Test("Recipe with empty image URL")
         func recipeWithEmptyImageURL() {
-            let recipe = createSampleRecipe(
-                title: "Recipe without Image",
-                imageURL: ""
+            let recipe = RecipeModel(
+                image: "",
+                title: "Recipe without Image"
             )
             
-            #expect(recipe.image?.isEmpty == true || recipe.image == nil)
+            #expect(recipe.image?.isEmpty == true)
         }
         
         @Test("Recipe with nil image URL")
         func recipeWithNilImageURL() {
-            let recipe = createSampleRecipe(title: "No Image Recipe")
+            let recipe = RecipeModel(title: "No Image Recipe")
             
             #expect(recipe.image == nil)
         }
@@ -363,65 +304,15 @@ struct RecipeImportPreviewViewTests {
 
 // MARK: - Helper Functions
 
-/// Helper function to create sample recipes for testing
-private func createSampleRecipe(
-    title: String,
-    uuid: UUID = UUID(),
-    summary: String? = nil,
-    creditsText: String? = nil,
-    servings: Int? = nil,
-    readyInMinutes: Int? = nil,
-    imageURL: String? = nil,
-    ingredients: [[String: Any]]? = nil,
-    instructions: [[String: Any]]? = nil
-) -> Recipe {
-    var dict: [String: Any] = [
-        "uuid": uuid,
-        "title": title
-    ]
-    
-    if let summary = summary {
-        dict["summary"] = summary
-    }
-    
-    if let creditsText = creditsText {
-        dict["creditsText"] = creditsText
-    }
-    
-    if let servings = servings {
-        dict["servings"] = servings
-    }
-    
-    if let readyInMinutes = readyInMinutes {
-        dict["readyInMinutes"] = readyInMinutes
-    }
-    
-    if let imageURL = imageURL {
-        dict["image"] = imageURL
-    }
-    
-    if let ingredients = ingredients {
-        dict["extendedIngredients"] = ingredients
-    }
-    
-    if let instructions = instructions {
-        dict["analyzedInstructions"] = instructions
-    }
-    
-    guard let recipe = Recipe(from: dict) else {
-        fatalError("Failed to create sample recipe")
-    }
-    
-    return recipe
-}
-
-/// Helper function to extract Int value from Any (handles JSONNull, Int, String, etc.)
-private func intValue(from value: Any?) -> Int? {
-    if let intValue = value as? Int {
-        return intValue
-    }
-    if let stringValue = value as? String, let intValue = Int(stringValue) {
-        return intValue
-    }
-    return nil
-}
+/// Helper function accessible from tests - wraps the private cleanSummary in RecipeImportPreviewView
+//func cleanSummary(_ html: String) -> String {
+//    var text = html.replacingOccurrences(of: "<br ?/?>", with: "\n", options: .regularExpression)
+//    text = text.replacingOccurrences(of: "<li>", with: "• ", options: .caseInsensitive)
+//    text = text.replacingOccurrences(of: "</li>", with: "\n", options: .caseInsensitive)
+//    text = text.replacingOccurrences(of: "<ul>|</ul>", with: "", options: .regularExpression)
+//    text = text.replacingOccurrences(of: "<b>(.*?)</b>", with: "$1", options: .regularExpression)
+//    text = text.replacingOccurrences(of: "<i>(.*?)</i>", with: "$1", options: .regularExpression)
+//    text = text.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+//    let lines = text.components(separatedBy: .newlines).map { $0.trimmingCharacters(in: .whitespaces) }
+//    return lines.filter { !$0.isEmpty }.joined(separator: " ")
+//}

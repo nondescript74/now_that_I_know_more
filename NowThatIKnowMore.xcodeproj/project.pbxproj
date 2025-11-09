@@ -45,7 +45,6 @@
 				Models/ModelsRecipeNoteModel.swift,
 				"Models/String+HTMLStripping.swift",
 				Models/Welcome.swift,
-				Observables/RecipeImportPreviewViewTests.swift,
 				ServicesRecipeService.swift,
 				Views/GlossaryView.swift,
 				Views/MediaGalleryView.swift,
@@ -115,7 +114,6 @@
 		F8C68D852EBAC0E5005939E7 /* Exceptions for "NowThatIKnowMore" folder in "NowThatIKnowMore" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				Observables/RecipeImportPreviewViewTests.swift,
 				Views/INSTRUCTIONS_DISPLAY_FIX.md,
 			);
 			target = F8B44A262E4E254E00BD0920 /* NowThatIKnowMore */;
@@ -513,7 +511,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 59;
+				CURRENT_PROJECT_VERSION = 60;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = YKHW2TJ32G;
 				ENABLE_APP_SANDBOX = YES;
@@ -574,7 +572,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 59;
+				CURRENT_PROJECT_VERSION = 60;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = YKHW2TJ32G;
 				ENABLE_APP_SANDBOX = YES;

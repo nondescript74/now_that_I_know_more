@@ -58,7 +58,7 @@ struct ParsedRecipeText {
 
 /// Parser optimized for table-format recipe cards with imperial/metric columns
 /// Best for: Indian recipe cards, printed recipe cards with structured layouts
-class TableFormatRecipeParser: RecipeImageParserProtocol {
+class TableFormatRecipeParser: RecipeImageParserProtocol, @unchecked Sendable {
     
     let parserType: RecipeParserType = .tableFormat
     let displayName: String = "Table Format Parser"
