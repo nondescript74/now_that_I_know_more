@@ -6,14 +6,21 @@
 //
 
 import SwiftUI
+import SwiftData
 
 struct RecipeImportPreviewView: View {
-    let recipe: Recipe
+    let recipe: RecipeModel
     let onImport: () -> Void
     let onCancel: () -> Void
     
-    @Environment(RecipeStore.self) private var store
+    @Environment(\.modelContext) private var modelContext
     @State private var showFullRecipe = false
+    @State private var recipeService: RecipeService?
+    
+    // Check if recipe already exists
+    private var existingRecipe: RecipeModel? {
+        recipeService?.fetchRecipe(by: recipe.uuid)
+    }
     
     var body: some View {
         NavigationStack {
@@ -135,7 +142,7 @@ struct RecipeImportPreviewView: View {
                         }
                         
                         // Check if recipe already exists
-                        if store.recipe(with: recipe.uuid) != nil {
+                        if existingRecipe != nil {
                             HStack {
                                 Image(systemName: "exclamationmark.triangle.fill")
                                     .foregroundColor(.orange)
@@ -158,12 +165,12 @@ struct RecipeImportPreviewView: View {
                     // Action Buttons
                     VStack(spacing: 12) {
                         Button(action: onImport) {
-                            Label(store.recipe(with: recipe.uuid) != nil ? "Replace Existing Recipe" : "Import Recipe", 
-                                  systemImage: store.recipe(with: recipe.uuid) != nil ? "arrow.triangle.2.circlepath" : "tray.and.arrow.down.fill")
+                            Label(existingRecipe != nil ? "Replace Existing Recipe" : "Import Recipe", 
+                                  systemImage: existingRecipe != nil ? "arrow.triangle.2.circlepath" : "tray.and.arrow.down.fill")
                                 .font(.headline)
                                 .frame(maxWidth: .infinity)
                                 .padding()
-                                .background(store.recipe(with: recipe.uuid) != nil ? Color.orange : Color.blue)
+                                .background(existingRecipe != nil ? Color.orange : Color.blue)
                                 .foregroundColor(.white)
                                 .cornerRadius(12)
                         }
@@ -183,18 +190,13 @@ struct RecipeImportPreviewView: View {
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
-            .sheet(isPresented: $showFullRecipe) {
-                NavigationStack {
-                    RecipeDetail(recipeID: recipe.uuid)
-                        .toolbar {
-                            ToolbarItem(placement: .cancellationAction) {
-                                Button("Close") {
-                                    showFullRecipe = false
-                                }
-                            }
-                        }
+            .onAppear {
+                if recipeService == nil {
+                    recipeService = RecipeService(modelContext: modelContext)
                 }
-                .environment(RecipeStore.previewStore(with: [recipe]))
+            }
+            .sheet(isPresented: $showFullRecipe) {
+                RecipeImportDetailView(recipe: recipe)
             }
         }
     }
@@ -241,7 +243,7 @@ struct InfoCard: View {
 }
 
 // Helper function
-private func cleanSummary(_ html: String) -> String {
+func cleanSummary(_ html: String) -> String {
     var text = html.replacingOccurrences(of: "<br ?/?>", with: "\n", options: .regularExpression)
     text = text.replacingOccurrences(of: "<li>", with: "• ", options: .caseInsensitive)
     text = text.replacingOccurrences(of: "</li>", with: "\n", options: .caseInsensitive)
@@ -253,37 +255,127 @@ private func cleanSummary(_ html: String) -> String {
     return lines.filter { !$0.isEmpty }.joined(separator: " ")
 }
 
-// Extension to create preview RecipeStore
-extension RecipeStore {
-    static func previewStore(with recipes: [Recipe]) -> RecipeStore {
-        let store = RecipeStore()
-        // Filter out duplicates based on UUID
-        var uniqueRecipes: [Recipe] = []
-        for recipe in recipes {
-            if !uniqueRecipes.contains(where: { $0.uuid == recipe.uuid }) {
-                uniqueRecipes.append(recipe)
+// MARK: - Recipe Import Detail View
+
+/// A simple view to show the full recipe details in the import preview
+struct RecipeImportDetailView: View {
+    let recipe: RecipeModel
+    @Environment(\.dismiss) private var dismiss
+    
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    // Title
+                    Text(recipe.title ?? "Untitled Recipe")
+                        .font(.title)
+                        .fontWeight(.bold)
+                    
+                    // Credits
+                    if let credits = recipe.creditsText, !credits.isEmpty {
+                        Label(credits, systemImage: "person.circle.fill")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    // Info section
+                    if recipe.servings != nil || recipe.readyInMinutes != nil {
+                        HStack(spacing: 20) {
+                            if let servings = recipe.servings {
+                                Label("\(servings) servings", systemImage: "person.2.fill")
+                            }
+                            if let readyInMinutes = recipe.readyInMinutes {
+                                Label("\(readyInMinutes)" + " min", systemImage: "clock.fill")
+                            }
+                        }
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    }
+                    
+                    Divider()
+                    
+                    // Summary
+                    if let summary = recipe.summary, !summary.isEmpty {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("About")
+                                .font(.headline)
+                            Text(cleanSummary(summary))
+                                .font(.body)
+                        }
+                        Divider()
+                    }
+                    
+                    // Ingredients
+                    if let ingredients = recipe.extendedIngredients, !ingredients.isEmpty {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Ingredients")
+                                .font(.headline)
+                            ForEach(ingredients, id: \.id) { ingredient in
+                                HStack(alignment: .top) {
+                                    Text("•")
+                                    Text(ingredient.original ?? ingredient.name ?? "Unknown ingredient")
+                                }
+                                .font(.body)
+                            }
+                        }
+                        Divider()
+                    }
+                    
+                    // Instructions
+                    if let instructions = recipe.analyzedInstructions, !instructions.isEmpty {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Instructions")
+                                .font(.headline)
+                            
+                            ForEach(instructions) { instruction in
+                                if let steps = instruction.steps {
+                                    ForEach(steps) { step in
+                                        HStack(alignment: .top, spacing: 12) {
+                                            Text("\(step.number ?? 0)")
+                                                .font(.headline)
+                                                .foregroundColor(.blue)
+                                                .frame(minWidth: 30, alignment: .leading)
+                                            
+                                            Text(step.step ?? "")
+                                                .font(.body)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    } else if let instructions = recipe.instructions, !instructions.isEmpty {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Instructions")
+                                .font(.headline)
+                            Text(cleanSummary(instructions))
+                                .font(.body)
+                        }
+                    }
+                }
+                .padding()
+            }
+            .navigationTitle("Recipe Preview")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Close") {
+                        dismiss()
+                    }
+                }
             }
         }
-        // Set the recipes using the public method
-        store.set(uniqueRecipes)
-        return store
     }
 }
 
+// MARK: - Preview
+
 #Preview {
-    let sampleRecipe = Recipe(from: [
-        "uuid": UUID(),
-        "title": "Delicious Pasta Carbonara",
-        "summary": "A classic Italian pasta dish with eggs, cheese, and bacon.",
-        "creditsText": "Shared by Chef Mario",
-        "servings": 4,
-        "readyInMinutes": 30
-    ])!
+    let sampleRecipe = RecipeModel()
     
-    return RecipeImportPreviewView(
+    RecipeImportPreviewView(
         recipe: sampleRecipe,
         onImport: { print("Import tapped") },
         onCancel: { print("Cancel tapped") }
     )
-    .environment(RecipeStore())
+    .modelContainer(for: [RecipeModel.self, RecipeBookModel.self, RecipeMediaModel.self, RecipeNoteModel.self])
 }

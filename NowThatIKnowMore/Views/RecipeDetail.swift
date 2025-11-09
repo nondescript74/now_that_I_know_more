@@ -8,6 +8,7 @@ import UIKit
 import Contacts
 import ContactsUI
 import MessageUI
+import SwiftData
 
 extension AnalyzedInstruction: Identifiable {
     var id: String { name ?? UUID().uuidString }
@@ -24,14 +25,16 @@ extension Step: Identifiable {
 //
 
 import SwiftUI
+import SwiftData
 
 struct RecipeDetail: View {
-    @Environment(RecipeStore.self) private var recipeStore
-
+    @Environment(\.modelContext) private var modelContext
+    @Query private var allRecipes: [RecipeModel]
+    
     let recipeID: UUID
     
-    private var recipe: Recipe? {
-        recipeStore.recipe(with: recipeID)
+    private var recipe: RecipeModel? {
+        allRecipes.first(where: { $0.uuid == recipeID })
     }
     
     @State private var editedTitle: String = ""
@@ -130,7 +133,7 @@ struct RecipeDetail: View {
     }
     
     @ViewBuilder
-    private func recipeDetailContent(for recipe: Recipe) -> some View {
+    private func recipeDetailContent(for recipe: RecipeModel) -> some View {
         TextField("Title", text: $editedTitle)
             .font(.title)
             .fontWeight(.bold)
@@ -240,25 +243,25 @@ struct RecipeDetail: View {
                 .font(.headline)
             
             Group {
-                if let readyInMinutes = intValue(from: recipe.readyInMinutes), readyInMinutes > 0 {
+                if let readyInMinutes = recipe.readyInMinutes, readyInMinutes > 0 {
                     Label("\(readyInMinutes) min", systemImage: "clock")
                 }
-                if let cookingMinutes = intValue(from: recipe.cookingMinutes), cookingMinutes > 0 {
+                if let cookingMinutes = recipe.cookingMinutes, cookingMinutes > 0 {
                     Label("\(cookingMinutes) min Cooking", systemImage: "flame")
                 }
-                if let preparationMinutes = intValue(from: recipe.preparationMinutes), preparationMinutes > 0 {
+                if let preparationMinutes = recipe.preparationMinutes, preparationMinutes > 0 {
                     Label("\(preparationMinutes) min Prep", systemImage: "hourglass")
                 }
-                if let servings = intValue(from: recipe.servings), servings > 0 {
+                if let servings = recipe.servings, servings > 0 {
                     Label("Serves \(servings)", systemImage: "person.2")
                 }
-                if let aggregateLikes = intValue(from: recipe.aggregateLikes), aggregateLikes > 0 {
+                if let aggregateLikes = recipe.aggregateLikes, aggregateLikes > 0 {
                     Label("\(aggregateLikes) Likes", systemImage: "hand.thumbsup")
                 }
-                if let healthScore = intValue(from: recipe.healthScore), healthScore > 0 {
+                if let healthScore = recipe.healthScore, healthScore > 0 {
                     Label("Health Score: \(healthScore)", systemImage: "heart")
                 }
-                if let spoonacularScore = intValue(from: recipe.spoonacularScore), spoonacularScore > 0 {
+                if let spoonacularScore = recipe.spoonacularScore, spoonacularScore > 0 {
                     Label("Spoonacular Score: \(spoonacularScore)", systemImage: "star")
                 }
                 if let sourceUrl = recipe.sourceURL, !sourceUrl.isEmpty {
@@ -266,17 +269,17 @@ struct RecipeDetail: View {
                         .lineLimit(1)
                         .truncationMode(.middle)
                 }
-                if let cuisines = recipe.cuisines, !cuisines.isEmpty {
-                    Label(cuisines.map { formatJSONAny($0) }.joined(separator: ", "), systemImage: "fork.knife")
+                if !recipe.cuisines.isEmpty {
+                    Label(recipe.cuisines.joined(separator: ", "), systemImage: "fork.knife")
                 }
-                if let dishTypes = recipe.dishTypes, !dishTypes.isEmpty {
-                    Label(dishTypes.map { formatJSONAny($0) }.joined(separator: ", "), systemImage: "tag")
+                if !recipe.dishTypes.isEmpty {
+                    Label(recipe.dishTypes.joined(separator: ", "), systemImage: "tag")
                 }
-                if let diets = recipe.diets, !diets.isEmpty {
-                    Label(diets.map { formatJSONAny($0) }.joined(separator: ", "), systemImage: "leaf")
+                if !recipe.diets.isEmpty {
+                    Label(recipe.diets.joined(separator: ", "), systemImage: "leaf")
                 }
-                if let occasions = recipe.occasions, !occasions.isEmpty {
-                    Label(occasions.map { formatJSONAny($0) }.joined(separator: ", "), systemImage: "calendar")
+                if !recipe.occasions.isEmpty {
+                    Label(recipe.occasions.joined(separator: ", "), systemImage: "calendar")
                 }
             }
             .font(.subheadline)
@@ -347,83 +350,18 @@ struct RecipeDetail: View {
         let summaryToSave = cleanSummary(editedSummary)
         let creditsToSave = editedCreditsText.trimmingCharacters(in: .whitespacesAndNewlines)
         
-        // Attempt to convert current recipe to a dictionary via encoding/decoding.
-        let encoder = JSONEncoder()
-        guard let data = try? encoder.encode(currentRecipe),
-              var dict = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else {
-            saveMessage = "Save failed (unable to copy recipe)."
-            return
-        }
-        dict["title"] = titleToSave.isEmpty ? nil : titleToSave
-        dict["summary"] = summaryToSave.isEmpty ? nil : summaryToSave
-        dict["creditsText"] = creditsToSave.isEmpty ? nil : creditsToSave
-        dict["uuid"] = currentRecipe.uuid.uuidString
-        // Retain original image without change
-        dict["image"] = currentRecipe.image
+        // Update the RecipeModel directly
+        currentRecipe.title = titleToSave.isEmpty ? nil : titleToSave
+        currentRecipe.summary = summaryToSave.isEmpty ? nil : summaryToSave
+        currentRecipe.creditsText = creditsToSave.isEmpty ? nil : creditsToSave
+        currentRecipe.modifiedAt = Date()
         
-        // Use Recipe(from:) convenience initializer
-        guard let updatedRecipe = Recipe(from: dict) else {
-            saveMessage = "Save failed (unable to construct recipe)."
-            return
+        do {
+            try modelContext.save()
+            saveMessage = "Saved!"
+        } catch {
+            saveMessage = "Save failed: \(error.localizedDescription)"
         }
-        recipeStore.update(updatedRecipe)
-        saveMessage = "Saved!"
-    }
-    
-    private func intValue(from value: Any?) -> Int? {
-        if let intValue = value as? Int {
-            return intValue
-        }
-        if let stringValue = value as? String, let intValue = Int(stringValue) {
-            return intValue
-        }
-        return nil
-    }
-    
-    private func formatJSONAny(_ value: Any) -> String {
-        // Try to unwrap JSONAny recursively if possible:
-        // Assuming JSONAny has a property 'value' that holds the wrapped value.
-        // We use Mirror to reflect and unwrap.
-        var currentValue: Any = value
-        while true {
-            let mirror = Mirror(reflecting: currentValue)
-            if mirror.displayStyle == .class || mirror.displayStyle == .struct {
-                if let child = mirror.children.first(where: { $0.label == "value" }) {
-                    currentValue = child.value
-                    continue
-                }
-            }
-            break
-        }
-        
-        // Now format based on the type of currentValue
-        if currentValue is NSNull {
-            return "—"
-        }
-        if let string = currentValue as? String {
-            return string
-        }
-        if let int = currentValue as? Int {
-            return String(int)
-        }
-        if let double = currentValue as? Double {
-            return String(double)
-        }
-        if let bool = currentValue as? Bool {
-            return bool ? "true" : "false"
-        }
-        if let array = currentValue as? [Any] {
-            return array.map { formatJSONAny($0) }.joined(separator: ", ")
-        }
-        if let dict = currentValue as? [String: Any] {
-            let formattedItems = dict.map { key, val in
-                "\(key): \(formatJSONAny(val))"
-            }.sorted()
-            return formattedItems.joined(separator: ", ")
-        }
-        
-        // fallback
-        return String(describing: currentValue)
     }
     
     private func thumbnailImageFromImageURL(_ imageUrlString: String?) -> UIImage? {
@@ -736,52 +674,42 @@ private struct InstructionListView: View {
 }
 
 private struct ExtraRecipeDetailsPanel: View {
-    let recipe: Recipe
+    let recipe: RecipeModel
     
     @Environment(\.dismiss) private var dismiss
-    
-    private func intValue(from value: Any?) -> Int? {
-        if let intValue = value as? Int {
-            return intValue
-        }
-        if let stringValue = value as? String, let intValue = Int(stringValue) {
-            return intValue
-        }
-        return nil
-    }
     
     var body: some View {
         NavigationView {
             List {
-                if let readyInMinutes = intValue(from: recipe.readyInMinutes), readyInMinutes > 0 {
+                if let readyInMinutes = recipe.readyInMinutes, readyInMinutes > 0 {
                     FieldView(label: "Ready In Minutes", value: "\(readyInMinutes)")
                 }
-                if let servings = intValue(from: recipe.servings), servings > 0 {
+                if let servings = recipe.servings, servings > 0 {
                     FieldView(label: "Servings", value: "\(servings)")
                 }
-                if let aggregateLikes = intValue(from: recipe.aggregateLikes), aggregateLikes > 0 {
+                if let aggregateLikes = recipe.aggregateLikes, aggregateLikes > 0 {
                     FieldView(label: "Likes", value: "\(aggregateLikes)")
                 }
-                if let healthScore = intValue(from: recipe.healthScore), healthScore > 0 {
+                if let healthScore = recipe.healthScore, healthScore > 0 {
                     FieldView(label: "Health Score", value: "\(healthScore)")
                 }
-                if let spoonacularScore = intValue(from: recipe.spoonacularScore), spoonacularScore > 0 {
+                if let spoonacularScore = recipe.spoonacularScore, spoonacularScore > 0 {
                     FieldView(label: "Spoonacular Score", value: "\(spoonacularScore)")
                 }
                 if let sourceUrl = recipe.sourceURL, !sourceUrl.isEmpty {
                     FieldView(label: "Source URL", value: sourceUrl)
                 }
-                if let cuisines = recipe.cuisines, !cuisines.isEmpty {
-                    FieldView(label: "Cuisines", value: cuisines.map { formatJSONAny($0) }.joined(separator: ", "))
+                if !recipe.cuisines.isEmpty {
+                    FieldView(label: "Cuisines", value: recipe.cuisines.joined(separator: ", "))
                 }
-                if let dishTypes = recipe.dishTypes, !dishTypes.isEmpty {
-                    FieldView(label: "Dish Types", value: dishTypes.map { formatJSONAny($0) }.joined(separator: ", "))
+                if !recipe.dishTypes.isEmpty {
+                    FieldView(label: "Dish Types", value: recipe.dishTypes.joined(separator: ", "))
                 }
-                if let diets = recipe.diets, !diets.isEmpty {
-                    FieldView(label: "Diets", value: diets.map { formatJSONAny($0) }.joined(separator: ", "))
+                if !recipe.diets.isEmpty {
+                    FieldView(label: "Diets", value: recipe.diets.joined(separator: ", "))
                 }
-                if let occasions = recipe.occasions, !occasions.isEmpty {
-                    FieldView(label: "Occasions", value: occasions.map { formatJSONAny($0) }.joined(separator: ", "))
+                if !recipe.occasions.isEmpty {
+                    FieldView(label: "Occasions", value: recipe.occasions.joined(separator: ", "))
                 }
             }
             .navigationTitle("More Recipe Details")
@@ -807,64 +735,6 @@ private struct ExtraRecipeDetailsPanel: View {
             .padding(.vertical, 4)
         }
     }
-    
-    private func formatJSONAny(_ value: Any) -> String {
-        // Try to unwrap JSONAny recursively if possible:
-        // Assuming JSONAny has a property 'value' that holds the wrapped value.
-        // We use Mirror to reflect and unwrap.
-        var currentValue: Any = value
-        while true {
-            let mirror = Mirror(reflecting: currentValue)
-            if mirror.displayStyle == .class || mirror.displayStyle == .struct {
-                if let child = mirror.children.first(where: { $0.label == "value" }) {
-                    currentValue = child.value
-                    continue
-                }
-            }
-            break
-        }
-        
-        // Now format based on the type of currentValue
-        if currentValue is NSNull {
-            return "—"
-        }
-        if let string = currentValue as? String {
-            return string
-        }
-        if let int = currentValue as? Int {
-            return String(int)
-        }
-        if let double = currentValue as? Double {
-            return String(double)
-        }
-        if let bool = currentValue as? Bool {
-            return bool ? "true" : "false"
-        }
-        if let array = currentValue as? [Any] {
-            return array.map { formatJSONAny($0) }.joined(separator: ", ")
-        }
-        if let dict = currentValue as? [String: Any] {
-            let formattedItems = dict.map { key, val in
-                "\(key): \(formatJSONAny(val))"
-            }.sorted()
-            return formattedItems.joined(separator: ", ")
-        }
-        
-        // fallback
-        return String(describing: currentValue)
-    }
-}
-
-private func cleanSummary(_ html: String) -> String {
-    var text = html.replacingOccurrences(of: "<br ?/?>", with: "\n", options: .regularExpression)
-    text = text.replacingOccurrences(of: "<li>", with: "• ", options: .caseInsensitive)
-    text = text.replacingOccurrences(of: "</li>", with: "\n", options: .caseInsensitive)
-    text = text.replacingOccurrences(of: "<ul>|</ul>", with: "", options: .regularExpression)
-    text = text.replacingOccurrences(of: "<b>(.*?)</b>", with: "**$1**", options: .regularExpression)
-    text = text.replacingOccurrences(of: "<i>(.*?)</i>", with: "*$1*", options: .regularExpression)
-    text = text.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
-    let lines = text.components(separatedBy: .newlines).map { $0.trimmingCharacters(in: .whitespaces) }
-    return lines.filter { !$0.isEmpty }.map { $0 + "\n" }.joined()
 }
 
 extension CNContact {
@@ -896,14 +766,14 @@ private struct ContactPickerView: UIViewControllerRepresentable {
 
 // MARK: - Mail Compose View
 private struct MailComposeView: UIViewControllerRepresentable {
-    let recipe: Recipe
+    let recipe: RecipeModel
     @Environment(\.dismiss) private var dismiss
     
     func makeUIViewController(context: Context) -> MFMailComposeViewController {
         let composer = MFMailComposeViewController()
         composer.mailComposeDelegate = context.coordinator
         
-        // Export recipe as JSON
+        // Export recipe as JSON (using legacy format for compatibility)
         let recipeData = exportRecipeAsJSON(recipe)
         
         composer.setSubject("Recipe: \(recipe.title ?? "Untitled Recipe")")
@@ -914,11 +784,9 @@ private struct MailComposeView: UIViewControllerRepresentable {
         }
         
         // Attach user photos if any
-        if let recipeDict = try? JSONEncoder().encode(recipe),
-           let dict = try? JSONSerialization.jsonObject(with: recipeDict) as? [String: Any],
-           let photoURLs = dict["userPhotoURLs"] as? [String] {
-            for (index, urlString) in photoURLs.prefix(3).enumerated() {
-                if let data = try? Data(contentsOf: URL(fileURLWithPath: urlString)) {
+        if let mediaItems = recipe.mediaItems {
+            for (index, mediaItem) in mediaItems.prefix(3).enumerated() {
+                if mediaItem.type == .photo, let data = try? Data(contentsOf: URL(fileURLWithPath: mediaItem.fileURL)) {
                     composer.addAttachmentData(data, mimeType: "image/jpeg", fileName: "photo_\(index).jpg")
                 }
             }
@@ -948,14 +816,15 @@ private struct MailComposeView: UIViewControllerRepresentable {
         }
     }
     
-    private func exportRecipeAsJSON(_ recipe: Recipe) -> Data? {
-        // Export with current recipe format version for compatibility tracking
+    private func exportRecipeAsJSON(_ recipe: RecipeModel) -> Data? {
+        // Export RecipeModel directly as JSON
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        encoder.dateEncodingStrategy = .iso8601
         return try? encoder.encode(recipe)
     }
     
-    private func createEmailBody(_ recipe: Recipe) -> String {
+    private func createEmailBody(_ recipe: RecipeModel) -> String {
         var html = """
         <html>
         <head>
@@ -1025,27 +894,18 @@ private struct MailComposeView: UIViewControllerRepresentable {
     }
 }
 
-
-extension String {
-    // Moved to String+HTMLStripping.swift to avoid redeclaration
-    /*
-    var sanitizedForFileName: String {
-        let invalidCharacters = CharacterSet(charactersIn: ":/\\?%*|\"<>")
-        return components(separatedBy: invalidCharacters).joined(separator: "_")
-    }
-    */
-}
-
 #Preview {
-    let store = RecipeStore()
-    let recipe = store.recipes.first ?? Recipe(from: [
-        "uuid": UUID(),
-        "title": "Sample Recipe",
-        "summary": "A preview recipe.",
-        "creditsText": "Preview Chef"
-    ])!
-    if store.recipes.isEmpty { store.add(recipe) }
-    return RecipeDetail(recipeID: recipe.uuid)
-        .environment(store)
+    let config = ModelConfiguration(isStoredInMemoryOnly: true)
+    let container = try! ModelContainer(for: RecipeModel.self, configurations: config)
+    
+    let sampleRecipe = RecipeModel(
+        title: "Sample Recipe",
+        creditsText: "Preview Chef",
+        summary: "A preview recipe."
+    )
+    container.mainContext.insert(sampleRecipe)
+    
+    return RecipeDetail(recipeID: sampleRecipe.uuid)
+        .modelContainer(container)
 }
 

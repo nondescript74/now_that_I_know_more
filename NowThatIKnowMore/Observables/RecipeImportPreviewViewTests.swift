@@ -7,6 +7,7 @@
 
 import Testing
 import SwiftUI
+import SwiftData
 @testable import NowThatIKnowMore
 
 @Suite("Recipe Import Preview View Tests")
@@ -119,139 +120,133 @@ struct RecipeImportPreviewViewTests {
         }
     }
     
-    // MARK: - Preview Store Tests
+    // MARK: - Recipe Model Tests
     
-    @Suite("RecipeStore Preview Creation")
-    struct PreviewStoreTests {
+    @Suite("RecipeModel Creation and Properties")
+    struct RecipeModelTests {
         
-        @Test("Create preview store with empty array")
-        func createEmptyPreviewStore() {
-            let store = RecipeStore.previewStore(with: [])
-            #expect(store.recipes.isEmpty)
-        }
-        
-        @Test("Create preview store with single recipe")
-        func createPreviewStoreWithSingleRecipe() {
-            let recipe = createSampleRecipe(title: "Test Recipe")
-            let store = RecipeStore.previewStore(with: [recipe])
-            
-            #expect(store.recipes.count == 1)
-            #expect(store.recipes.first?.title == "Test Recipe")
-        }
-        
-        @Test("Create preview store with multiple recipes")
-        func createPreviewStoreWithMultipleRecipes() {
-            let recipe1 = createSampleRecipe(title: "Recipe 1")
-            let recipe2 = createSampleRecipe(title: "Recipe 2")
-            let recipe3 = createSampleRecipe(title: "Recipe 3")
-            
-            let store = RecipeStore.previewStore(with: [recipe1, recipe2, recipe3])
-            
-            #expect(store.recipes.count == 3)
-            #expect(store.recipes[0].title == "Recipe 1")
-            #expect(store.recipes[1].title == "Recipe 2")
-            #expect(store.recipes[2].title == "Recipe 3")
-        }
-        
-        @Test("Preview store retrieves recipe by UUID")
-        func retrieveRecipeByUUID() {
-            let uuid = UUID()
-            let recipe = createSampleRecipe(title: "Findable Recipe", uuid: uuid)
-            let store = RecipeStore.previewStore(with: [recipe])
-            
-            let retrieved = store.recipe(with: uuid)
-            #expect(retrieved != nil)
-            #expect(retrieved?.title == "Findable Recipe")
-            #expect(retrieved?.uuid == uuid)
-        }
-        
-        @Test("Preview store handles duplicate UUIDs")
-        func handleDuplicateUUIDs() {
-            let uuid = UUID()
-            let recipe1 = createSampleRecipe(title: "First", uuid: uuid)
-            let recipe2 = createSampleRecipe(title: "Second", uuid: uuid)
-            
-            let store = RecipeStore.previewStore(with: [recipe1, recipe2])
-            
-            // Should only have one recipe since duplicate UUIDs are prevented
-            #expect(store.recipes.count == 1)
-            #expect(store.recipes.first?.title == "First")
-        }
-        
-        @Test("Preview store preserves recipe properties")
-        func preserveRecipeProperties() {
-            let recipe = createSampleRecipe(
-                title: "Full Recipe",
-                summary: "A detailed summary",
-                creditsText: "Chef John",
+        @Test("Create recipe model with basic properties")
+        func createBasicRecipeModel() {
+            let recipe = RecipeModel(
+                title: "Test Recipe",
                 servings: 4,
-                readyInMinutes: 30
+                creditsText: "Test Chef", summary: "A test summary"
             )
             
-            let store = RecipeStore.previewStore(with: [recipe])
-            let retrieved = store.recipes.first
-            
-            #expect(retrieved?.title == "Full Recipe")
-            #expect(retrieved?.summary == "A detailed summary")
-            #expect(retrieved?.creditsText == "Chef John")
-            
-            // Compare servings as Any to handle JSONNull or Int
-            if let servingsValue = retrieved?.servings {
-                let servingsInt = intValue(from: servingsValue)
-                #expect(servingsInt == 4)
-            }
-            
-            // Compare readyInMinutes as Any to handle JSONNull or Int
-            if let readyValue = retrieved?.readyInMinutes {
-                let readyInt = intValue(from: readyValue)
-                #expect(readyInt == 30)
-            }
+            #expect(recipe.title == "Test Recipe")
+            #expect(recipe.servings == 4)
+            #expect(recipe.summary == "A test summary")
+            #expect(recipe.creditsText == "Test Chef")
         }
         
-        @Test("Preview store with recipes containing ingredients")
-        func previewStoreWithIngredients() {
+        @Test("Recipe model with ingredients")
+        func recipeModelWithIngredients() {
+            let recipe = RecipeModel(
+                title: "Recipe with Ingredients"
+            )
+            
             let ingredients = [
-                ["id": 1, "name": "Pasta"],
-                ["id": 2, "name": "Tomato"]
+                ExtendedIngredient(
+                    id: 1,
+                    aisle: nil,
+                    image: nil,
+                    consistency: nil,
+                    name: "Salt",
+                    nameClean: "salt",
+                    original: "1 tsp salt",
+                    originalName: "salt",
+                    amount: 1.0,
+                    unit: "tsp",
+                    meta: nil,
+                    measures: nil
+                )
             ]
             
-            let recipe = createSampleRecipe(
-                title: "Pasta Recipe",
-                ingredients: ingredients
-            )
+            recipe.extendedIngredients = ingredients
             
-            let store = RecipeStore.previewStore(with: [recipe])
-            let retrieved = store.recipes.first
-            
-            #expect(retrieved?.extendedIngredients?.count == 2)
+            #expect(recipe.extendedIngredients?.count == 1)
+            #expect(recipe.extendedIngredients?.first?.name == "Salt")
         }
         
-        @Test("Preview store with recipes containing instructions")
-        func previewStoreWithInstructions() {
-            let instructions = [
-                [
-                    "steps": [
-                        ["number": 1, "step": "Boil water"],
-                        ["number": 2, "step": "Add pasta"]
-                    ]
-                ]
-            ]
-            
-            let recipe = createSampleRecipe(
-                title: "Recipe with Steps",
-                instructions: instructions
+        @Test("Recipe model with multiple properties")
+        func recipeModelWithMultipleProperties() {
+            let recipe = RecipeModel(
+                title: "Complete Recipe",
+                readyInMinutes: 30,
+                servings: 6,
+                vegetarian: true,
+                vegan: false,
+                glutenFree: true
             )
             
-            let store = RecipeStore.previewStore(with: [recipe])
-            let retrieved = store.recipes.first
+            #expect(recipe.title == "Complete Recipe")
+            #expect(recipe.readyInMinutes == 30)
+            #expect(recipe.servings == 6)
+            #expect(recipe.vegetarian == true)
+            #expect(recipe.vegan == false)
+            #expect(recipe.glutenFree == true)
+        }
+        
+        @Test("Recipe model UUID uniqueness")
+        func recipeModelUUIDUniqueness() {
+            let recipe1 = RecipeModel(title: "Recipe 1")
+            let recipe2 = RecipeModel(title: "Recipe 2")
             
-            #expect(retrieved?.analyzedInstructions != nil)
+            #expect(recipe1.uuid != recipe2.uuid)
+        }
+        
+        @Test("Recipe model with instructions")
+        func recipeModelWithInstructions() {
+            let recipe = RecipeModel(
+                title: "Recipe with Instructions",
+                instructions: "1. Boil water\n2. Add pasta\n3. Cook for 10 minutes"
+            )
+            
+            #expect(recipe.instructions != nil)
+            #expect(recipe.instructions?.contains("Boil water") == true)
+        }
+        
+        @Test("Recipe model with cuisines")
+        func recipeModelWithCuisines() {
+            let recipe = RecipeModel(title: "Italian Dish")
+            recipe.cuisines = ["Italian", "Mediterranean"]
+            
+            #expect(recipe.cuisines.count == 2)
+            #expect(recipe.cuisines.contains("Italian"))
+            #expect(recipe.cuisines.contains("Mediterranean"))
+        }
+        
+        @Test("Recipe model with dish types")
+        func recipeModelWithDishTypes() {
+            let recipe = RecipeModel(title: "Lunch Recipe")
+            recipe.dishTypes = ["lunch", "main course"]
+            
+            #expect(recipe.dishTypes.count == 2)
+            #expect(recipe.dishTypes.contains("lunch"))
+        }
+        
+        @Test("Recipe model timestamps")
+        func recipeModelTimestamps() {
+            let beforeCreation = Date()
+            let recipe = RecipeModel(title: "Timestamp Test")
+            let afterCreation = Date()
+            
+            #expect(recipe.createdAt >= beforeCreation)
+            #expect(recipe.createdAt <= afterCreation)
+            #expect(recipe.modifiedAt >= beforeCreation)
+            #expect(recipe.modifiedAt <= afterCreation)
         }
     }
     
+    // MARK: - Preview Store Tests (Removed - RecipeStore deleted)
+    
+    // @Suite("RecipeStore Preview Creation")
+    // struct PreviewStoreTests {
+    // }
+    
     // MARK: - Info Card Display Tests
     
-    @Suite("Recipe Info Display")
+    @Suite("Recipe Info Display (Legacy Recipe Model)")
     struct RecipeInfoTests {
         
         @Test("Recipe with all info fields")
@@ -396,19 +391,6 @@ private func createSampleRecipe(
     }
     
     return recipe
-}
-
-/// Helper function to clean HTML summary (duplicated from RecipeImportPreviewView for testing)
-private func cleanSummary(_ html: String) -> String {
-    var text = html.replacingOccurrences(of: "<br ?/?>", with: "\n", options: .regularExpression)
-    text = text.replacingOccurrences(of: "<li>", with: "• ", options: .caseInsensitive)
-    text = text.replacingOccurrences(of: "</li>", with: "\n", options: .caseInsensitive)
-    text = text.replacingOccurrences(of: "<ul>|</ul>", with: "", options: .regularExpression)
-    text = text.replacingOccurrences(of: "<b>(.*?)</b>", with: "$1", options: .regularExpression)
-    text = text.replacingOccurrences(of: "<i>(.*?)</i>", with: "$1", options: .regularExpression)
-    text = text.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
-    let lines = text.components(separatedBy: .newlines).map { $0.trimmingCharacters(in: .whitespaces) }
-    return lines.filter { !$0.isEmpty }.joined(separator: " ")
 }
 
 /// Helper function to extract Int value from Any (handles JSONNull, Int, String, etc.)
