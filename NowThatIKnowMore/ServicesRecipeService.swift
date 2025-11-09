@@ -8,6 +8,7 @@
 import Foundation
 import SwiftData
 import OSLog
+import CoreData
 
 @MainActor
 class RecipeService {
@@ -236,19 +237,25 @@ class RecipeService {
                         print("   Detailed error: \(detailedError)")
                     }
                 }
+                
+                // Log validation errors specifically
+                if let validationErrors = error.userInfo["NSValidationErrorObject"] {
+                    print("   Validation error object: \(validationErrors)")
+                }
             }
             #endif
             
             // Re-throw in test environments to make failures visible
-            // Skip for type casting errors which are often transient in tests
             #if DEBUG
-            if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil {
+            if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil ||
+               ProcessInfo.processInfo.environment["XCTestSessionIdentifier"] != nil {
                 let errorDescription = error.localizedDescription.lowercased()
                 let isTypeCastError = errorDescription.contains("cast") || 
                                      errorDescription.contains("type mismatch") ||
                                      error.domain == "NSCocoaErrorDomain" && error.code == 134060
                 
                 if !isTypeCastError {
+                    // For tests, throw the error so we know what's wrong
                     fatalError("SwiftData save failed in tests: \(error)")
                 } else {
                     print("⚠️ Type cast error in tests - this may indicate a schema mismatch")

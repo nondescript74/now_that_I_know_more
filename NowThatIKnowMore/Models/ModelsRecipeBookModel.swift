@@ -38,6 +38,7 @@ final class RecipeBookModel {
         self.sortOrder = sortOrder
         self.createdAt = Date()
         self.modifiedAt = Date()
+        self.recipes = [] // Initialize empty relationship array
     }
 }
 
