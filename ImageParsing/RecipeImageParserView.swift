@@ -117,6 +117,7 @@ struct RecipeImageParserView: View {
                 .padding(.vertical)
             }
             .navigationTitle("Recipe Parser")
+            .scrollDismissesKeyboard(.interactively)
             .sheet(isPresented: $showImagePicker) {
                 RecipeImagePicker(image: $selectedImage, sourceType: .photoLibrary)
             }
@@ -232,6 +233,8 @@ struct ParsedRecipeDisplayView: View {
     let sourceImage: UIImage?
     @Binding var showSuccessAlert: Bool
     @State private var showEditSheet = false
+    @State private var editingIngredientIndex: Int?
+    @State private var editedIngredients: [ExtendedIngredient] = []
     
     var body: some View {
         VStack(alignment: .leading, spacing: 15) {
@@ -239,11 +242,9 @@ struct ParsedRecipeDisplayView: View {
                 Text("Parsed Recipe")
                     .font(.headline)
                 Spacer()
-                Button(action: { showEditSheet = true }) {
-                    Label("Edit", systemImage: "pencil")
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
+                Text("Tap ingredients to edit")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
             }
             
             Divider()
@@ -269,36 +270,25 @@ struct ParsedRecipeDisplayView: View {
                 }
             }
             
-            if let ingredients = recipe.extendedIngredients, !ingredients.isEmpty {
+            // Ingredients (Editable)
+            if !editedIngredients.isEmpty {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("Ingredients (\(ingredients.count))")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    
-                    ForEach(ingredients.indices, id: \.self) { index in
-                        let ingredient = ingredients[index]
-                        HStack(alignment: .top, spacing: 10) {
-                            Text("•")
-                            VStack(alignment: .leading, spacing: 2) {
-                                if let amount = ingredient.amount,
-                                   let unit = ingredient.unit,
-                                   let name = ingredient.name {
-                                    HStack {
-                                        Text("\(formatAmount(amount)) \(unit)")
-                                            .bold()
-                                        Text(name)
-                                    }
-                                    if let metric = ingredient.measures?.metric,
-                                       let metricAmount = metric.amount,
-                                       let metricUnit = metric.unitShort {
-                                        Text("\(formatAmount(metricAmount)) \(metricUnit)")
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
-                                    }
-                                }
-                            }
+                    HStack {
+                        Text("Ingredients (\(editedIngredients.count))")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        
+                        Spacer()
+                        
+                        Button(action: addNewIngredient) {
+                            Label("Add", systemImage: "plus.circle")
+                                .font(.caption)
                         }
-                        .font(.subheadline)
+                        .buttonStyle(.borderless)
+                    }
+                    
+                    ForEach(editedIngredients.indices, id: \.self) { index in
+                        ingredientRow(for: index)
                     }
                 }
             }
@@ -331,10 +321,159 @@ struct ParsedRecipeDisplayView: View {
         .background(Color(.secondarySystemBackground))
         .cornerRadius(12)
         .shadow(radius: 2)
-        .sheet(isPresented: $showEditSheet) {
-            Text("Recipe editing coming soon!")
-                .padding()
+        .onAppear {
+            // Initialize edited ingredients from recipe
+            if editedIngredients.isEmpty, let ingredients = recipe.extendedIngredients {
+                editedIngredients = ingredients
+            }
         }
+        .onTapGesture {
+            // Dismiss keyboard when tapping outside text fields
+            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+        }
+    }
+    
+    @ViewBuilder
+    private func ingredientRow(for index: Int) -> some View {
+        let ingredient = editedIngredients[index]
+        
+        VStack(spacing: 0) {
+            if editingIngredientIndex == index {
+                // Edit mode
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        TextField("Amount", text: Binding(
+                            get: { ingredient.original ?? "" },
+                            set: { newValue in
+                                editedIngredients[index] = updateIngredient(ingredient, withText: newValue)
+                            }
+                        ))
+                        .textFieldStyle(.roundedBorder)
+                        
+                        Button("Done") {
+                            editingIngredientIndex = nil
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+                        
+                        Button(action: {
+                            deleteIngredient(at: index)
+                        }) {
+                            Image(systemName: "trash")
+                                .foregroundColor(.red)
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                    }
+                }
+                .padding(8)
+                .background(Color(.systemBackground))
+                .cornerRadius(8)
+            } else {
+                // Display mode
+                HStack(alignment: .top, spacing: 10) {
+                    Text("•")
+                    
+                    VStack(alignment: .leading, spacing: 2) {
+                        if let original = ingredient.original, !original.isEmpty {
+                            Text(original)
+                                .font(.subheadline)
+                        } else if let amount = ingredient.amount,
+                                  let unit = ingredient.unit,
+                                  let name = ingredient.name {
+                            HStack {
+                                Text("\(formatAmount(amount)) \(unit)")
+                                    .bold()
+                                Text(name)
+                            }
+                            if let metric = ingredient.measures?.metric,
+                               let metricAmount = metric.amount,
+                               let metricUnit = metric.unitShort {
+                                Text("\(formatAmount(metricAmount)) \(metricUnit)")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                    }
+                    .font(.subheadline)
+                    
+                    Spacer()
+                }
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    withAnimation {
+                        editingIngredientIndex = index
+                    }
+                }
+            }
+        }
+    }
+    
+    private func addNewIngredient() {
+        let newIngredient = ExtendedIngredient(
+            id: nil,
+            aisle: nil,
+            image: nil,
+            consistency: nil,
+            name: "New ingredient",
+            nameClean: nil,
+            original: "1 new ingredient",
+            originalName: nil,
+            amount: 1.0,
+            unit: "",
+            meta: nil,
+            measures: nil
+        )
+        editedIngredients.append(newIngredient)
+        editingIngredientIndex = editedIngredients.count - 1
+    }
+    
+    private func deleteIngredient(at index: Int) {
+        withAnimation {
+            editedIngredients.remove(at: index)
+            editingIngredientIndex = nil
+        }
+    }
+    
+    private func updateIngredient(_ ingredient: ExtendedIngredient, withText text: String) -> ExtendedIngredient {
+        // Create a new ExtendedIngredient with updated values
+        // since the struct properties are immutable (let constants)
+        
+        // Try to parse amount and name from the text
+        let components = text.components(separatedBy: .whitespaces).filter { !$0.isEmpty }
+        
+        var newAmount = ingredient.amount
+        var newUnit = ingredient.unit
+        var newName = ingredient.name
+        
+        if components.count >= 2 {
+            // First component might be amount
+            if let amount = Double(components[0]) {
+                newAmount = amount
+                newUnit = components.count > 1 ? components[1] : ""
+                newName = components.dropFirst(2).joined(separator: " ")
+            } else {
+                newName = text
+            }
+        } else if !text.isEmpty {
+            newName = text
+        }
+        
+        // Return a new instance with updated values
+        return ExtendedIngredient(
+            id: ingredient.id,
+            aisle: ingredient.aisle,
+            image: ingredient.image,
+            consistency: ingredient.consistency,
+            name: newName,
+            nameClean: ingredient.nameClean,
+            original: text,  // Update the original text field
+            originalName: ingredient.originalName,
+            amount: newAmount,
+            unit: newUnit,
+            meta: ingredient.meta,
+            measures: ingredient.measures
+        )
     }
     
     private func formatAmount(_ amount: Double) -> String {
@@ -349,6 +488,9 @@ struct ParsedRecipeDisplayView: View {
         print("💾 [SaveRecipe] Starting save process...")
         print("💾 [SaveRecipe] Recipe UUID: \(recipe.uuid)")
         print("💾 [SaveRecipe] Recipe title: \(recipe.title ?? "nil")")
+        
+        // Update recipe with edited ingredients before saving
+        recipe.extendedIngredients = editedIngredients
         
         modelContext.insert(recipe)
         print("💾 [SaveRecipe] Inserted recipe into context")
@@ -435,19 +577,19 @@ struct ParsedRecipeDisplayView: View {
         }
         
         text += "Ingredients:\n"
-        if let ingredients = recipe.extendedIngredients {
-            for ingredient in ingredients {
-                if let amount = ingredient.amount,
-                   let unit = ingredient.unit,
-                   let name = ingredient.name {
-                    text += "• \(formatAmount(amount)) \(unit) \(name)"
-                    if let metric = ingredient.measures?.metric,
-                       let metricAmount = metric.amount,
-                       let metricUnit = metric.unitShort {
-                        text += " (\(formatAmount(metricAmount)) \(metricUnit))"
-                    }
-                    text += "\n"
+        for ingredient in editedIngredients {
+            if let original = ingredient.original {
+                text += "• \(original)\n"
+            } else if let amount = ingredient.amount,
+                      let unit = ingredient.unit,
+                      let name = ingredient.name {
+                text += "• \(formatAmount(amount)) \(unit) \(name)"
+                if let metric = ingredient.measures?.metric,
+                   let metricAmount = metric.amount,
+                   let metricUnit = metric.unitShort {
+                    text += " (\(formatAmount(metricAmount)) \(metricUnit))"
                 }
+                text += "\n"
             }
         }
         
