@@ -64,7 +64,7 @@ struct RecipeDetail: View {
                     .onAppear {
                         if !didSetupFields {
                             editedTitle = recipe.title ?? ""
-                            editedSummary = cleanSummary(recipe.summary ?? "")
+                            editedSummary = recipe.summary ?? ""
                             editedCreditsText = recipe.creditsText ?? ""
                             didSetupFields = true
                         }
@@ -134,16 +134,20 @@ struct RecipeDetail: View {
     
     @ViewBuilder
     private func recipeDetailContent(for recipe: RecipeModel) -> some View {
-        TextField("Title", text: $editedTitle)
-            .font(.title)
-            .fontWeight(.bold)
-            .padding(.top)
-            .textFieldStyle(.roundedBorder)
+        // MARK: - Title & Credits Section
+        VStack(alignment: .leading, spacing: 12) {
+            TextField("Recipe Title", text: $editedTitle)
+                .font(.title)
+                .fontWeight(.bold)
+                .textFieldStyle(.roundedBorder)
+            
+            TextField("Credits (optional)", text: $editedCreditsText)
+                .font(.subheadline)
+                .textFieldStyle(.roundedBorder)
+        }
+        .padding(.top)
         
-        TextField("Credits", text: $editedCreditsText)
-            .textFieldStyle(.roundedBorder)
-        
-        // Display featured media or fall back to legacy image field
+        // MARK: - Featured Image
         if let featuredURL = recipe.featuredMediaURL, !featuredURL.isEmpty {
             // Check if it's a remote URL (http/https)
             if featuredURL.hasPrefix("http://") || featuredURL.hasPrefix("https://") {
@@ -160,12 +164,7 @@ struct RecipeDetail: View {
                                 .frame(maxWidth: .infinity)
                                 .cornerRadius(8)
                         case .failure(_):
-                            Image(systemName: "photo")
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: 120, height: 120)
-                                .foregroundColor(.gray)
-                                .frame(maxWidth: .infinity)
+                            placeholderImage
                         @unknown default:
                             EmptyView()
                         }
@@ -181,169 +180,208 @@ struct RecipeDetail: View {
                         .scaledToFit()
                         .frame(maxWidth: .infinity)
                         .cornerRadius(8)
-                        .onAppear {
-                            print("🖼️ [RecipeDetail] Showing local file image")
-                            print("🖼️ [RecipeDetail] file path: '\(featuredURL)'")
-                        }
                 } else {
-                    Image(systemName: "photo")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 120, height: 120)
-                        .foregroundColor(.gray)
-                        .frame(maxWidth: .infinity)
-                        .onAppear {
-                            print("⚠️ [RecipeDetail] Failed to load local image")
-                            print("⚠️ [RecipeDetail] file path: '\(featuredURL)'")
-                        }
+                    placeholderImage
                 }
             }
         }
 
-        TextEditor(text: $editedSummary)
-            .frame(minHeight: 60, maxHeight: 120)
-            .font(.body)
-            .foregroundColor(.secondary)
-            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.gray.opacity(0.3)))
-            .padding(.bottom, 4)
-        
-        if !editedSummary.isEmpty && cleanSummary(editedSummary) != editedSummary {
-            Text(cleanSummary(editedSummary))
-                .font(.footnote)
-                .foregroundColor(.secondary)
-                .padding(.top, 2)
-        }
-
-        if (editedTitle.trimmingCharacters(in: .whitespacesAndNewlines) != (recipe.title ?? "")
-            || editedSummary.trimmingCharacters(in: .whitespacesAndNewlines) != (recipe.summary ?? "")
-            || editedCreditsText.trimmingCharacters(in: .whitespacesAndNewlines) != (recipe.creditsText ?? "")) {
-            Button("Save Changes") {
-                saveEdits()
-            }
-            .buttonStyle(.borderedProminent)
-            .padding(.bottom, 8)
-            .disabled(
-                (editedTitle.trimmingCharacters(in: .whitespacesAndNewlines) == (recipe.title ?? "")) &&
-                (editedSummary.trimmingCharacters(in: .whitespacesAndNewlines) == (recipe.summary ?? "")) &&
-                (editedCreditsText.trimmingCharacters(in: .whitespacesAndNewlines) == (recipe.creditsText ?? ""))
-            )
-        }
-        if let msg = saveMessage {
-            Text(msg).foregroundColor(.accentColor)
-        }
-        
-        Button(action: { showExtrasPanel = true }) {
-            Label("More Info", systemImage: "info.circle")
-        }
-        .padding(.vertical, 4)
-
-        NavigationLink(destination: RecipeEditorView(recipe: recipe)) {
-            Label("Edit Recipe", systemImage: "pencil")
-        }
-        .buttonStyle(.bordered)
-        .padding(.vertical, 4)
-
-        // --- Added Info Section ---
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Info")
+        // MARK: - Summary Section
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Summary")
                 .font(.headline)
             
-            Group {
-                if let readyInMinutes = recipe.readyInMinutes, readyInMinutes > 0 {
-                    Label("\(readyInMinutes) min", systemImage: "clock")
-                }
-                if let cookingMinutes = recipe.cookingMinutes, cookingMinutes > 0 {
-                    Label("\(cookingMinutes) min Cooking", systemImage: "flame")
-                }
-                if let preparationMinutes = recipe.preparationMinutes, preparationMinutes > 0 {
-                    Label("\(preparationMinutes) min Prep", systemImage: "hourglass")
-                }
-                if let servings = recipe.servings, servings > 0 {
-                    Label("Serves \(servings)", systemImage: "person.2")
-                }
-                if let aggregateLikes = recipe.aggregateLikes, aggregateLikes > 0 {
-                    Label("\(aggregateLikes) Likes", systemImage: "hand.thumbsup")
-                }
-                if let healthScore = recipe.healthScore, healthScore > 0 {
-                    Label("Health Score: \(healthScore)", systemImage: "heart")
-                }
-                if let spoonacularScore = recipe.spoonacularScore, spoonacularScore > 0 {
-                    Label("Spoonacular Score: \(spoonacularScore)", systemImage: "star")
-                }
-                if let sourceUrl = recipe.sourceURL, !sourceUrl.isEmpty {
-                    Label(sourceUrl, systemImage: "link")
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                }
-                if !recipe.cuisines.isEmpty {
-                    Label(recipe.cuisines.joined(separator: ", "), systemImage: "fork.knife")
-                }
-                if !recipe.dishTypes.isEmpty {
-                    Label(recipe.dishTypes.joined(separator: ", "), systemImage: "tag")
-                }
-                if !recipe.diets.isEmpty {
-                    Label(recipe.diets.joined(separator: ", "), systemImage: "leaf")
-                }
-                if !recipe.occasions.isEmpty {
-                    Label(recipe.occasions.joined(separator: ", "), systemImage: "calendar")
-                }
-            }
-            .font(.subheadline)
+            TextEditor(text: $editedSummary)
+                .frame(minHeight: 80, maxHeight: 150)
+                .font(.body)
+                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.gray.opacity(0.3)))
         }
-        // --- End Info Section ---
-        
-        Button(action: { showExtrasPanel = true }) {
-            Label("More Info", systemImage: "info.circle")
-        }
-        .padding(.vertical, 4)
-        
-        Button("Email Recipe") {
-            if MFMailComposeViewController.canSendMail() {
-                showingEmailComposer = true
-            } else {
-                showingMailNotAvailableAlert = true
-            }
-        }
-        .buttonStyle(.bordered)
-        .padding(.vertical, 4)
-        .disabled(!MFMailComposeViewController.canSendMail())
 
-        if let sourceUrlString = recipe.sourceURL,
-           let url = URL(string: sourceUrlString),
-           url.scheme?.hasPrefix("http") == true {
-            Button("View in Browser") {
-                showingSafari = true
+        // MARK: - Save Button
+        if hasUnsavedChanges(for: recipe) {
+            HStack {
+                Button("Save Changes") {
+                    saveEdits()
+                }
+                .buttonStyle(.borderedProminent)
+                
+                Button("Cancel") {
+                    resetFields(for: recipe)
+                }
+                .buttonStyle(.bordered)
             }
-            .buttonStyle(.bordered)
-            .padding(.vertical, 4)
-
-            Button("Share") {
-                showShareSheet = true
-            }
-            .buttonStyle(.bordered)
-            .padding(.vertical, 4)
-            
-            Button("Add Contacts") {
-                showingContactPicker = true
-            }
-            .buttonStyle(.bordered)
-            .padding(.vertical, 4)
-            
-            PhotosPicker(
-                selection: $selectedPhotoItems,
-                maxSelectionCount: 4,
-                matching: .images,
-                photoLibrary: .shared()) {
-                Label("Add Photos", systemImage: "photo.on.rectangle.angled")
-            }
-            .padding(.vertical, 4)
+            .padding(.vertical, 8)
         }
         
+        if let msg = saveMessage {
+            Text(msg)
+                .foregroundColor(.green)
+                .font(.subheadline)
+        }
+
+        Divider()
+            .padding(.vertical, 8)
+
+        // MARK: - Quick Info Section
+        if hasQuickInfo(for: recipe) {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Quick Info")
+                    .font(.headline)
+                
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                    if let readyInMinutes = recipe.readyInMinutes, readyInMinutes > 0 {
+                        quickInfoItem(icon: "clock", text: "\(readyInMinutes) min")
+                    }
+                    if let servings = recipe.servings, servings > 0 {
+                        quickInfoItem(icon: "person.2", text: "Serves \(servings)")
+                    }
+                    if let cookingMinutes = recipe.cookingMinutes, cookingMinutes > 0 {
+                        quickInfoItem(icon: "flame", text: "\(cookingMinutes) min cook")
+                    }
+                    if let preparationMinutes = recipe.preparationMinutes, preparationMinutes > 0 {
+                        quickInfoItem(icon: "hourglass", text: "\(preparationMinutes) min prep")
+                    }
+                }
+            }
+            .padding(.vertical, 8)
+            
+            Divider()
+                .padding(.vertical, 8)
+        }
+        
+        // MARK: - Ingredients Section (IMPROVED)
         IngredientListView(ingredients: recipe.extendedIngredients ?? [])
+            .padding(.vertical, 8)
         
+        Divider()
+            .padding(.vertical, 8)
+        
+        // MARK: - Instructions Section
         InstructionListView(instructions: recipe.analyzedInstructions, plainInstructions: recipe.instructions)
+            .padding(.vertical, 8)
+        
+        Divider()
+            .padding(.vertical, 8)
+        
+        // MARK: - Actions Section
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Actions")
+                .font(.headline)
+            
+            // Edit Recipe
+            NavigationLink(destination: RecipeEditorView(recipe: recipe)) {
+                Label("Edit Full Recipe Details", systemImage: "pencil")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .buttonStyle(.bordered)
+            
+            // More Info
+            Button(action: { showExtrasPanel = true }) {
+                Label("View Additional Info", systemImage: "info.circle")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .buttonStyle(.bordered)
+            
+            // Email Recipe
+            Button(action: {
+                if MFMailComposeViewController.canSendMail() {
+                    showingEmailComposer = true
+                } else {
+                    showingMailNotAvailableAlert = true
+                }
+            }) {
+                Label("Email Recipe", systemImage: "envelope")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .buttonStyle(.bordered)
+            .disabled(!MFMailComposeViewController.canSendMail())
+
+            // Browser and sharing options (only if valid URL exists)
+            if let sourceUrlString = recipe.sourceURL,
+               let url = URL(string: sourceUrlString),
+               url.scheme?.hasPrefix("http") == true {
+                
+                Button(action: { showingSafari = true }) {
+                    Label("View in Browser", systemImage: "safari")
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .buttonStyle(.bordered)
+
+                Button(action: { showShareSheet = true }) {
+                    Label("Share Recipe", systemImage: "square.and.arrow.up")
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .buttonStyle(.bordered)
+                
+                Button(action: { showingContactPicker = true }) {
+                    Label("Add Contacts for Sharing", systemImage: "person.crop.circle.badge.plus")
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .buttonStyle(.bordered)
+                
+                PhotosPicker(
+                    selection: $selectedPhotoItems,
+                    maxSelectionCount: 4,
+                    matching: .images,
+                    photoLibrary: .shared()) {
+                    Label("Add Photos for Sharing", systemImage: "photo.on.rectangle.angled")
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .buttonStyle(.bordered)
+            }
+        }
+        .padding(.vertical, 8)
         
         Spacer()
+    }
+    
+    // MARK: - Helper Views
+    
+    private var placeholderImage: some View {
+        Image(systemName: "photo")
+            .resizable()
+            .scaledToFit()
+            .frame(width: 120, height: 120)
+            .foregroundColor(.gray)
+            .frame(maxWidth: .infinity, minHeight: 200)
+            .background(Color.gray.opacity(0.1))
+            .cornerRadius(8)
+    }
+    
+    private func quickInfoItem(icon: String, text: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .foregroundColor(.accentColor)
+                .frame(width: 20)
+            Text(text)
+                .font(.subheadline)
+            Spacer()
+        }
+        .padding(8)
+        .background(Color.gray.opacity(0.1))
+        .cornerRadius(8)
+    }
+    
+    // MARK: - Helper Methods
+    
+    private func hasUnsavedChanges(for recipe: RecipeModel) -> Bool {
+        return editedTitle.trimmingCharacters(in: .whitespacesAndNewlines) != (recipe.title ?? "") ||
+               editedSummary.trimmingCharacters(in: .whitespacesAndNewlines) != (recipe.summary ?? "") ||
+               editedCreditsText.trimmingCharacters(in: .whitespacesAndNewlines) != (recipe.creditsText ?? "")
+    }
+    
+    private func resetFields(for recipe: RecipeModel) {
+        editedTitle = recipe.title ?? ""
+        editedSummary = recipe.summary ?? ""
+        editedCreditsText = recipe.creditsText ?? ""
+        saveMessage = nil
+    }
+    
+    private func hasQuickInfo(for recipe: RecipeModel) -> Bool {
+        return recipe.readyInMinutes ?? 0 > 0 ||
+               recipe.servings ?? 0 > 0 ||
+               recipe.cookingMinutes ?? 0 > 0 ||
+               recipe.preparationMinutes ?? 0 > 0
     }
     
     private func saveEdits() {
@@ -353,7 +391,7 @@ struct RecipeDetail: View {
         }
         
         let titleToSave = editedTitle.trimmingCharacters(in: .whitespacesAndNewlines)
-        let summaryToSave = cleanSummary(editedSummary)
+        let summaryToSave = editedSummary.trimmingCharacters(in: .whitespacesAndNewlines)
         let creditsToSave = editedCreditsText.trimmingCharacters(in: .whitespacesAndNewlines)
         
         // Update the RecipeModel directly
@@ -364,7 +402,12 @@ struct RecipeDetail: View {
         
         do {
             try modelContext.save()
-            saveMessage = "Saved!"
+            saveMessage = "✓ Changes saved successfully!"
+            
+            // Clear message after 2 seconds
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                saveMessage = nil
+            }
         } catch {
             saveMessage = "Save failed: \(error.localizedDescription)"
         }
@@ -450,29 +493,75 @@ private struct IngredientListView: View {
     @State private var availableReminderLists: [EKCalendar] = []
     @State private var selectedList: EKCalendar?
     
+    private var validIngredients: [ExtendedIngredient] {
+        ingredients.filter { ($0.original ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false }
+    }
+    
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Ingredients")
-                .font(.headline)
-                .padding(.bottom, 4)
-            
-            ForEach(ingredients.indices, id: \.self) { index in
-                Text("• \(ingredients[index].original ?? "")")
-                    .font(.body)
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Ingredients")
+                    .font(.headline)
+                
+                if !validIngredients.isEmpty {
+                    Spacer()
+                    Text("\(validIngredients.count)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color.accentColor.opacity(0.2))
+                        .cornerRadius(8)
+                }
             }
             
-            Button("Add Ingredients to Reminders") {
-                reminderMessage = nil
-                selectedIndices = []
-                showReminderPicker = true
-            }
-            .padding(.top, 8)
-            .buttonStyle(.bordered)
-            
-            if let msg = reminderMessage {
-                Text(msg)
-                    .foregroundColor(.secondary)
-                    .padding(.top, 4)
+            if validIngredients.isEmpty {
+                HStack(spacing: 12) {
+                    Image(systemName: "exclamationmark.triangle")
+                        .foregroundColor(.orange)
+                        .font(.title2)
+                    
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("No ingredients found")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                        
+                        Text("Use 'Edit Full Recipe Details' to add ingredients.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.orange.opacity(0.1))
+                .cornerRadius(8)
+            } else {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(validIngredients.indices, id: \.self) { index in
+                        HStack(alignment: .top, spacing: 8) {
+                            Text("•")
+                                .foregroundColor(.accentColor)
+                                .fontWeight(.bold)
+                            Text(validIngredients[index].original ?? "")
+                                .font(.body)
+                        }
+                    }
+                }
+                
+                Button("Add to Reminders") {
+                    reminderMessage = nil
+                    selectedIndices = []
+                    showReminderPicker = true
+                }
+                .padding(.top, 8)
+                .buttonStyle(.bordered)
+                
+                if let msg = reminderMessage {
+                    Text(msg)
+                        .foregroundColor(.green)
+                        .font(.caption)
+                        .padding(.top, 4)
+                }
             }
         }
         .sheet(isPresented: $showReminderPicker) {
@@ -480,29 +569,36 @@ private struct IngredientListView: View {
                 List {
                     // Picker for reminder list selection
                     if !availableReminderLists.isEmpty {
-                        Picker("Reminder List", selection: $selectedList) {
-                            ForEach(availableReminderLists, id: \.calendarIdentifier) { calendar in
-                                Text(calendar.title).tag(calendar as EKCalendar?)
+                        Section("Reminder List") {
+                            Picker("List", selection: $selectedList) {
+                                ForEach(availableReminderLists, id: \.calendarIdentifier) { calendar in
+                                    Text(calendar.title).tag(calendar as EKCalendar?)
+                                }
                             }
+                            .pickerStyle(.menu)
                         }
                     }
                     
-                    ForEach(ingredients.indices, id: \.self) { i in
-                        Toggle(isOn: Binding(
-                            get: { selectedIndices.contains(i) },
-                            set: { val in
-                                if val {
-                                    selectedIndices.insert(i)
-                                } else {
-                                    selectedIndices.remove(i)
+                    Section("Select Ingredients") {
+                        ForEach(validIngredients.indices, id: \.self) { i in
+                            Toggle(isOn: Binding(
+                                get: { selectedIndices.contains(i) },
+                                set: { val in
+                                    if val {
+                                        selectedIndices.insert(i)
+                                    } else {
+                                        selectedIndices.remove(i)
+                                    }
                                 }
+                            )) {
+                                Text(validIngredients[i].original ?? "")
+                                    .lineLimit(2)
                             }
-                        )) {
-                            Text(ingredients[i].original ?? "")
                         }
                     }
                 }
-                .navigationTitle("Select Ingredients")
+                .navigationTitle("Add to Reminders")
+                .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) {
                         Button("Add") {
@@ -516,11 +612,15 @@ private struct IngredientListView: View {
                         }
                     }
                 }
-                if let msg = reminderMessage {
-                    Text(msg)
-                        .foregroundColor(.secondary)
-                        .padding()
-                        .frame(maxWidth: .infinity, alignment: .center)
+                .safeAreaInset(edge: .bottom) {
+                    if let msg = reminderMessage {
+                        Text(msg)
+                            .foregroundColor(.green)
+                            .font(.caption)
+                            .padding()
+                            .frame(maxWidth: .infinity)
+                            .background(Color.green.opacity(0.1))
+                    }
                 }
             }
             .onAppear {
@@ -564,7 +664,7 @@ private struct IngredientListView: View {
                     self.reminderMessage = "No reminder list selected."
                     return
                 }
-                let selected = self.selectedIndices.sorted().compactMap { idx in self.ingredients[safe: idx]?.original }
+                let selected = self.selectedIndices.sorted().compactMap { idx in self.validIngredients[safe: idx]?.original }
                 if selected.isEmpty {
                     self.reminderMessage = "No ingredients selected."
                     return
@@ -584,8 +684,11 @@ private struct IngredientListView: View {
                 }
                 do {
                     try mainStore.commit()
-                    self.reminderMessage = "Added \(selected.count) reminders to \(self.selectedList?.title ?? "list")."
-                    self.showReminderPicker = false
+                    self.reminderMessage = "✓ Added \(selected.count) ingredient\(selected.count == 1 ? "" : "s") to \(self.selectedList?.title ?? "list")"
+                    // Delay dismissal so user can see the success message
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                        self.showReminderPicker = false
+                    }
                 } catch {
                     self.reminderMessage = "Failed to commit reminders: \(error.localizedDescription)"
                 }
@@ -609,56 +712,90 @@ private struct InstructionListView: View {
         self.plainInstructions = plainInstructions
     }
     
+    private var hasInstructions: Bool {
+        if let instructions = instructions, !instructions.isEmpty {
+            return true
+        }
+        if let plainText = plainInstructions, !plainText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return true
+        }
+        return false
+    }
+    
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            // First, try to display structured instructions
-            if let instructions = instructions, !instructions.isEmpty {
-                Text("Instructions")
-                    .font(.headline)
-                    .padding(.bottom, 4)
-                
-                ForEach(instructions) { instruction in
-                    if let name = instruction.name, !name.isEmpty {
-                        Text(name)
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Instructions")
+                .font(.headline)
+            
+            if !hasInstructions {
+                HStack(spacing: 12) {
+                    Image(systemName: "exclamationmark.triangle")
+                        .foregroundColor(.orange)
+                        .font(.title2)
+                    
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("No instructions found")
                             .font(.subheadline)
                             .fontWeight(.semibold)
-                            .padding(.top, 4)
-                    }
-                    ForEach(instruction.steps ?? []) { step in
-                        let stepText = step.step ?? ""
-                        HStack(alignment: .top, spacing: 8) {
-                            Text("\(step.number ?? 0).")
-                                .fontWeight(.bold)
-                                .foregroundColor(.accentColor)
-                            Text(stepText)
-                                .font(.body)
-                        }
-                        .padding(.bottom, 4)
+                        
+                        Text("Use 'Edit Full Recipe Details' to add instructions.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
                     }
                 }
-            }
-            // Fallback to plain text instructions (from OCR parsing)
-            else if let plainText = plainInstructions, !plainText.isEmpty {
-                Text("Instructions")
-                    .font(.headline)
-                    .padding(.bottom, 4)
-                
-                // Split text to detect and highlight "Variations:" section
-                let lines = plainText.components(separatedBy: .newlines)
-                ForEach(Array(lines.enumerated()), id: \.offset) { index, line in
-                    let trimmedLine = line.trimmingCharacters(in: .whitespaces)
-                    if trimmedLine.lowercased().hasPrefix("variations:") || trimmedLine.lowercased().hasPrefix("variation:") {
-                        // Highlight variation header
-                        Text(trimmedLine)
-                            .font(.subheadline)
-                            .fontWeight(.semibold)
-                            .foregroundColor(.accentColor)
-                            .padding(.top, 12)
-                            .padding(.bottom, 4)
-                    } else if !trimmedLine.isEmpty {
-                        Text(trimmedLine)
-                            .font(.body)
-                            .padding(.leading, isVariationItem(trimmedLine) ? 8 : 0)
+                .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.orange.opacity(0.1))
+                .cornerRadius(8)
+            } else {
+                // First, try to display structured instructions
+                if let instructions = instructions, !instructions.isEmpty {
+                    ForEach(instructions) { instruction in
+                        if let name = instruction.name, !name.isEmpty {
+                            Text(name)
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.accentColor)
+                                .padding(.top, 8)
+                        }
+                        
+                        if let steps = instruction.steps, !steps.isEmpty {
+                            ForEach(steps) { step in
+                                if let stepText = step.step, !stepText.isEmpty {
+                                    HStack(alignment: .top, spacing: 12) {
+                                        Text("\(step.number ?? 0).")
+                                            .fontWeight(.bold)
+                                            .foregroundColor(.accentColor)
+                                            .frame(minWidth: 24, alignment: .trailing)
+                                        
+                                        Text(stepText)
+                                            .font(.body)
+                                            .fixedSize(horizontal: false, vertical: true)
+                                    }
+                                    .padding(.vertical, 4)
+                                }
+                            }
+                        }
+                    }
+                }
+                // Fallback to plain text instructions (from OCR parsing)
+                else if let plainText = plainInstructions, !plainText.isEmpty {
+                    let lines = plainText.components(separatedBy: .newlines)
+                    ForEach(Array(lines.enumerated()), id: \.offset) { index, line in
+                        let trimmedLine = line.trimmingCharacters(in: .whitespaces)
+                        if trimmedLine.lowercased().hasPrefix("variations:") || trimmedLine.lowercased().hasPrefix("variation:") {
+                            // Highlight variation header
+                            Text(trimmedLine)
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.accentColor)
+                                .padding(.top, 12)
+                        } else if !trimmedLine.isEmpty {
+                            Text(trimmedLine)
+                                .font(.body)
+                                .padding(.leading, isVariationItem(trimmedLine) ? 12 : 0)
+                                .padding(.vertical, 2)
+                        }
                     }
                 }
             }
@@ -852,7 +989,7 @@ private struct MailComposeView: UIViewControllerRepresentable {
         }
         
         if let summary = recipe.summary, !summary.isEmpty {
-            html += "<p>\(cleanSummary(summary))</p>"
+            html += "<p>\(summary)</p>"
         }
         
         html += "<div class='info'>"
