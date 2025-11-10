@@ -168,26 +168,88 @@ class TableFormatRecipeParser: RecipeImageParserProtocol, @unchecked Sendable {
     
     // MARK: - Text Extraction
     
-    private nonisolated func extractText(from observations: [VNRecognizedTextObservation]) -> ParsedRecipeText {
-        var parsed = ParsedRecipeText()
-        
-        // Sort observations by vertical position (top to bottom)
-        let sortedObservations = observations.sorted { obs1, obs2 in
+    /// Groups text observations that appear on the same horizontal line
+    /// This is crucial for table-format recipes where columns get read separately
+    private nonisolated func groupObservationsByRow(_ observations: [VNRecognizedTextObservation]) -> [[VNRecognizedTextObservation]] {
+        // Group observations that have similar Y coordinates (within a threshold)
+        // Use the height of text boxes to determine threshold - more adaptive than fixed percentage
+        let sortedByY = observations.sorted { obs1, obs2 in
             obs1.boundingBox.origin.y > obs2.boundingBox.origin.y
         }
         
+        // Calculate average text height for adaptive threshold
+        let avgHeight = observations.map { $0.boundingBox.height }.reduce(0, +) / CGFloat(observations.count)
+        let verticalThreshold = avgHeight * 0.75 // 75% of average text height
+        
+        print("📏 [OCR] Average text height: \(String(format: "%.4f", avgHeight)), threshold: \(String(format: "%.4f", verticalThreshold))")
+        
+        var rows: [[VNRecognizedTextObservation]] = []
+        
+        for observation in sortedByY {
+            let currentY = observation.boundingBox.origin.y
+            let currentHeight = observation.boundingBox.height
+            
+            // Try to find an existing row this observation belongs to
+            var foundRow = false
+            for (index, row) in rows.enumerated() {
+                // Check if this observation overlaps vertically with any observation in this row
+                // Use the midpoint of the bounding box for better accuracy
+                if let firstInRow = row.first {
+                    let rowY = firstInRow.boundingBox.origin.y
+                    let rowHeight = firstInRow.boundingBox.height
+                    let rowMidpoint = rowY + (rowHeight / 2)
+                    let currentMidpoint = currentY + (currentHeight / 2)
+                    
+                    // Check if midpoints are close enough
+                    if abs(currentMidpoint - rowMidpoint) < verticalThreshold {
+                        rows[index].append(observation)
+                        foundRow = true
+                        break
+                    }
+                }
+            }
+            
+            // If not found, create a new row
+            if !foundRow {
+                rows.append([observation])
+            }
+        }
+        
+        print("🔲 [OCR] Grouped \(observations.count) observations into \(rows.count) rows")
+        
+        return rows
+    }
+    
+    private nonisolated func extractText(from observations: [VNRecognizedTextObservation]) -> ParsedRecipeText {
+        var parsed = ParsedRecipeText()
+        
+        // First, group observations by their vertical position (same row)
+        let groupedByRow = groupObservationsByRow(observations)
+        
+        // Convert each row group to a single line of text
         var allLines: [String] = []
         
-        for observation in sortedObservations {
-            guard let topCandidate = observation.topCandidates(1).first else { continue }
-            let text = topCandidate.string.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !text.isEmpty {
-                allLines.append(text)
+        for rowObservations in groupedByRow {
+            // Sort by horizontal position (left to right)
+            let sortedByX = rowObservations.sorted { obs1, obs2 in
+                obs1.boundingBox.origin.x < obs2.boundingBox.origin.x
+            }
+            
+            // Combine text from this row
+            let rowTexts = sortedByX.compactMap { observation -> String? in
+                guard let topCandidate = observation.topCandidates(1).first else { return nil }
+                let text = topCandidate.string.trimmingCharacters(in: .whitespacesAndNewlines)
+                return text.isEmpty ? nil : text
+            }
+            
+            if !rowTexts.isEmpty {
+                // Join with space to create a single line
+                allLines.append(rowTexts.joined(separator: " "))
             }
         }
         
         // Debug: Print all extracted lines
-        print("📝 [OCR] Extracted \(allLines.count) lines:")
+        print("📝 [OCR] Extracted \(allLines.count) lines (grouped by row):")
         for (index, line) in allLines.enumerated() {
             print("   Line \(index): \"\(line)\"")
         }
@@ -495,107 +557,165 @@ class TableFormatRecipeParser: RecipeImageParserProtocol, @unchecked Sendable {
     private nonisolated func parseSingleIngredient(_ components: [String]) -> ParsedIngredient? {
         guard !components.isEmpty else { return nil }
         
+        // Join all components to check for complex metric formats
+        let fullText = components.joined(separator: " ")
+        
         // Handle special case: ingredient without amount (e.g., "salt, to taste")
         if components.count == 1 || !isAmount(components[0]) {
-            let ingredientName = components.joined(separator: " ")
+            let ingredientName = cleanIngredientName(fullText)
             return ParsedIngredient(
                 imperialAmount: "to taste",
-                name: cleanIngredientName(ingredientName),
+                name: ingredientName,
                 metricAmount: nil
             )
         }
         
         guard components.count >= 2 else { return nil }
         
-        // Find where metric measurements start (if any)
-        var metricStartIndex: Int?
-        
-        for (index, component) in components.enumerated() {
-            if index < 2 { continue } // Skip the first amount/unit
-            
-            // Look for metric indicators
-            if component.contains("mL") || component.contains("ml") || 
-               component.contains("L") || component.contains("g") || 
-               component.contains("kg") {
-                // Check if previous component is a number
-                if index > 0, isAmount(components[index - 1]) {
-                    metricStartIndex = index - 1
-                    break
-                }
-                // Or this component starts with a number
-                if isAmount(String(component.prefix(while: { $0.isNumber || $0 == "." || $0 == "," }))) {
-                    metricStartIndex = index
-                    break
-                }
-            }
-            // Look for parentheses containing metric (e.g., "(125 mL)")
-            else if component.hasPrefix("(") {
-                metricStartIndex = index
-                break
-            }
-            // Look for standalone numbers after we have amount + unit + name
-            else if index >= 3, isAmount(component) {
-                metricStartIndex = index
-                break
+        // First, try to extract metric using specialized patterns
+        var extractedMetric: String?
+        if containsMetricUnits(fullText) {
+            extractedMetric = extractMetricMeasurement(fullText)
+            if let metric = extractedMetric {
+                print("   📐 Extracted metric: '\(metric)' from '\(fullText)'")
             }
         }
+        
+        // Strategy: Find all measurement clusters (amount + optional unit)
+        // Then determine which is imperial and which is metric
+        var measurementClusters: [(startIndex: Int, endIndex: Int, text: String)] = []
+        var i = 0
+        
+        while i < components.count {
+            if isAmount(components[i]) {
+                var clusterEnd = i + 1
+                // Check if next component is a unit
+                if clusterEnd < components.count && isUnit(components[clusterEnd]) {
+                    clusterEnd += 1
+                }
+                
+                let clusterText = Array(components[i..<clusterEnd]).joined(separator: " ")
+                measurementClusters.append((startIndex: i, endIndex: clusterEnd, text: clusterText))
+                i = clusterEnd
+            } else {
+                i += 1
+            }
+        }
+        
+        print("   🔍 Found \(measurementClusters.count) measurement cluster(s) in: \(components.joined(separator: " "))")
         
         var imperialAmount = ""
         var ingredientName = ""
         var metricAmount: String?
+        var imperialEndIndex = 0
+        var metricStartIndex: Int?
         
-        // Determine imperial amount (first 1-2 components)
-        let firstComponent = components[0]
-        var imperialEndIndex = 1
-        
-        if components.count > 1 {
-            let secondComponent = components[1]
-            // Check if second component is a unit
-            if isUnit(secondComponent) {
-                imperialAmount = "\(firstComponent) \(secondComponent)"
-                imperialEndIndex = 2
-            } else {
-                imperialAmount = firstComponent
-                imperialEndIndex = 1
+        if measurementClusters.isEmpty {
+            // No measurements found - treat entire thing as ingredient name
+            ingredientName = fullText
+            imperialAmount = "to taste"
+        } else if measurementClusters.count == 1 {
+            // Only one measurement - it's the imperial amount
+            let cluster = measurementClusters[0]
+            imperialAmount = cluster.text
+            imperialEndIndex = cluster.endIndex
+            
+            // Everything after is the ingredient name (minus any extracted metric)
+            if imperialEndIndex < components.count {
+                var nameComponents = Array(components[imperialEndIndex...])
+                let namePart = nameComponents.joined(separator: " ")
+                
+                // If we extracted metric earlier, remove it from name
+                if let metric = extractedMetric {
+                    ingredientName = namePart.replacingOccurrences(of: metric, with: "")
+                    metricAmount = metric
+                } else {
+                    ingredientName = namePart
+                }
             }
         } else {
-            imperialAmount = firstComponent
-        }
-        
-        // Determine ingredient name and metric
-        if let metricIndex = metricStartIndex {
-            // Ingredient name is between imperial and metric
-            if metricIndex > imperialEndIndex {
-                let nameComponents = Array(components[imperialEndIndex..<metricIndex])
-                ingredientName = nameComponents.joined(separator: " ")
-                    .trimmingCharacters(in: CharacterSet(charactersIn: "(),"))
-            }
+            // Multiple measurements - first is imperial, determine which is metric
+            let firstCluster = measurementClusters[0]
+            imperialAmount = firstCluster.text
+            imperialEndIndex = firstCluster.endIndex
             
-            // Metric is from metricIndex to end (or until we hit certain keywords)
-            var metricEndIndex = components.count
-            for (idx, comp) in components[metricIndex...].enumerated() {
-                let lower = comp.lowercased()
-                if lower == "or" || lower == "to" || lower.hasPrefix("chopped") {
-                    metricEndIndex = metricIndex + idx
-                    break
+            // Use extracted metric if available, otherwise look for metric among clusters
+            if let metric = extractedMetric {
+                metricAmount = metric
+                
+                // Find where metric starts to properly extract ingredient name
+                for cluster in measurementClusters.dropFirst() {
+                    if cluster.text.contains("mL") || cluster.text.contains("ml") ||
+                       cluster.text.contains("L") || cluster.text.contains("g") ||
+                       cluster.text.contains("kg") {
+                        metricStartIndex = cluster.startIndex
+                        break
+                    }
+                }
+            } else {
+                // Look for metric among remaining clusters
+                for cluster in measurementClusters.dropFirst() {
+                    // Check if this cluster contains metric units
+                    let hasMetricUnit = cluster.text.contains("mL") || cluster.text.contains("ml") ||
+                                       cluster.text.contains("L") || cluster.text.contains("g") ||
+                                       cluster.text.contains("kg")
+                    
+                    // Or if it's in parentheses
+                    let inParentheses = cluster.startIndex < components.count &&
+                                       components[cluster.startIndex].hasPrefix("(")
+                    
+                    // Or if the first cluster has imperial units and this doesn't
+                    let firstHasImperialUnit = firstCluster.text.contains("tsp") || 
+                                              firstCluster.text.contains("tbsp") ||
+                                              firstCluster.text.contains("cup") ||
+                                              firstCluster.text.contains("oz") ||
+                                              firstCluster.text.contains("lb")
+                    
+                    if hasMetricUnit || inParentheses || (firstHasImperialUnit && cluster.startIndex > imperialEndIndex) {
+                        metricStartIndex = cluster.startIndex
+                        
+                        // Extract metric measurement
+                        var metricEndIdx = cluster.endIndex
+                        // Include everything up to next non-measurement component
+                        while metricEndIdx < components.count {
+                            let comp = components[metricEndIdx]
+                            if comp.lowercased() == "or" || comp.lowercased() == "to" {
+                                break
+                            }
+                            if isAmount(comp) || isUnit(comp) || comp.contains("mL") || comp.contains("g") {
+                                metricEndIdx += 1
+                            } else {
+                                break
+                            }
+                        }
+                        
+                        let metricComponents = Array(components[cluster.startIndex..<metricEndIdx])
+                        metricAmount = metricComponents.joined(separator: " ")
+                            .trimmingCharacters(in: CharacterSet(charactersIn: "(),"))
+                        break
+                    }
                 }
             }
             
-            let metricComponents = Array(components[metricIndex..<metricEndIndex])
-            metricAmount = metricComponents.joined(separator: " ")
-                .trimmingCharacters(in: CharacterSet(charactersIn: "(),"))
-        } else {
-            // No metric - everything after imperial is the name
-            if components.count > imperialEndIndex {
-                let nameComponents = Array(components[imperialEndIndex...])
-                ingredientName = nameComponents.joined(separator: " ")
-                    .trimmingCharacters(in: CharacterSet(charactersIn: "(),"))
+            // Ingredient name is between imperial and metric (or after imperial if no metric)
+            if let metricIdx = metricStartIndex {
+                if metricIdx > imperialEndIndex {
+                    let nameComponents = Array(components[imperialEndIndex..<metricIdx])
+                    ingredientName = nameComponents.joined(separator: " ")
+                }
+            } else {
+                // No metric found - everything after imperial is the name
+                if imperialEndIndex < components.count {
+                    let nameComponents = Array(components[imperialEndIndex...])
+                    ingredientName = nameComponents.joined(separator: " ")
+                }
             }
         }
         
         // Clean up ingredient name
-        ingredientName = cleanIngredientName(ingredientName)
+        ingredientName = cleanIngredientName(ingredientName).trimmingCharacters(in: CharacterSet(charactersIn: "(),"))
         
+        // If no ingredient name found, it might be all measurements - skip this
         guard !imperialAmount.isEmpty, !ingredientName.isEmpty else { return nil }
         
         return ParsedIngredient(
@@ -629,36 +749,147 @@ class TableFormatRecipeParser: RecipeImageParserProtocol, @unchecked Sendable {
             }
         }
         
+        // Remove common preparation instructions that sometimes get included
+        let preparationPatterns = [
+            "peeled and",
+            "washed and",
+            "diced",
+            "chopped", 
+            "sliced",
+            "minced",
+            "crushed",
+            "grated",
+            "shredded",
+            "finely",
+            "coarsely",
+            "roughly",
+            "fresh",
+            "dried",
+            "ground"
+        ]
+        
+        // Only remove these if they appear at the end or in parentheses
+        for pattern in preparationPatterns {
+            // Remove if in parentheses: "tomatoes (diced)"
+            let parenthesesPattern = " \\(\(pattern)[^)]*\\)"
+            cleaned = cleaned.replacingOccurrences(
+                of: parenthesesPattern,
+                with: "",
+                options: .regularExpression
+            )
+            
+            // Keep patterns that are part of the ingredient name (e.g., "ground beef", "fresh coriander")
+            // Only remove if followed by "and" or at the very end as a modifier
+            let modifierPattern = ",\\s*\(pattern)\\s*$"
+            cleaned = cleaned.replacingOccurrences(
+                of: modifierPattern,
+                with: "",
+                options: .regularExpression
+            )
+        }
+        
+        // Handle multi-line descriptions by keeping only the main ingredient
+        // Remove text after common delimiters that indicate preparation steps
+        let delimiters = [" (see ", " - ", " – "]
+        for delimiter in delimiters {
+            if let range = cleaned.range(of: delimiter, options: .caseInsensitive) {
+                cleaned = String(cleaned[..<range.lowerBound])
+            }
+        }
+        
+        // Clean up extra whitespace
+        cleaned = cleaned.replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+        
         return cleaned.trimmingCharacters(in: .whitespacesAndNewlines)
     }
     
     private nonisolated func isAmount(_ text: String) -> Bool {
-        // Check if text looks like an amount (number, fraction, or starts with a number)
+        // Check if text looks like an amount (number, fraction, range, or starts with a number)
         let trimmed = text.trimmingCharacters(in: CharacterSet(charactersIn: "(),"))
         
-        // Check for fractions
+        // Check for fractions (Unicode and ASCII)
         if trimmed.contains("/") { return true }
         if trimmed.contains("½") || trimmed.contains("¼") || trimmed.contains("¾") ||
-           trimmed.contains("⅓") || trimmed.contains("⅔") || trimmed.contains("⅛") { return true }
+           trimmed.contains("⅓") || trimmed.contains("⅔") || trimmed.contains("⅛") ||
+           trimmed.contains("⅜") || trimmed.contains("⅝") || trimmed.contains("⅞") { return true }
         
-        // Check if it's a number
+        // Check for ranges (e.g., "1-2", "1–2", "1 to 2", "1•2")
+        let rangePattern = "^\\d+[-–•]\\d+"
+        if trimmed.range(of: rangePattern, options: .regularExpression) != nil {
+            return true
+        }
+        
+        // Check if it's a decimal number (e.g., "1.5", "0.25")
         if Double(trimmed) != nil { return true }
         
-        // Check if it starts with a number
+        // Check if it starts with a number (e.g., "2cups", "10mL")
         if let firstChar = trimmed.first, firstChar.isNumber { return true }
+        
+        // Check for parentheses with numbers (e.g., "(250-375")
+        let parenNumberPattern = "\\(?\\d+"
+        if trimmed.range(of: parenNumberPattern, options: .regularExpression) != nil {
+            return true
+        }
         
         return false
     }
     
     private nonisolated func isUnit(_ text: String) -> Bool {
         let lower = text.lowercased().replacingOccurrences(of: ".", with: "")
+        
+        // Remove parentheses for checking
+        let cleaned = lower.trimmingCharacters(in: CharacterSet(charactersIn: "()"))
+        
         let units = ["tsp", "tbsp", "tablespoon", "teaspoon", "cup", "cups",
                      "oz", "ounce", "ounces", "lb", "lbs", "pound", "pounds",
                      "ml", "mL", "l", "L", "g", "kg", "gram", "grams",
                      "kilogram", "kilograms", "liter", "liters", "litre", "litres",
-                     "bunch", "bunches", "quart", "quarts", "qt", "qts"]
+                     "bunch", "bunches", "quart", "quarts", "qt", "qts",
+                     "pinch", "dash", "clove", "cloves", "sprig", "sprigs"]
         
-        return units.contains { lower.hasPrefix($0) || lower == $0 }
+        return units.contains { cleaned.hasPrefix($0) || cleaned == $0 }
+    }
+    
+    /// Checks if a string contains metric measurements
+    private nonisolated func containsMetricUnits(_ text: String) -> Bool {
+        let lower = text.lowercased()
+        return lower.contains("ml") || lower.contains("mL") ||
+               lower.contains(" l") || lower.contains("(l") ||
+               lower.contains(" g") || lower.contains("(g") ||
+               lower.contains("kg")
+    }
+    
+    /// Extracts metric measurement from complex formats like "(250-375 mL)" or "1 cup/250 mL"
+    private nonisolated func extractMetricMeasurement(_ text: String) -> String? {
+        // Pattern 1: Parentheses format "(250 mL)" or "(250-375 mL)"
+        let parenPattern = "\\(([^)]*(?:mL|ml|L|g|kg)[^)]*)\\)"
+        if let range = text.range(of: parenPattern, options: .regularExpression) {
+            let match = String(text[range])
+            return match.trimmingCharacters(in: CharacterSet(charactersIn: "()"))
+        }
+        
+        // Pattern 2: Slash format "1 cup/250 mL" or "2 tbsp/30 mL"
+        let slashPattern = "/\\s*([\\d.-]+\\s*(?:mL|ml|L|g|kg))"
+        if let range = text.range(of: slashPattern, options: .regularExpression) {
+            let match = String(text[range])
+            return match.trimmingCharacters(in: CharacterSet(charactersIn: "/ "))
+        }
+        
+        // Pattern 3: Standalone metric after imperial "2 tsp 10 mL"
+        // Extract everything from first metric unit onwards
+        if let mlRange = text.range(of: "\\d+[\\d.-]*\\s*(?:mL|ml)", options: .regularExpression) {
+            return String(text[mlRange.lowerBound...]).trimmingCharacters(in: .whitespaces)
+        }
+        
+        if let gRange = text.range(of: "\\d+[\\d.-]*\\s*(?:g|kg)", options: .regularExpression) {
+            return String(text[gRange.lowerBound...]).trimmingCharacters(in: .whitespaces)
+        }
+        
+        if let lRange = text.range(of: "\\d+[\\d.-]*\\s*L", options: .regularExpression) {
+            return String(text[lRange.lowerBound...]).trimmingCharacters(in: .whitespaces)
+        }
+        
+        return nil
     }
 }
 
