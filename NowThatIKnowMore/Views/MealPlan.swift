@@ -72,9 +72,9 @@ struct MealPlan: View {
                         NavigationLink(destination: RecipeDetail(recipeID: recipe.uuid)) {
                             HStack {
                                 if let urlString = recipe.featuredMediaURL, !urlString.isEmpty {
-                                    if let url = URL(string: urlString) {
-                                        // Handle remote URLs
-                                        if url.scheme == "http" || url.scheme == "https" {
+                                    // Check if it's a remote URL (http/https)
+                                    if urlString.hasPrefix("http://") || urlString.hasPrefix("https://") {
+                                        if let url = URL(string: urlString) {
                                             AsyncImage(url: url) { phase in
                                                 switch phase {
                                                 case .empty:
@@ -90,31 +90,32 @@ struct MealPlan: View {
                                             .onAppear {
                                                 print("🖼️ [MealPlan] Showing remote image for '\(recipe.title ?? "nil")'")
                                                 print("🖼️ [MealPlan] featuredMediaURL: '\(urlString)'")
-                                                print("🖼️ [MealPlan] image field: '\(recipe.image ?? "nil")'")
-                                                print("🖼️ [MealPlan] mediaItems count: \(recipe.mediaItems?.count ?? 0)")
-                                                print("🖼️ [MealPlan] featuredMediaID: \(recipe.featuredMediaID?.uuidString ?? "nil")")
-                                                print("🖼️ [MealPlan] preferFeaturedMedia: \(recipe.preferFeaturedMedia)")
-                                            }
-                                        }
-                                        // Handle local file URLs
-                                        else if url.scheme == "file" {
-                                            if let data = try? Data(contentsOf: url), let uiImage = UIImage(data: data) {
-                                                Image(uiImage: uiImage)
-                                                    .resizable()
-                                                    .frame(width: 44, height: 44)
-                                                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                                                    .onAppear {
-                                                        print("🖼️ [MealPlan] Showing local file image for '\(recipe.title ?? "nil")'")
-                                                        print("🖼️ [MealPlan] file URL: '\(urlString)'")
-                                                    }
-                                            } else {
-                                                Image(systemName: "photo").resizable().frame(width: 44, height: 44).foregroundColor(.gray)
                                             }
                                         } else {
                                             Image(systemName: "photo").resizable().frame(width: 44, height: 44).foregroundColor(.gray)
                                         }
-                                    } else {
-                                        Image(systemName: "photo").resizable().frame(width: 44, height: 44).foregroundColor(.gray)
+                                    }
+                                    // Handle local file paths
+                                    else {
+                                        let fileURL = URL(fileURLWithPath: urlString)
+                                        if let data = try? Data(contentsOf: fileURL), let uiImage = UIImage(data: data) {
+                                            Image(uiImage: uiImage)
+                                                .resizable()
+                                                .frame(width: 44, height: 44)
+                                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                                                .onAppear {
+                                                    print("🖼️ [MealPlan] Showing local file image for '\(recipe.title ?? "nil")'")
+                                                    print("🖼️ [MealPlan] file path: '\(urlString)'")
+                                                    print("🖼️ [MealPlan] featuredMediaID: \(recipe.featuredMediaID?.uuidString ?? "nil")")
+                                                    print("🖼️ [MealPlan] mediaItems count: \(recipe.mediaItems?.count ?? 0)")
+                                                }
+                                        } else {
+                                            Image(systemName: "photo").resizable().frame(width: 44, height: 44).foregroundColor(.gray)
+                                                .onAppear {
+                                                    print("⚠️ [MealPlan] Failed to load local image for '\(recipe.title ?? "nil")'")
+                                                    print("⚠️ [MealPlan] file path: '\(urlString)'")
+                                                }
+                                        }
                                     }
                                 } else {
                                     Image(systemName: "photo").resizable().frame(width: 44, height: 44).foregroundColor(.gray)
@@ -122,6 +123,7 @@ struct MealPlan: View {
                                             print("📷 [MealPlan] No image for '\(recipe.title ?? "nil")'")
                                             print("📷 [MealPlan] image field: '\(recipe.image ?? "nil")'")
                                             print("📷 [MealPlan] mediaItems count: \(recipe.mediaItems?.count ?? 0)")
+                                            print("📷 [MealPlan] featuredMediaID: \(recipe.featuredMediaID?.uuidString ?? "nil")")
                                         }
                                 }
                                 VStack(alignment: .leading) {
@@ -146,6 +148,12 @@ struct MealPlan: View {
                 .listStyle(.insetGrouped)
             }
             .navigationTitle("Meal Plan")
+            .onAppear {
+                logger.info("📋 [MealPlan] View appeared, total recipes: \(swiftDataRecipes.count)")
+                for recipe in swiftDataRecipes {
+                    logger.info("  - \(recipe.title ?? "nil") | UUID: \(recipe.uuid) | mediaItems: \(recipe.mediaItems?.count ?? 0) | featuredID: \(recipe.featuredMediaID?.uuidString ?? "nil")")
+                }
+            }
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button {

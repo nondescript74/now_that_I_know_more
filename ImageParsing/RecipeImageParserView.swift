@@ -75,7 +75,6 @@ struct RecipeImageParserView: View {
                     if selectedImage != nil {
                         Button(action: {
                             print("🔘 [RecipeImageParserView] Parse button TAPPED")
-                            // Add haptic feedback for tactile confirmation
                             let generator = UIImpactFeedbackGenerator(style: .medium)
                             generator.impactOccurred()
                             parseImage()
@@ -111,7 +110,7 @@ struct RecipeImageParserView: View {
                     
                     // Parsed Recipe Display
                     if let recipe = parsedRecipeModel {
-                        ParsedRecipeDisplayView(recipe: recipe, showSuccessAlert: $showSuccessAlert)
+                        ParsedRecipeDisplayView(recipe: recipe, sourceImage: selectedImage, showSuccessAlert: $showSuccessAlert)
                             .padding()
                     }
                 }
@@ -161,16 +160,13 @@ struct RecipeImageParserView: View {
         parsedRecipe = nil
         parsedRecipeModel = nil
         
-        // Resize image if it's too large (this often causes Vision to hang)
         let resizedImage = resizeImageIfNeeded(image)
         if image !== resizedImage {
             print("📐 Resized to: \(resizedImage.size.width)x\(resizedImage.size.height)")
         }
         
-        // Add timeout mechanism
         var hasCompleted = false
         
-        // Timeout after 30 seconds
         DispatchQueue.main.asyncAfter(deadline: .now() + 30) { [self] in
             if !hasCompleted {
                 print("⏰ [RecipeImageParserView] Parse operation timed out after 30 seconds")
@@ -179,7 +175,6 @@ struct RecipeImageParserView: View {
             }
         }
         
-        // Get the appropriate parser for the selected type
         let parser = RecipeParserFactory.parser(for: selectedParserType)
         print("📦 [RecipeImageParserView] Using parser: \(type(of: parser))")
         
@@ -198,7 +193,6 @@ struct RecipeImageParserView: View {
                     print("   Title: \(parsed.title)")
                     print("   Ingredients: \(parsed.ingredients.count)")
                     parsedRecipe = parsed
-                    // Convert to RecipeModel (SwiftData)
                     parsedRecipeModel = ParsedRecipeAdapter.convertToRecipeModel(parsed)
                     print("✅ [RecipeImageParserView] Converted to RecipeModel")
                 case .failure(let error):
@@ -213,16 +207,13 @@ struct RecipeImageParserView: View {
         let size = image.size
         let maxSize = max(size.width, size.height)
         
-        // If image is already small enough, return it as-is
         guard maxSize > maxDimension else {
             return image
         }
         
-        // Calculate new size maintaining aspect ratio
         let ratio = maxDimension / maxSize
         let newSize = CGSize(width: size.width * ratio, height: size.height * ratio)
         
-        // Render resized image
         let renderer = UIGraphicsImageRenderer(size: newSize)
         let resizedImage = renderer.image { context in
             image.draw(in: CGRect(origin: .zero, size: newSize))
@@ -238,12 +229,12 @@ struct ParsedRecipeDisplayView: View {
     @Environment(\.modelContext) private var modelContext
     
     let recipe: RecipeModel
+    let sourceImage: UIImage?
     @Binding var showSuccessAlert: Bool
     @State private var showEditSheet = false
     
     var body: some View {
         VStack(alignment: .leading, spacing: 15) {
-            // Header
             HStack {
                 Text("Parsed Recipe")
                     .font(.headline)
@@ -257,7 +248,6 @@ struct ParsedRecipeDisplayView: View {
             
             Divider()
             
-            // Title
             if let title = recipe.title {
                 VStack(alignment: .leading, spacing: 5) {
                     Text("Title")
@@ -269,7 +259,6 @@ struct ParsedRecipeDisplayView: View {
                 }
             }
             
-            // Servings
             if let servings = recipe.servings {
                 VStack(alignment: .leading, spacing: 5) {
                     Text("Servings")
@@ -280,7 +269,6 @@ struct ParsedRecipeDisplayView: View {
                 }
             }
             
-            // Ingredients
             if let ingredients = recipe.extendedIngredients, !ingredients.isEmpty {
                 VStack(alignment: .leading, spacing: 10) {
                     Text("Ingredients (\(ingredients.count))")
@@ -300,7 +288,6 @@ struct ParsedRecipeDisplayView: View {
                                             .bold()
                                         Text(name)
                                     }
-                                    // Show metric if available
                                     if let metric = ingredient.measures?.metric,
                                        let metricAmount = metric.amount,
                                        let metricUnit = metric.unitShort {
@@ -316,7 +303,6 @@ struct ParsedRecipeDisplayView: View {
                 }
             }
             
-            // Instructions
             if let instructions = recipe.instructions {
                 VStack(alignment: .leading, spacing: 5) {
                     Text("Instructions")
@@ -327,7 +313,6 @@ struct ParsedRecipeDisplayView: View {
                 }
             }
             
-            // Actions
             HStack {
                 Button(action: saveToRecipesApp) {
                     Label("Save to Recipes", systemImage: "square.and.arrow.down")
@@ -347,8 +332,6 @@ struct ParsedRecipeDisplayView: View {
         .cornerRadius(12)
         .shadow(radius: 2)
         .sheet(isPresented: $showEditSheet) {
-            // TODO: Create a RecipeModel editor view
-            // For now, editing is not supported for parsed recipes
             Text("Recipe editing coming soon!")
                 .padding()
         }
@@ -363,18 +346,70 @@ struct ParsedRecipeDisplayView: View {
     }
     
     private func saveToRecipesApp() {
-        // Insert the recipe into SwiftData
+        print("💾 [SaveRecipe] Starting save process...")
+        print("💾 [SaveRecipe] Recipe UUID: \(recipe.uuid)")
+        print("💾 [SaveRecipe] Recipe title: \(recipe.title ?? "nil")")
+        
         modelContext.insert(recipe)
+        print("💾 [SaveRecipe] Inserted recipe into context")
+        
+        if let image = sourceImage {
+            if let filePath = RecipeMediaModel.saveImage(image, for: recipe.uuid) {
+                print("💾 [SaveRecipe] Image saved to disk: \(filePath)")
+                
+                let mediaModel = RecipeMediaModel(
+                    fileURL: filePath,
+                    type: .photo,
+                    sortOrder: 0,
+                    recipe: recipe
+                )
+                
+                print("💾 [SaveRecipe] Created mediaModel with UUID: \(mediaModel.uuid)")
+                
+                modelContext.insert(mediaModel)
+                print("💾 [SaveRecipe] Inserted mediaModel into context")
+                
+                if recipe.mediaItems == nil {
+                    recipe.mediaItems = []
+                }
+                recipe.mediaItems?.append(mediaModel)
+                print("💾 [SaveRecipe] Added media to recipe.mediaItems array")
+                
+                recipe.featuredMediaID = mediaModel.uuid
+                recipe.preferFeaturedMedia = true
+                
+                print("💾 [SaveRecipe] Set recipe.featuredMediaID = \(mediaModel.uuid)")
+                print("💾 [SaveRecipe] Set recipe.preferFeaturedMedia = true")
+                print("💾 [SaveRecipe] recipe.mediaItems?.count = \(recipe.mediaItems?.count ?? 0)")
+            } else {
+                print("⚠️ [SaveRecipe] Failed to save source image to disk")
+            }
+        } else {
+            print("⚠️ [SaveRecipe] No source image available")
+        }
         
         do {
+            print("💾 [SaveRecipe] Attempting to save context...")
             try modelContext.save()
-            // Show success feedback
+            print("✅ [SaveRecipe] Context saved successfully!")
+            
+            print("🔍 [SaveRecipe] Post-save verification:")
+            print("   - recipe.uuid: \(recipe.uuid)")
+            print("   - recipe.featuredMediaID: \(recipe.featuredMediaID?.uuidString ?? "nil")")
+            print("   - recipe.preferFeaturedMedia: \(recipe.preferFeaturedMedia)")
+            print("   - recipe.mediaItems?.count: \(recipe.mediaItems?.count ?? 0)")
+            print("   - recipe.featuredMediaURL: \(recipe.featuredMediaURL ?? "nil")")
+            
+            if let firstMedia = recipe.mediaItems?.first {
+                print("   - First media UUID: \(firstMedia.uuid)")
+                print("   - First media fileURL: \(firstMedia.fileURL)")
+                print("   - First media recipe relationship: \(firstMedia.recipe != nil ? "✅" : "❌")")
+            }
+            
             showSuccessAlert = true
             
-            print("✅ Recipe saved to SwiftData: \(recipe.title ?? "Untitled")")
-            print("   UUID: \(recipe.uuid)")
         } catch {
-            print("❌ Failed to save recipe: \(error.localizedDescription)")
+            print("❌ [SaveRecipe] Failed to save context: \(error.localizedDescription)")
         }
     }
     

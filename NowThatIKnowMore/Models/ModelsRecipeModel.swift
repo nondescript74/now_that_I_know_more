@@ -324,11 +324,25 @@ extension RecipeModel {
         // Otherwise, try to return featured media
         if let featuredID = featuredMediaID,
            let featured = mediaItems?.first(where: { $0.uuid == featuredID }) {
-            return featured.fileURL
+            // For local files, return the full resolved path
+            if featured.fileURL.hasPrefix("/") {
+                // Legacy absolute path
+                return featured.fileURL
+            } else {
+                // New relative path - resolve to full path
+                return featured.fullFileURL.path
+            }
         }
         // Fall back to first media item if no featured is set
         if let firstMedia = mediaItems?.first {
-            return firstMedia.fileURL
+            // For local files, return the full resolved path
+            if firstMedia.fileURL.hasPrefix("/") {
+                // Legacy absolute path
+                return firstMedia.fileURL
+            } else {
+                // New relative path - resolve to full path
+                return firstMedia.fullFileURL.path
+            }
         }
         // Fall back to legacy image field
         return image
