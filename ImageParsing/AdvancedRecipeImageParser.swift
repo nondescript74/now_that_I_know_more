@@ -3,12 +3,23 @@
 //  Recipe Image Parser
 //
 //  Enhanced parser with spatial layout analysis for multi-column recipe cards
+//  NOTE: This file contains experimental/advanced parsing logic
+//  The main parsers are in RecipeImageParser.swift
 //
 
 import UIKit
 @preconcurrency import Vision
 
-class AdvancedRecipeImageParser {
+// MARK: - Advanced Spatial Layout Parser
+
+/// Experimental parser with advanced spatial layout analysis
+/// This parser analyzes the physical positioning of text elements to better understand structure
+/// Currently not exposed in the UI - for future development
+class AdvancedSpatialLayoutParser: RecipeImageParserProtocol, @unchecked Sendable {
+    
+    let parserType: RecipeParserType = .magazine
+    let displayName: String = "Advanced Spatial Parser (Experimental)"
+    let description: String = "Experimental parser with advanced spatial layout analysis for complex multi-column recipes."
     
     // MARK: - Structured Text Recognition
     
@@ -141,6 +152,8 @@ class AdvancedRecipeImageParser {
     private func parseIngredientsWithSpatialLayout(elements: [RecognizedTextElement]) -> [ParsedIngredient] {
         // Detect if we have a two-column layout by analyzing X positions
         let xPositions = elements.map { $0.centerX }
+        guard !xPositions.isEmpty else { return [] }
+        
         let avgX = xPositions.reduce(0, +) / CGFloat(xPositions.count)
         
         // Separate left and right columns
@@ -194,9 +207,9 @@ class AdvancedRecipeImageParser {
         let sortedRow = row.sorted { $0.centerX < $1.centerX }
         
         // Typical pattern: [amount] [unit] [name] [metric_amount] [metric_unit]
-        var imperialAmount = ""
+        var imperialAmountStr = ""
         var ingredientName = ""
-        var metricAmount: String?
+        var metricAmountStr: String?
         
         // Find metric unit indicator
         var metricStartIndex: Int?
@@ -221,46 +234,54 @@ class AdvancedRecipeImageParser {
             
             // First 1-2 elements are amount
             if imperialElements.count >= 1 {
-                imperialAmount = imperialElements[0].text
+                imperialAmountStr = imperialElements[0].text
                 if imperialElements.count >= 2,
                    imperialElements[1].text.lowercased().contains("tsp") ||
                    imperialElements[1].text.lowercased().contains("tbsp") ||
                    imperialElements[1].text.lowercased().contains("cup") {
-                    imperialAmount += " " + imperialElements[1].text
+                    imperialAmountStr += " " + imperialElements[1].text
                     ingredientName = imperialElements[2...].map { $0.text }.joined(separator: " ")
                 } else {
                     ingredientName = imperialElements[1...].map { $0.text }.joined(separator: " ")
                 }
             }
             
-            metricAmount = metricElements.map { $0.text }.joined(separator: " ")
+            metricAmountStr = metricElements.map { $0.text }.joined(separator: " ")
         } else {
             // No metric found
             if sortedRow.count >= 2 {
-                imperialAmount = sortedRow[0].text
+                imperialAmountStr = sortedRow[0].text
                 if sortedRow[1].text.lowercased().contains("tsp") ||
                    sortedRow[1].text.lowercased().contains("tbsp") {
-                    imperialAmount += " " + sortedRow[1].text
-                    ingredientName = sortedRow[2...].map { $0.text }.joined(separator: " ")
+                    imperialAmountStr += " " + sortedRow[1].text
+                    if sortedRow.count >= 3 {
+                        ingredientName = sortedRow[2...].map { $0.text }.joined(separator: " ")
+                    }
                 } else {
                     ingredientName = sortedRow[1...].map { $0.text }.joined(separator: " ")
                 }
+            } else if sortedRow.count == 1 {
+                // Just a name, no amount
+                ingredientName = sortedRow[0].text
+                imperialAmountStr = "1" // Default amount
             }
         }
         
         // Clean up
-        imperialAmount = cleanText(imperialAmount)
+        imperialAmountStr = cleanText(imperialAmountStr)
         ingredientName = cleanText(ingredientName)
-        if let metric = metricAmount {
-            metricAmount = cleanText(metric)
+        if let metric = metricAmountStr {
+            metricAmountStr = cleanText(metric)
         }
         
-        guard !imperialAmount.isEmpty, !ingredientName.isEmpty else { return nil }
+        // Ensure we have at least a name
+        guard !ingredientName.isEmpty else { return nil }
         
+        // Create ParsedIngredient with correct structure
         return ParsedIngredient(
-            imperialAmount: imperialAmount,
+            imperialAmount: imperialAmountStr.isEmpty ? "1" : imperialAmountStr,
             name: ingredientName,
-            metricAmount: metricAmount
+            metricAmount: metricAmountStr
         )
     }
     

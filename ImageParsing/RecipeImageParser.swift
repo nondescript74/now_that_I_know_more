@@ -941,6 +941,449 @@ class TableFormatRecipeParser: RecipeImageParserProtocol, @unchecked Sendable {
     }
 }
 
+// MARK: - Standard List Format Recipe Parser
+
+/// Parser optimized for standard bulleted/listed recipes with simple format
+/// Best for: Printed recipes, cookbook pages, magazine recipes with traditional layouts
+class StandardListRecipeParser: RecipeImageParserProtocol, @unchecked Sendable {
+    
+    let parserType: RecipeParserType = .standardText
+    let displayName: String = "Standard List Parser"
+    let description: String = "Optimized for recipes with simple bulleted or numbered ingredient lists. Best for magazine recipes, cookbooks, and printed cards with traditional layouts."
+    
+    // MARK: - Main Parsing Function
+    
+    func parseRecipeImage(_ image: UIImage, completion: @escaping @Sendable (Result<ParsedRecipe, RecipeParserError>) -> Void) {
+        guard let cgImage = image.cgImage else {
+            print("❌ [StandardListParser] Invalid image - no CGImage")
+            completion(.failure(.invalidImage))
+            return
+        }
+        
+        print("📸 [StandardListParser] Starting Vision text recognition...")
+        print("   Image size: \(cgImage.width) x \(cgImage.height)")
+        
+        // Resize image if needed to prevent Vision framework hangs
+        let processedImage = resizeImageIfNeeded(image)
+        guard let processedCGImage = processedImage.cgImage else {
+            print("❌ [StandardListParser] Failed to get CGImage from resized image")
+            completion(.failure(.invalidImage))
+            return
+        }
+        
+        if processedImage !== image {
+            print("📐 [StandardListParser] Image resized to: \(processedCGImage.width) x \(processedCGImage.height)")
+        }
+        
+        // Perform Vision processing on background queue
+        DispatchQueue.global(qos: .userInitiated).async {
+            print("🔍 [StandardListParser] Creating Vision request...")
+            let request = VNRecognizeTextRequest()
+            request.recognitionLevel = .accurate
+            request.usesLanguageCorrection = true
+            request.recognitionLanguages = ["en-US"]
+            
+            print("🔍 [StandardListParser] Vision request configured")
+            print("   Recognition level: accurate")
+            print("   Language correction: enabled")
+            
+            let handler = VNImageRequestHandler(cgImage: processedCGImage, options: [:])
+            print("🔍 [StandardListParser] Handler created, about to perform request...")
+            
+            do {
+                try handler.perform([request])
+                print("✅ [StandardListParser] Vision request performed successfully")
+                
+                guard let observations = request.results else {
+                    print("❌ [StandardListParser] Request results are nil")
+                    completion(.failure(.noTextFound))
+                    return
+                }
+                
+                print("📊 [StandardListParser] Got \(observations.count) observations")
+                
+                guard !observations.isEmpty else {
+                    print("❌ [StandardListParser] No text observations found (empty array)")
+                    completion(.failure(.noTextFound))
+                    return
+                }
+                
+                print("📝 [StandardListParser] Found \(observations.count) text observations")
+                print("🔄 [StandardListParser] Extracting text...")
+                
+                let parsedText = self.extractTextSequentially(from: observations)
+                print("🔄 [StandardListParser] Building recipe...")
+                let recipe = self.buildRecipe(from: parsedText)
+                
+                print("✅ [StandardListParser] Recipe parsed successfully: '\(recipe.title)'")
+                print("   Ingredients: \(recipe.ingredients.count)")
+                completion(.success(recipe))
+                
+            } catch {
+                print("❌ [StandardListParser] Vision error: \(error)")
+                print("   Error type: \(type(of: error))")
+                print("   Description: \(error.localizedDescription)")
+                completion(.failure(.visionError(error)))
+            }
+        }
+    }
+    
+    /// Resizes image if it exceeds maximum dimensions to prevent Vision framework hangs
+    private nonisolated func resizeImageIfNeeded(_ image: UIImage, maxDimension: CGFloat = 512) -> UIImage {
+        let size = image.size
+        let maxSize = max(size.width, size.height)
+        
+        // If image is already small enough, return it as-is
+        guard maxSize > maxDimension else {
+            return image
+        }
+        
+        // Calculate new size maintaining aspect ratio
+        let ratio = maxDimension / maxSize
+        let newSize = CGSize(width: size.width * ratio, height: size.height * ratio)
+        
+        // Render resized image
+        let renderer = UIGraphicsImageRenderer(size: newSize)
+        let resizedImage = renderer.image { context in
+            image.draw(in: CGRect(origin: .zero, size: newSize))
+        }
+        
+        return resizedImage
+    }
+    
+    // MARK: - Text Extraction (Sequential Reading)
+    
+    /// Extracts text line by line in reading order (top to bottom, left to right)
+    /// Unlike table format, we don't group by rows - just read sequentially
+    private nonisolated func extractTextSequentially(from observations: [VNRecognizedTextObservation]) -> ParsedRecipeText {
+        var parsed = ParsedRecipeText()
+        
+        // Sort observations by vertical position (top to bottom), then horizontal (left to right)
+        let sortedObservations = observations.sorted { obs1, obs2 in
+            // Primary sort: top to bottom (higher Y = higher on screen = earlier in document)
+            // Note: Vision coordinates have origin at bottom-left
+            let y1 = obs1.boundingBox.origin.y
+            let y2 = obs2.boundingBox.origin.y
+            
+            // If Y positions are very different (not on same line), sort by Y
+            if abs(y1 - y2) > 0.02 {
+                return y1 > y2 // Higher Y comes first (top of page)
+            }
+            
+            // If on same line, sort by X (left to right)
+            return obs1.boundingBox.origin.x < obs2.boundingBox.origin.x
+        }
+        
+        // Extract text from each observation in reading order
+        var allLines: [String] = []
+        
+        for observation in sortedObservations {
+            guard let topCandidate = observation.topCandidates(1).first else { continue }
+            let text = topCandidate.string.trimmingCharacters(in: .whitespacesAndNewlines)
+            
+            if !text.isEmpty {
+                allLines.append(text)
+            }
+        }
+        
+        // Debug: Print all extracted lines
+        print("📝 [OCR] Extracted \(allLines.count) lines (sequential reading order):")
+        for (index, line) in allLines.prefix(20).enumerated() {
+            print("   Line \(index): \"\(line)\"")
+        }
+        if allLines.count > 20 {
+            print("   ... and \(allLines.count - 20) more lines")
+        }
+        
+        // Parse structure
+        parsed.lines = allLines
+        
+        // Extract title (usually first non-empty line)
+        if let firstLine = allLines.first {
+            parsed.title = firstLine
+        }
+        
+        // Look for servings/makes/yield line near the beginning
+        for (_, line) in allLines.prefix(5).enumerated() {
+            let lower = line.lowercased()
+            if lower.contains("makes") || 
+               lower.contains("serves") ||
+               lower.contains("servings") ||
+               lower.contains("yield") ||
+               lower.contains("portions") {
+                parsed.servings = line
+                break
+            }
+        }
+        
+        return parsed
+    }
+    
+    // MARK: - Recipe Building
+    
+    private nonisolated func buildRecipe(from parsed: ParsedRecipeText) -> ParsedRecipe {
+        var recipe = ParsedRecipe(
+            title: parsed.title,
+            servings: parsed.servings,
+            ingredients: [],
+            instructions: parsed.instructions
+        )
+        
+        // Find where ingredients section starts and ends
+        var ingredientsStart: Int?
+        var ingredientsEnd: Int?
+        var instructionsStart: Int?
+        
+        for (index, line) in parsed.lines.enumerated() {
+            let lower = line.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+            
+            // Find ingredient section header
+            if lower == "ingredients:" || lower == "ingredients" {
+                ingredientsStart = index + 1 // Start after the header
+                print("📋 [Parser] Found ingredients section at line \(index)")
+                continue
+            }
+            
+            // Find instructions section header
+            if lower == "instructions:" || lower == "instructions" ||
+               lower == "directions:" || lower == "directions" ||
+               lower == "method:" || lower == "method" ||
+               lower == "preparation:" || lower == "preparation" {
+                instructionsStart = index
+                ingredientsEnd = index // Ingredients end where instructions begin
+                print("📋 [Parser] Found instructions section at line \(index)")
+                break
+            }
+        }
+        
+        // If we found explicit sections, use them
+        if let start = ingredientsStart {
+            let end = ingredientsEnd ?? parsed.lines.count
+            let ingredientLines = Array(parsed.lines[start..<min(end, parsed.lines.count)])
+            
+            print("🥘 [Parser] Processing \(ingredientLines.count) ingredient lines...")
+            recipe.ingredients = parseIngredientLines(ingredientLines)
+            
+            // Extract instructions if found
+            if let instructStart = instructionsStart {
+                let instructionLines = Array(parsed.lines[instructStart..<parsed.lines.count])
+                recipe.instructions = instructionLines.joined(separator: "\n")
+            }
+        } else {
+            // No explicit sections - try to parse intelligently
+            // Skip title and servings lines, then parse until we hit instruction-like text
+            var startIndex = 1 // Skip title
+            if parsed.servings != nil {
+                startIndex += 1 // Skip servings line if present
+            }
+            
+            // Find where ingredients likely end (first instruction verb)
+            let instructionStarters = ["place", "mix", "combine", "heat", "cook", "bake", 
+                                      "add", "stir", "blend", "pour", "serve", "garnish",
+                                      "marinate", "skewer", "grill", "baste", "chop"]
+            
+            var ingredientEndIndex = parsed.lines.count
+            for (index, line) in parsed.lines[startIndex...].enumerated() {
+                let actualIndex = index + startIndex
+                let lower = line.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+                
+                if instructionStarters.contains(where: { lower.hasPrefix($0) }) {
+                    ingredientEndIndex = actualIndex
+                    instructionsStart = actualIndex
+                    print("📋 [Parser] Detected instructions start at line \(actualIndex): \"\(line)\"")
+                    break
+                }
+            }
+            
+            let ingredientLines = Array(parsed.lines[startIndex..<ingredientEndIndex])
+            print("🥘 [Parser] Processing \(ingredientLines.count) ingredient lines (auto-detected)...")
+            recipe.ingredients = parseIngredientLines(ingredientLines)
+            
+            // Extract instructions if found
+            if let instructStart = instructionsStart {
+                let instructionLines = Array(parsed.lines[instructStart..<parsed.lines.count])
+                recipe.instructions = instructionLines.joined(separator: "\n")
+            }
+        }
+        
+        print("✅ [Parser] Built recipe with \(recipe.ingredients.count) ingredients")
+        
+        return recipe
+    }
+    
+    // MARK: - Ingredient Parsing
+    
+    /// Parse ingredient lines in standard list format
+    /// Examples:
+    /// - "- 4 lbs meat cubed"
+    /// - "- Mishkaki skewers soaked"
+    /// - "-2/3 cup oil"
+    /// - "- 1 tbsop Bot powder (optional but makes it tasty)"
+    private nonisolated func parseIngredientLines(_ lines: [String]) -> [ParsedIngredient] {
+        var ingredients: [ParsedIngredient] = []
+        
+        for line in lines {
+            // Skip empty lines
+            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmed.isEmpty {
+                continue
+            }
+            
+            // Remove bullet points and dashes
+            let cleaned = trimmed
+                .replacingOccurrences(of: "^[-–•*]\\s*", with: "", options: .regularExpression)
+                .replacingOccurrences(of: "^~\\s*", with: "", options: .regularExpression)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            
+            // Skip if still empty
+            if cleaned.isEmpty {
+                continue
+            }
+            
+            print("🔍 [Parser] Parsing ingredient: \"\(cleaned)\"")
+            
+            // Try to parse the ingredient
+            if let ingredient = parseIngredient(cleaned) {
+                ingredients.append(ingredient)
+                print("   ✅ Parsed: \(ingredient.imperialAmount) \(ingredient.name)")
+            } else {
+                // If parsing failed, create ingredient with just the name
+                print("   ⚠️ Could not parse measurements, using as name: \"\(cleaned)\"")
+                ingredients.append(ParsedIngredient(
+                    imperialAmount: "",
+                    name: cleaned,
+                    metricAmount: nil
+                ))
+            }
+        }
+        
+        print("🥘 [Parser] Successfully parsed \(ingredients.count) ingredients")
+        return ingredients
+    }
+    
+    /// Parse a single ingredient line
+    /// Supports: "2 cups flour", "4 lbs meat cubed", "oil" (no amount)
+    private nonisolated func parseIngredient(_ text: String) -> ParsedIngredient? {
+        let words = text.split(separator: " ", omittingEmptySubsequences: true).map(String.init)
+        
+        guard !words.isEmpty else { return nil }
+        
+        var amountStr: String = ""
+        var unitStr: String = ""
+        var nameWords: [String] = []
+        var notesStr: String?
+        
+        var i = 0
+        
+        // Step 1: Try to find amount (first word that looks like a number)
+        if i < words.count && isAmount(words[i]) {
+            amountStr = words[i]
+            i += 1
+            
+            // Check if next word is also part of amount (e.g., "1" "1/2" for "1 1/2")
+            if i < words.count && isAmount(words[i]) {
+                amountStr = amountStr + " " + words[i]
+                i += 1
+            }
+        }
+        
+        // Step 2: Try to find unit (next word that looks like a unit)
+        if i < words.count && isUnit(words[i]) {
+            unitStr = words[i]
+            i += 1
+        }
+        
+        // Step 3: Everything else is the ingredient name
+        if i < words.count {
+            nameWords = Array(words[i...])
+        }
+        
+        // Step 4: Extract notes from parentheses
+        let nameText = nameWords.joined(separator: " ")
+        let (cleanName, extractedNotes) = extractNotes(from: nameText)
+        notesStr = extractedNotes
+        
+        // Build imperial amount string from amount and unit
+        var imperialAmount = ""
+        if !amountStr.isEmpty {
+            imperialAmount = amountStr
+            if !unitStr.isEmpty {
+                imperialAmount += " " + unitStr
+            }
+        }
+        
+        // If we got no name, the line might just be an ingredient name without measurements
+        let finalName = cleanName.isEmpty ? text : cleanName
+        
+        // If we have notes, append them to the name in a clean format
+        let fullName = notesStr != nil ? "\(finalName) (\(notesStr!))" : finalName
+        
+        return ParsedIngredient(
+            imperialAmount: imperialAmount.isEmpty ? "" : imperialAmount,
+            name: fullName,
+            metricAmount: nil
+        )
+    }
+    
+    /// Extract notes in parentheses from ingredient name
+    /// Example: "Bot powder (optional but makes it tasty)" -> ("Bot powder", "optional but makes it tasty")
+    private nonisolated func extractNotes(from text: String) -> (name: String, notes: String?) {
+        // Find text in parentheses
+        let pattern = "\\(([^)]+)\\)"
+        
+        guard let range = text.range(of: pattern, options: .regularExpression) else {
+            return (text, nil)
+        }
+        
+        let notes = String(text[range]).trimmingCharacters(in: CharacterSet(charactersIn: "()"))
+        let name = text.replacingOccurrences(of: pattern, with: "", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        return (name, notes)
+    }
+    
+    private nonisolated func isAmount(_ text: String) -> Bool {
+        // Check if text looks like an amount (number, fraction, range, or starts with a number)
+        let trimmed = text.trimmingCharacters(in: CharacterSet(charactersIn: "(),~-"))
+        
+        // Check for fractions (Unicode and ASCII)
+        if trimmed.contains("/") { return true }
+        if trimmed.contains("½") || trimmed.contains("¼") || trimmed.contains("¾") ||
+           trimmed.contains("⅓") || trimmed.contains("⅔") || trimmed.contains("⅛") ||
+           trimmed.contains("⅜") || trimmed.contains("⅝") || trimmed.contains("⅞") { return true }
+        
+        // Check for ranges (e.g., "1-2", "1–2", "1 to 2")
+        let rangePattern = "^\\d+[-–]\\d+"
+        if trimmed.range(of: rangePattern, options: .regularExpression) != nil {
+            return true
+        }
+        
+        // Check if it's a decimal number (e.g., "1.5", "0.25")
+        if Double(trimmed) != nil { return true }
+        
+        // Check if it starts with a number (e.g., "2cups", "10mL")
+        if let firstChar = trimmed.first, firstChar.isNumber { return true }
+        
+        return false
+    }
+    
+    private nonisolated func isUnit(_ text: String) -> Bool {
+        let lower = text.lowercased()
+            .replacingOccurrences(of: ".", with: "")
+            .replacingOccurrences(of: "~", with: "")
+        
+        let units = ["tsp", "tbsp", "tablespoon", "teaspoon", "tbsop", "tpsop", // common typos
+                     "cup", "cups", "oz", "ounce", "ounces", "lb", "lbs", "pound", "pounds",
+                     "ml", "mL", "l", "L", "g", "kg", "gram", "grams",
+                     "kilogram", "kilograms", "liter", "liters", "litre", "litres",
+                     "bunch", "bunches", "quart", "quarts", "qt", "qts",
+                     "pinch", "dash", "clove", "cloves", "sprig", "sprigs",
+                     "can", "cans", "package", "packages", "pkg"]
+        
+        return units.contains { lower.hasPrefix($0) || lower == $0 }
+    }
+}
+
 // MARK: - Parser Factory
 
 /// Factory for creating recipe parsers
@@ -951,10 +1394,12 @@ class RecipeParserFactory {
         switch type {
         case .tableFormat:
             return TableFormatRecipeParser()
-        case .standardText, .handwritten, .magazine:
-            // For now, use table format as default
+        case .standardText:
+            return StandardListRecipeParser()
+        case .handwritten, .magazine:
+            // For now, use standard list as default
             // TODO: Implement specific parsers for these types
-            return TableFormatRecipeParser()
+            return StandardListRecipeParser()
         }
     }
     
@@ -965,7 +1410,7 @@ class RecipeParserFactory {
     
     /// Get all available parser types
     static var availableParsers: [RecipeParserType] {
-        return [.tableFormat]
+        return [.tableFormat, .standardText]
         // As you implement more parsers, add them here:
         // return [.tableFormat, .standardText, .handwritten, .magazine]
     }

@@ -37,6 +37,13 @@
 			);
 			target = F8B44A262E4E254E00BD0920 /* NowThatIKnowMore */;
 		};
+		F80B9FE52EC2988800424919 /* Exceptions for "SomeDocs" folder in "NowThatIKnowMoreTests" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				PARSER_IMPROVEMENTS_COMPLETE.md,
+			);
+			target = F82259C32E84605B00840803 /* NowThatIKnowMoreTests */;
+		};
 		F8211A802E848F8B00815127 /* Exceptions for "NowThatIKnowMore" folder in "NowThatIKnowMoreTests" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -101,8 +108,8 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				AdvancedRecipeImageParser.swift,
+				DUPLICATE_PARSER_FIX.md,
 				ParsedRecipeAdapter.swift,
-				PARSER_IMPROVEMENTS_COMPLETE.md,
 				RecipeImageParser.swift,
 				RecipeImageParserView.swift,
 			);
@@ -136,6 +143,7 @@
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				F828BF172EBFC0B400BD3BFE /* Exceptions for "SomeDocs" folder in "NowThatIKnowMore" target */,
+				F80B9FE52EC2988800424919 /* Exceptions for "SomeDocs" folder in "NowThatIKnowMoreTests" target */,
 			);
 			path = SomeDocs;
 			sourceTree = "<group>";
@@ -509,7 +517,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 65;
+				CURRENT_PROJECT_VERSION = 66;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = YKHW2TJ32G;
 				ENABLE_APP_SANDBOX = YES;
@@ -570,7 +578,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 65;
+				CURRENT_PROJECT_VERSION = 66;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = YKHW2TJ32G;
 				ENABLE_APP_SANDBOX = YES;
