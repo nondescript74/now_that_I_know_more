@@ -42,8 +42,7 @@ struct RecipeImageParserView: View {
                     if RecipeParserFactory.availableParsers.count > 1 {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Parser Type")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
+                                .font(.headline)
                             
                             Picker("Parser Type", selection: $selectedParserType) {
                                 ForEach(RecipeParserFactory.availableParsers, id: \.self) { parserType in
@@ -51,7 +50,28 @@ struct RecipeImageParserView: View {
                                 }
                             }
                             .pickerStyle(.segmented)
+                            
+                            // Show description of selected parser
+                            let parser = RecipeParserFactory.parser(for: selectedParserType)
+                            HStack(spacing: 8) {
+                                Image(systemName: "info.circle")
+                                    .foregroundColor(.accentColor)
+                                    .font(.caption)
+                                
+                                Text(parser.description)
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                            .padding(.top, 4)
+                            
+                            // Visual guide for each parser type
+                            parserGuideView(for: selectedParserType)
                         }
+                        .padding(.horizontal)
+                        .padding(.vertical, 8)
+                        .background(Color.accentColor.opacity(0.05))
+                        .cornerRadius(12)
                         .padding(.horizontal)
                     }
                     
@@ -221,6 +241,61 @@ struct RecipeImageParserView: View {
         }
         
         return resizedImage
+    }
+    
+    // MARK: - Parser Guide Views
+    
+    @ViewBuilder
+    private func parserGuideView(for type: RecipeParserType) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Best for:")
+                .font(.caption)
+                .fontWeight(.semibold)
+                .foregroundColor(.secondary)
+            
+            switch type {
+            case .tableFormat:
+                VStack(alignment: .leading, spacing: 4) {
+                    guideItem(icon: "tablecells", text: "Recipe cards with columns")
+                    guideItem(icon: "chart.bar.doc.horizontal", text: "Table layouts with imperial/metric")
+                    guideItem(icon: "rectangle.split.3x1", text: "Structured ingredient lists")
+                }
+                
+            case .standardText:
+                VStack(alignment: .leading, spacing: 4) {
+                    guideItem(icon: "list.bullet", text: "Bulleted ingredient lists")
+                    guideItem(icon: "book.closed", text: "Cookbook pages")
+                    guideItem(icon: "doc.plaintext", text: "Magazine recipes")
+                    guideItem(icon: "note.text", text: "Simple printed recipes")
+                }
+                
+            case .handwritten:
+                VStack(alignment: .leading, spacing: 4) {
+                    guideItem(icon: "pencil.and.scribble", text: "Handwritten recipe cards")
+                    guideItem(icon: "hand.point.right", text: "Personal recipe notes")
+                }
+                
+            case .magazine:
+                VStack(alignment: .leading, spacing: 4) {
+                    guideItem(icon: "newspaper", text: "Magazine layouts")
+                    guideItem(icon: "photo.on.rectangle", text: "Multi-column formats")
+                }
+            }
+        }
+        .padding(.top, 4)
+    }
+    
+    private func guideItem(icon: String, text: String) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon)
+                .foregroundColor(.accentColor)
+                .font(.caption2)
+                .frame(width: 16)
+            
+            Text(text)
+                .font(.caption2)
+                .foregroundColor(.secondary)
+        }
     }
 }
 
