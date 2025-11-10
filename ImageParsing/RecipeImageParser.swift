@@ -517,6 +517,54 @@ class TableFormatRecipeParser: RecipeImageParserProtocol, @unchecked Sendable {
         
         var ingredients: [ParsedIngredient] = []
         
+        // Special handling: If line contains "to taste", split it
+        // This handles cases where OCR reads table columns together like:
+        // "bunch coriander salt, to taste lemon juice 10 mL"
+        if line.contains("to taste") || line.contains(", to taste") {
+            // Split by "to taste" to separate ingredients
+            let parts = line.components(separatedBy: "to taste")
+            
+            for (index, part) in parts.enumerated() {
+                let cleanPart = part.trimmingCharacters(in: .whitespacesAndNewlines)
+                    .trimmingCharacters(in: CharacterSet(charactersIn: ","))
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                
+                if !cleanPart.isEmpty {
+                    // Parse this part normally
+                    let parsedFromPart = parseIngredientLineInternal(cleanPart)
+                    ingredients.append(contentsOf: parsedFromPart)
+                }
+                
+                // Add "to taste" ingredient after each part except the last
+                if index < parts.count - 1 {
+                    // Extract the ingredient name that comes before "to taste"
+                    // Usually it's the last word(s) before "to taste"
+                    let words = cleanPart.components(separatedBy: .whitespaces).filter { !$0.isEmpty }
+                    if !words.isEmpty {
+                        // Take last 1-2 words as the ingredient name (e.g., "salt" or "black pepper")
+                        let ingredientName = words.suffix(min(2, words.count)).joined(separator: " ")
+                        ingredients.append(ParsedIngredient(
+                            imperialAmount: "to taste",
+                            name: ingredientName,
+                            metricAmount: nil
+                        ))
+                    }
+                }
+            }
+            
+            return ingredients
+        }
+        
+        // Normal parsing
+        return parseIngredientLineInternal(line)
+    }
+    
+    private nonisolated func parseIngredientLineInternal(_ line: String) -> [ParsedIngredient] {
+        let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return [] }
+        
+        var ingredients: [ParsedIngredient] = []
+        
         // Split into components
         let components = trimmed.components(separatedBy: .whitespaces)
             .filter { !$0.isEmpty }
@@ -622,7 +670,7 @@ class TableFormatRecipeParser: RecipeImageParserProtocol, @unchecked Sendable {
             
             // Everything after is the ingredient name (minus any extracted metric)
             if imperialEndIndex < components.count {
-                var nameComponents = Array(components[imperialEndIndex...])
+                let nameComponents = Array(components[imperialEndIndex...])
                 let namePart = nameComponents.joined(separator: " ")
                 
                 // If we extracted metric earlier, remove it from name
