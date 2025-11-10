@@ -64,8 +64,12 @@ struct RecipeEditorView: View {
         self._preferFeaturedMedia = State(initialValue: recipe?.preferFeaturedMedia ?? false)
         
         // Initialize ingredients from extendedIngredients if available
-        // Note: For now, we leave this empty as ingredients editing is not fully implemented
-        self._ingredients = State(initialValue: "")
+        if let extendedIngredients = recipe?.extendedIngredients, !extendedIngredients.isEmpty {
+            let ingredientLines = extendedIngredients.compactMap { $0.original }.joined(separator: "\n")
+            self._ingredients = State(initialValue: ingredientLines)
+        } else {
+            self._ingredients = State(initialValue: "")
+        }
     }
     
     var body: some View {
@@ -324,27 +328,57 @@ struct RecipeEditorView: View {
     }
     
     private var ingredientsSection: some View {
-        Section(header: Text("Ingredients (one per line)")) {
+        let ingredientCount = ingredients
+            .components(separatedBy: .newlines)
+            .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+            .count
+        
+        return Section(header: HStack {
+            Text("Ingredients (one per line)")
+            Spacer()
+            if ingredientCount > 0 {
+                Text("\(ingredientCount) ingredient\(ingredientCount == 1 ? "" : "s")")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color.accentColor.opacity(0.2))
+                    .cornerRadius(8)
+            }
+        }) {
             BindableTextView(text: $ingredients, selectedRange: $ingredientsSelectedRange)
-                .frame(minHeight: 60, maxHeight: 180)
+                .frame(minHeight: 80, maxHeight: 200)
                 .cornerRadius(8)
                 .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.gray.opacity(0.2)))
+            
+            if ingredients.isEmpty {
+                Text("Enter each ingredient on a separate line. Example:\n• 2 cups flour\n• 1 tsp salt\n• 3 eggs")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .padding(.vertical, 4)
+            }
+            
             HStack(spacing: 12) {
                 Button("Remove HTML Tags") {
                     ingredients = ingredients.strippedHTML
                     ingredientsSelectedRange = NSRange(location: min(ingredientsSelectedRange.location, ingredients.count), length: 0)
                 }
+                .font(.caption)
+                
                 Button("Insert Indent") {
                     let indent = "→ "
                     let loc = min(ingredientsSelectedRange.location, ingredients.count)
                     ingredients.insert(contentsOf: indent, at: ingredients.index(ingredients.startIndex, offsetBy: loc))
                     ingredientsSelectedRange = NSRange(location: loc + indent.count, length: 0)
                 }
-                Text("(Use '→' for indentation)")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                .font(.caption)
             }
-            Button("Clear") { ingredients = "" }
+            
+            Button("Clear All") {
+                ingredients = ""
+                ingredientsSelectedRange = NSRange(location: 0, length: 0)
+            }
+            .foregroundColor(.red)
         }
     }
     
@@ -444,6 +478,13 @@ struct RecipeEditorView: View {
         mediaItems = selectedRecipe.mediaItems ?? []
         featuredMediaID = selectedRecipe.featuredMediaID
         preferFeaturedMedia = selectedRecipe.preferFeaturedMedia
+        
+        // Load ingredients from extendedIngredients
+        if let extendedIngredients = selectedRecipe.extendedIngredients, !extendedIngredients.isEmpty {
+            ingredients = extendedIngredients.compactMap { $0.original }.joined(separator: "\n")
+        } else {
+            ingredients = ""
+        }
     }
     
     private func saveEdits() {
@@ -473,6 +514,30 @@ struct RecipeEditorView: View {
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
         
+        // Parse ingredients (one per line)
+        let ingredientLines = ingredients
+            .components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        
+        // Convert to ExtendedIngredient array
+        let extendedIngredients: [ExtendedIngredient] = ingredientLines.enumerated().map { index, line in
+            ExtendedIngredient(
+                id: index + 1,
+                aisle: nil,
+                image: nil,
+                consistency: nil,
+                name: line,
+                nameClean: nil,
+                original: line,
+                originalName: nil,
+                amount: nil,
+                unit: nil,
+                meta: nil,
+                measures: nil
+            )
+        }
+        
         if let existingRecipe = recipe {
             // Update existing recipe
             print("🔍 [RecipeEditor] Updating existing recipe with UUID: \(existingRecipe.uuid)")
@@ -490,17 +555,24 @@ struct RecipeEditorView: View {
             existingRecipe.preferFeaturedMedia = preferFeaturedMedia
             existingRecipe.modifiedAt = Date()
             
+            // Update ingredients
+            existingRecipe.extendedIngredients = extendedIngredients.isEmpty ? nil : extendedIngredients
+            
             // Update media items relationship
             // Note: mediaItems are already managed through the relationship
             
-            print("✅ [RecipeEditor] Recipe updated - Title: '\(existingRecipe.title ?? "nil")'")
+            print("✅ [RecipeEditor] Recipe updated - Title: '\(existingRecipe.title ?? "nil")', Ingredients: \(extendedIngredients.count)")
             
             // Save context
             do {
                 try modelContext.save()
-                alertMessage = "Saved changes."
+                alertMessage = "✓ Saved changes successfully!"
                 showAlert = true
-                dismiss()
+                
+                // Dismiss after a short delay so user sees the success message
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    dismiss()
+                }
             } catch {
                 print("❌ [RecipeEditor] Failed to save context: \(error)")
                 alertMessage = "Failed to save changes: \(error.localizedDescription)"
@@ -524,6 +596,9 @@ struct RecipeEditorView: View {
             newRecipe.image = imageToSave
             newRecipe.imageType = imageTypeToSave
             
+            // Set ingredients
+            newRecipe.extendedIngredients = extendedIngredients.isEmpty ? nil : extendedIngredients
+            
             // Add media items
             for mediaItem in mediaItems {
                 mediaItem.recipe = newRecipe
@@ -533,14 +608,18 @@ struct RecipeEditorView: View {
             // Insert the new recipe
             modelContext.insert(newRecipe)
             
-            print("✅ [RecipeEditor] New recipe created with UUID: \(newRecipe.uuid)")
+            print("✅ [RecipeEditor] New recipe created with UUID: \(newRecipe.uuid), Ingredients: \(extendedIngredients.count)")
             
             // Save context
             do {
                 try modelContext.save()
-                alertMessage = "Created new recipe."
+                alertMessage = "✓ Created new recipe successfully!"
                 showAlert = true
-                dismiss()
+                
+                // Dismiss after a short delay so user sees the success message
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    dismiss()
+                }
             } catch {
                 print("❌ [RecipeEditor] Failed to save new recipe: \(error)")
                 alertMessage = "Failed to create recipe: \(error.localizedDescription)"
