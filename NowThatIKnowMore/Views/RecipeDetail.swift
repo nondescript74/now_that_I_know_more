@@ -128,7 +128,7 @@ struct RecipeDetail: View {
         .alert("Mail Not Available", isPresented: $showingMailNotAvailableAlert) {
             Button("OK", role: .cancel) { }
         } message: {
-            Text("Mail services are not available. Please configure Mail on your device to send email.")
+            Text("Mail services are not available. Please configure an email account in the Mail app (Settings > Mail > Accounts) to send recipes via email.")
         }
     }
     
@@ -294,7 +294,6 @@ struct RecipeDetail: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             .buttonStyle(.bordered)
-            .disabled(!MFMailComposeViewController.canSendMail())
 
             // Browser and sharing options (only if valid URL exists)
             if let sourceUrlString = recipe.sourceURL,

@@ -26,7 +26,7 @@ class RecipeService {
         do {
             return try modelContext.fetch(descriptor)
         } catch {
-            logger.error("Failed to fetch recipes: \(error.localizedDescription)")
+            logger.error("Failed to fetch recipes: \(error.localizedDescription, privacy: .public)")
             return []
         }
     }
@@ -39,7 +39,7 @@ class RecipeService {
         do {
             return try modelContext.fetch(descriptor).first
         } catch {
-            logger.error("Failed to fetch recipe: \(error.localizedDescription)")
+            logger.error("Failed to fetch recipe: \(error.localizedDescription, privacy: .public)")
             return nil
         }
     }
@@ -74,7 +74,7 @@ class RecipeService {
         do {
             return try modelContext.fetch(descriptor)
         } catch {
-            logger.error("Failed to fetch books: \(error.localizedDescription)")
+            logger.error("Failed to fetch books: \(error.localizedDescription, privacy: .public)")
             return []
         }
     }
@@ -87,7 +87,7 @@ class RecipeService {
         do {
             return try modelContext.fetch(descriptor).first
         } catch {
-            logger.error("Failed to fetch book: \(error.localizedDescription)")
+            logger.error("Failed to fetch book: \(error.localizedDescription, privacy: .public)")
             return nil
         }
     }
@@ -222,7 +222,7 @@ class RecipeService {
             try modelContext.save()
         } catch let error as NSError {
             // Handle specific Core Data / SwiftData errors
-            logger.error("Failed to save context: \(error.localizedDescription)")
+            logger.error("Failed to save context: \(error.localizedDescription, privacy: .public)")
             
             #if DEBUG
             print("❌ SwiftData save error: \(error)")
