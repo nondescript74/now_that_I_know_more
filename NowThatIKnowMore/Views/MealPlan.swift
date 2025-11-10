@@ -87,10 +87,7 @@ struct MealPlan: View {
                                                     EmptyView()
                                                 }
                                             }
-                                            .onAppear {
-                                                print("🖼️ [MealPlan] Showing remote image for '\(recipe.title ?? "nil")'")
-                                                print("🖼️ [MealPlan] featuredMediaURL: '\(urlString)'")
-                                            }
+                                            // Debug logging removed - can cause console decode errors with SwiftData
                                         } else {
                                             Image(systemName: "photo").resizable().frame(width: 44, height: 44).foregroundColor(.gray)
                                         }
@@ -103,28 +100,15 @@ struct MealPlan: View {
                                                 .resizable()
                                                 .frame(width: 44, height: 44)
                                                 .clipShape(RoundedRectangle(cornerRadius: 8))
-                                                .onAppear {
-                                                    print("🖼️ [MealPlan] Showing local file image for '\(recipe.title ?? "nil")'")
-                                                    print("🖼️ [MealPlan] file path: '\(urlString)'")
-                                                    print("🖼️ [MealPlan] featuredMediaID: \(recipe.featuredMediaID?.uuidString ?? "nil")")
-                                                    print("🖼️ [MealPlan] mediaItems count: \(recipe.mediaItems?.count ?? 0)")
-                                                }
+                                                // Debug logging removed - can cause console decode errors with SwiftData
                                         } else {
                                             Image(systemName: "photo").resizable().frame(width: 44, height: 44).foregroundColor(.gray)
-                                                .onAppear {
-                                                    print("⚠️ [MealPlan] Failed to load local image for '\(recipe.title ?? "nil")'")
-                                                    print("⚠️ [MealPlan] file path: '\(urlString)'")
-                                                }
+                                                // Debug logging removed - can cause console decode errors with SwiftData
                                         }
                                     }
                                 } else {
                                     Image(systemName: "photo").resizable().frame(width: 44, height: 44).foregroundColor(.gray)
-                                        .onAppear {
-                                            print("📷 [MealPlan] No image for '\(recipe.title ?? "nil")'")
-                                            print("📷 [MealPlan] image field: '\(recipe.image ?? "nil")'")
-                                            print("📷 [MealPlan] mediaItems count: \(recipe.mediaItems?.count ?? 0)")
-                                            print("📷 [MealPlan] featuredMediaID: \(recipe.featuredMediaID?.uuidString ?? "nil")")
-                                        }
+                                        // Debug logging removed - can cause console decode errors with SwiftData
                                 }
                                 VStack(alignment: .leading) {
                                     Text(recipe.title ?? "No Title")
@@ -149,10 +133,8 @@ struct MealPlan: View {
             }
             .navigationTitle("Meal Plan")
             .onAppear {
-                logger.info("📋 [MealPlan] View appeared, total recipes: \(swiftDataRecipes.count)")
-                for recipe in swiftDataRecipes {
-                    logger.info("  - \(recipe.title ?? "nil") | UUID: \(recipe.uuid) | mediaItems: \(recipe.mediaItems?.count ?? 0) | featuredID: \(recipe.featuredMediaID?.uuidString ?? "nil")")
-                }
+                // Logging disabled - causes console decode errors when combined with diagnostic output
+                // logger.info("📋 [MealPlan] View appeared, total recipes: \(swiftDataRecipes.count)")
             }
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -227,9 +209,10 @@ struct MealPlan: View {
         // Save changes
         do {
             try modelContext.save()
-            logger.info("[MealPlan] Updated days for recipe: \(recipe.title ?? "nil")")
+            let title = recipe.title ?? "nil"
+            logger.info("[MealPlan] Updated days for recipe: \(title, privacy: .public)")
         } catch {
-            logger.error("[MealPlan] Failed to save recipe days: \(error.localizedDescription)")
+            logger.error("[MealPlan] Failed to save recipe days: \(error.localizedDescription, privacy: .public)")
         }
     }
     
@@ -239,9 +222,10 @@ struct MealPlan: View {
         // Save changes
         do {
             try modelContext.save()
-            logger.info("[MealPlan] Cleared all days for recipe: \(recipe.title ?? "nil")")
+            let title = recipe.title ?? "nil"
+            logger.info("[MealPlan] Cleared all days for recipe: \(title, privacy: .public)")
         } catch {
-            logger.error("[MealPlan] Failed to save recipe days: \(error.localizedDescription)")
+            logger.error("[MealPlan] Failed to save recipe days: \(error.localizedDescription, privacy: .public)")
         }
     }
     
@@ -309,7 +293,7 @@ struct MealPlan: View {
             try modelContext.save()
             logger.info("[MealPlan] Successfully added recipe to SwiftData")
         } catch {
-            logger.error("[MealPlan] Failed to save recipe to SwiftData: \(error.localizedDescription)")
+            logger.error("[MealPlan] Failed to save recipe to SwiftData: \(error.localizedDescription, privacy: .public)")
         }
     }
     
@@ -328,7 +312,7 @@ struct MealPlan: View {
             try modelContext.save()
             logger.info("[MealPlan] Successfully added recipe to SwiftData")
         } catch {
-            logger.error("[MealPlan] Failed to save recipe to SwiftData: \(error.localizedDescription)")
+            logger.error("[MealPlan] Failed to save recipe to SwiftData: \(error.localizedDescription, privacy: .public)")
         }
     }
     
@@ -340,7 +324,9 @@ struct MealPlan: View {
         
         // Delete from SwiftData
         for recipe in recipesToDelete {
-            logger.info("[MealPlan] Deleting recipe: '\(recipe.title ?? "nil")' (UUID: \(recipe.uuid.uuidString))")
+            let title = recipe.title ?? "nil"
+            let uuid = recipe.uuid.uuidString
+            logger.info("[MealPlan] Deleting recipe: '\(title, privacy: .public)' (UUID: \(uuid, privacy: .public))")
             modelContext.delete(recipe)
         }
         
@@ -349,7 +335,7 @@ struct MealPlan: View {
             try modelContext.save()
             logger.info("[MealPlan] Successfully saved SwiftData deletion")
         } catch {
-            logger.error("[MealPlan] Failed to save SwiftData deletion: \(error.localizedDescription)")
+            logger.error("[MealPlan] Failed to save SwiftData deletion: \(error.localizedDescription, privacy: .public)")
         }
     }
 }
