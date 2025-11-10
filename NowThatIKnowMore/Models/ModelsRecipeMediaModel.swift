@@ -60,6 +60,7 @@ final class RecipeMediaModel {
 // MARK: - Helper Methods
 extension RecipeMediaModel {
     /// Save an image to the app's documents directory
+    /// Returns the relative path from Documents directory (e.g., "RecipeMedia/filename.jpg")
     static func saveImage(_ image: UIImage, for recipeID: UUID) -> String? {
         guard let data = image.jpegData(compressionQuality: 0.8) else { return nil }
         
@@ -74,11 +75,24 @@ extension RecipeMediaModel {
         
         do {
             try data.write(to: fileURL)
-            return fileURL.path
+            // Return relative path from Documents directory
+            return "RecipeMedia/\(filename)"
         } catch {
             print("Error saving image: \(error)")
             return nil
         }
+    }
+    
+    /// Get the full file URL for this media item
+    /// Reconstructs the full path from the relative path stored in fileURL
+    var fullFileURL: URL {
+        // If it's already an absolute path (legacy data), convert it to URL
+        if fileURL.hasPrefix("/") {
+            return URL(fileURLWithPath: fileURL)
+        }
+        // Otherwise, it's a relative path - construct full URL from Documents
+        let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        return documentsPath.appendingPathComponent(fileURL)
     }
     
     /// Create a thumbnail for an image
@@ -93,15 +107,17 @@ extension RecipeMediaModel {
     
     /// Load image from file URL
     func loadImage() -> UIImage? {
-        guard let data = try? Data(contentsOf: URL(fileURLWithPath: fileURL)) else { return nil }
+        guard let data = try? Data(contentsOf: fullFileURL) else { return nil }
         return UIImage(data: data)
     }
     
     /// Delete media file from disk
     func deleteFile() {
-        try? FileManager.default.removeItem(atPath: fileURL)
+        try? FileManager.default.removeItem(at: fullFileURL)
         if let thumbnailURL = thumbnailURL {
-            try? FileManager.default.removeItem(atPath: thumbnailURL)
+            let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            let fullThumbURL = documentsPath.appendingPathComponent(thumbnailURL)
+            try? FileManager.default.removeItem(at: fullThumbURL)
         }
     }
 }

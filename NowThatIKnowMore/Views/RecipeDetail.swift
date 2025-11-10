@@ -145,37 +145,46 @@ struct RecipeDetail: View {
         
         // Display featured media or fall back to legacy image field
         if let featuredURL = recipe.featuredMediaURL, !featuredURL.isEmpty {
-            let url = URL(string: featuredURL) ?? URL(filePath: featuredURL)
-            if url.scheme == "http" || url.scheme == "https" {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .empty:
-                        ProgressView()
-                            .frame(maxWidth: .infinity, minHeight: 200)
-                    case .success(let image):
-                        image
-                            .resizable()
-                            .scaledToFit()
-                            .frame(maxWidth: .infinity)
-                            .cornerRadius(8)
-                    case .failure(_):
-                        Image(systemName: "photo")
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 120, height: 120)
-                            .foregroundColor(.gray)
-                            .frame(maxWidth: .infinity)
-                    @unknown default:
-                        EmptyView()
+            // Check if it's a remote URL (http/https)
+            if featuredURL.hasPrefix("http://") || featuredURL.hasPrefix("https://") {
+                if let url = URL(string: featuredURL) {
+                    AsyncImage(url: url) { phase in
+                        switch phase {
+                        case .empty:
+                            ProgressView()
+                                .frame(maxWidth: .infinity, minHeight: 200)
+                        case .success(let image):
+                            image
+                                .resizable()
+                                .scaledToFit()
+                                .frame(maxWidth: .infinity)
+                                .cornerRadius(8)
+                        case .failure(_):
+                            Image(systemName: "photo")
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 120, height: 120)
+                                .foregroundColor(.gray)
+                                .frame(maxWidth: .infinity)
+                        @unknown default:
+                            EmptyView()
+                        }
                     }
                 }
-            } else if url.scheme == "file" || url.pathComponents.first == "/" {
-                if let data = try? Data(contentsOf: url), let fileImage = UIImage(data: data) {
+            } 
+            // Handle local file paths
+            else {
+                let fileURL = URL(fileURLWithPath: featuredURL)
+                if let data = try? Data(contentsOf: fileURL), let fileImage = UIImage(data: data) {
                     Image(uiImage: fileImage)
                         .resizable()
                         .scaledToFit()
                         .frame(maxWidth: .infinity)
                         .cornerRadius(8)
+                        .onAppear {
+                            print("🖼️ [RecipeDetail] Showing local file image")
+                            print("🖼️ [RecipeDetail] file path: '\(featuredURL)'")
+                        }
                 } else {
                     Image(systemName: "photo")
                         .resizable()
@@ -183,14 +192,11 @@ struct RecipeDetail: View {
                         .frame(width: 120, height: 120)
                         .foregroundColor(.gray)
                         .frame(maxWidth: .infinity)
+                        .onAppear {
+                            print("⚠️ [RecipeDetail] Failed to load local image")
+                            print("⚠️ [RecipeDetail] file path: '\(featuredURL)'")
+                        }
                 }
-            } else {
-                Image(systemName: "photo")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 120, height: 120)
-                    .foregroundColor(.gray)
-                    .frame(maxWidth: .infinity)
             }
         }
 
@@ -450,8 +456,8 @@ private struct IngredientListView: View {
                 .font(.headline)
                 .padding(.bottom, 4)
             
-            ForEach(ingredients, id: \.id) { ingredient in
-                Text("• \(ingredient.original ?? "")")
+            ForEach(ingredients.indices, id: \.self) { index in
+                Text("• \(ingredients[index].original ?? "")")
                     .font(.body)
             }
             
