@@ -537,13 +537,7 @@ private struct IngredientListView: View {
             } else {
                 VStack(alignment: .leading, spacing: 8) {
                     ForEach(validIngredients.indices, id: \.self) { index in
-                        HStack(alignment: .top, spacing: 8) {
-                            Text("•")
-                                .foregroundColor(.accentColor)
-                                .fontWeight(.bold)
-                            Text(validIngredients[index].original ?? "")
-                                .font(.body)
-                        }
+                        IngredientRowView(ingredient: validIngredients[index])
                     }
                 }
                 
@@ -882,6 +876,86 @@ private struct ExtraRecipeDetailsPanel: View {
 extension CNContact {
     var vCardData: Data? {
         try? CNContactVCardSerialization.data(with: [self])
+    }
+}
+
+// MARK: - Ingredient Row with Thumbnail
+private struct IngredientRowView: View {
+    let ingredient: ExtendedIngredient
+    
+    /// Build the Spoonacular ingredient image URL
+    /// Format: https://spoonacular.com/cdn/ingredients_100x100/{image}
+    private var ingredientImageURL: URL? {
+        // First check if the ingredient has an image field
+        if let imageName = ingredient.image, !imageName.isEmpty {
+            return URL(string: "https://spoonacular.com/cdn/ingredients_100x100/\(imageName)")
+        }
+        
+        // Fallback: try to use the ingredient name to construct an image URL
+        // This is less reliable but may work for common ingredients
+        if let name = ingredient.nameClean ?? ingredient.name {
+            let cleanName = name.lowercased()
+                .replacingOccurrences(of: " ", with: "-")
+                .replacingOccurrences(of: ",", with: "")
+            return URL(string: "https://spoonacular.com/cdn/ingredients_100x100/\(cleanName).jpg")
+        }
+        
+        return nil
+    }
+    
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            // Ingredient thumbnail
+            if let imageURL = ingredientImageURL {
+                AsyncImage(url: imageURL) { phase in
+                    switch phase {
+                    case .empty:
+                        placeholderView
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 50, height: 50)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                    case .failure:
+                        placeholderView
+                    @unknown default:
+                        placeholderView
+                    }
+                }
+                .frame(width: 50, height: 50)
+            } else {
+                placeholderView
+            }
+            
+            // Ingredient text
+            VStack(alignment: .leading, spacing: 4) {
+                if let name = ingredient.name {
+                    Text(name)
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                }
+                if let original = ingredient.original {
+                    Text(original)
+                        .font(.body)
+                        .foregroundColor(.primary)
+                }
+            }
+            
+            Spacer()
+        }
+        .padding(.vertical, 4)
+    }
+    
+    private var placeholderView: some View {
+        RoundedRectangle(cornerRadius: 8)
+            .fill(Color.gray.opacity(0.2))
+            .frame(width: 50, height: 50)
+            .overlay(
+                Image(systemName: "leaf.fill")
+                    .foregroundColor(.gray)
+                    .font(.title3)
+            )
     }
 }
 
