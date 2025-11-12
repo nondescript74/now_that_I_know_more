@@ -608,11 +608,13 @@ class TableFormatRecipeParser: RecipeImageParserProtocol, @unchecked Sendable {
         // Join all components to check for complex metric formats
         let fullText = components.joined(separator: " ")
         
-        // Handle special case: ingredient without amount (e.g., "salt, to taste")
+        // Handle special case: ingredient without amount (e.g., "salt" or "salt, to taste")
         if components.count == 1 || !isAmount(components[0]) {
             let ingredientName = cleanIngredientName(fullText)
+            // Only use the full text as amount if it actually contains "to taste"
+            let amount = fullText.lowercased().contains("to taste") ? "to taste" : ""
             return ParsedIngredient(
-                imperialAmount: "to taste",
+                imperialAmount: amount,
                 name: ingredientName,
                 metricAmount: nil
             )
@@ -661,7 +663,8 @@ class TableFormatRecipeParser: RecipeImageParserProtocol, @unchecked Sendable {
         if measurementClusters.isEmpty {
             // No measurements found - treat entire thing as ingredient name
             ingredientName = fullText
-            imperialAmount = "to taste"
+            // Only use "to taste" if the text actually contains it
+            imperialAmount = fullText.lowercased().contains("to taste") ? "to taste" : ""
         } else if measurementClusters.count == 1 {
             // Only one measurement - it's the imperial amount
             let cluster = measurementClusters[0]

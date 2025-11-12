@@ -43,6 +43,9 @@ struct RecipeDetail: View {
     @State private var didSetupFields = false
     @State private var saveMessage: String?
     @State private var showExtrasPanel: Bool = false
+    @State private var showingRecipeEditor: Bool = false
+    @State private var recipeEditorShouldSave: Bool = false
+    @State private var recipeEditorShouldDismiss: Bool = false
     @State private var showingSafari = false
     @State private var showShareSheet = false
     @State private var showingEmailComposer = false
@@ -93,6 +96,14 @@ struct RecipeDetail: View {
         .sheet(isPresented: $showExtrasPanel) {
             if let recipe = recipe {
                 ExtraRecipeDetailsPanel(recipe: recipe)
+            }
+        }
+        .sheet(isPresented: $showingRecipeEditor) {
+            if let recipe = recipe {
+                NavigationStack {
+                    RecipeEditorView(recipe: recipe)
+                }
+                .presentationDragIndicator(.visible)
             }
         }
         .sheet(isPresented: $showingSafari) {
@@ -269,7 +280,9 @@ struct RecipeDetail: View {
                 .font(.headline)
             
             // Edit Recipe
-            NavigationLink(destination: RecipeEditorView(recipe: recipe)) {
+            Button(action: {
+                showingRecipeEditor = true
+            }) {
                 Label("Edit Full Recipe Details", systemImage: "pencil")
                     .frame(maxWidth: .infinity, alignment: .leading)
             }

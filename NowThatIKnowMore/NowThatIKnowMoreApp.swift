@@ -39,11 +39,13 @@ private struct MainTabView: View {
                         Label("API Key", systemImage: "key.fill")
                     }
                     .tag(3)
-                RecipeEditorView(recipe: nil)
-                    .tabItem {
-                        Label("Edit Recipe", systemImage: "pencil")
-                    }
-                    .tag(4)
+                NavigationStack {
+                    RecipeEditorView(recipe: nil)
+                }
+                .tabItem {
+                    Label("Edit Recipe", systemImage: "pencil")
+                }
+                .tag(4)
                 RecipeDiagnosticView()
                     .tabItem {
                         Label("Diagnostics", systemImage: "exclamationmark.circle")

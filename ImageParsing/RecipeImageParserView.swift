@@ -21,6 +21,8 @@ struct RecipeImageParserView: View {
     @State private var showCamera = false
     @State private var showSuccessAlert = false
     @State private var selectedParserType: RecipeParserType = .tableFormat
+    @State private var showBoundingBoxEditor = false
+    @State private var definedRegions: [OCRRegion] = []
     
     var body: some View {
         NavigationView {
@@ -93,12 +95,42 @@ struct RecipeImageParserView: View {
                     
                     // Parse Button
                     if selectedImage != nil {
-                        Button(action: {
-                            print("🔘 [RecipeImageParserView] Parse button TAPPED")
-                            let generator = UIImpactFeedbackGenerator(style: .medium)
-                            generator.impactOccurred()
-                            parseImage()
-                        }) {
+                        VStack(spacing: 10) {
+                            Button(action: {
+                                print("🎯 [RecipeImageParserView] Define Regions button TAPPED")
+                                showBoundingBoxEditor = true
+                            }) {
+                                Label("Define Regions (Advanced)", systemImage: "rectangle.3.group")
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 44)
+                            }
+                            .buttonStyle(.bordered)
+                            .padding(.horizontal)
+                            
+                            // Help text for Define Regions feature
+                            HStack(spacing: 8) {
+                                Image(systemName: "info.circle")
+                                    .foregroundColor(.accentColor)
+                                    .font(.caption2)
+                                
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Draw boxes around recipe sections for better accuracy")
+                                        .font(.caption2)
+                                        .foregroundColor(.secondary)
+                                    Text("Use pinch to zoom, slider to adjust size, mini-map to navigate")
+                                        .font(.caption2)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                            .padding(.horizontal)
+                            .padding(.bottom, 4)
+                            
+                            Button(action: {
+                                print("🔘 [RecipeImageParserView] Parse button TAPPED")
+                                let generator = UIImpactFeedbackGenerator(style: .medium)
+                                generator.impactOccurred()
+                                parseImage()
+                            }) {
                             HStack {
                                 if isProcessing {
                                     ProgressView()
@@ -116,6 +148,7 @@ struct RecipeImageParserView: View {
                         .buttonStyle(.borderedProminent)
                         .disabled(isProcessing)
                         .padding(.horizontal)
+                        }
                     }
                     
                     // Error Display
@@ -148,6 +181,21 @@ struct RecipeImageParserView: View {
                 Button("OK", role: .cancel) { }
             } message: {
                 Text("The recipe has been saved to your collection.")
+            }
+            .fullScreenCover(isPresented: $showBoundingBoxEditor) {
+                if let image = selectedImage {
+                    RecipeOCRBoundingBoxEditor(
+                        image: image,
+                        onComplete: { regions in
+                            definedRegions = regions
+                            showBoundingBoxEditor = false
+                            parseImageWithRegions(regions)
+                        },
+                        onCancel: {
+                            showBoundingBoxEditor = false
+                        }
+                    )
+                }
             }
         }
     }
@@ -241,6 +289,84 @@ struct RecipeImageParserView: View {
         }
         
         return resizedImage
+    }
+    
+    // MARK: - Parse with Defined Regions
+    
+    private func parseImageWithRegions(_ regions: [OCRRegion]) {
+        print("🎯 [RecipeImageParserView] Parsing with \(regions.count) user-defined regions")
+        
+        // Build a ParsedRecipe from the regions
+        var title = ""
+        var servingsText: String? = nil
+        var ingredients: [ParsedIngredient] = []
+        var instructions = ""
+        
+        for region in regions {
+            switch region.type {
+            case .title:
+                title = region.text
+                print("📝 Title: \(title)")
+                
+            case .servings:
+                servingsText = region.text
+                print("👥 Servings: \(servingsText ?? "none")")
+                
+            case .ingredients:
+                // Use the grouped ingredients
+                if !region.ingredientGroups.isEmpty {
+                    for group in region.ingredientGroups {
+                        let ingredientText = group.map { $0.text }.joined(separator: " ")
+                        let parsed = ParsedIngredient(
+                            imperialAmount: "",
+                            name: ingredientText,
+                            metricAmount: nil
+                        )
+                        ingredients.append(parsed)
+                        print("🥕 Ingredient: \(ingredientText)")
+                    }
+                } else {
+                    // Fall back to all text
+                    let ingredientText = region.text
+                    let parsed = ParsedIngredient(
+                        imperialAmount: "",
+                        name: ingredientText,
+                        metricAmount: nil
+                    )
+                    ingredients.append(parsed)
+                }
+                
+            case .instructions:
+                instructions = region.text
+                print("📖 Instructions: \(instructions)")
+                
+            case .notes:
+                // Could append to instructions or summary
+                if !instructions.isEmpty {
+                    instructions += "\n\n" + region.text
+                } else {
+                    instructions = region.text
+                }
+                
+            case .ignore:
+                // Skip
+                continue
+            }
+        }
+        
+        // Create ParsedRecipe
+        let parsedResult = ParsedRecipe(
+            title: title,
+            servings: servingsText,
+            ingredients: ingredients,
+            instructions: instructions
+        )
+        
+        DispatchQueue.main.async {
+            self.parsedRecipe = parsedResult
+            self.parsedRecipeModel = ParsedRecipeAdapter.convertToRecipeModel(parsedResult)
+            print("✅ [RecipeImageParserView] Created recipe from regions")
+        }
     }
     
     // MARK: - Parser Guide Views
