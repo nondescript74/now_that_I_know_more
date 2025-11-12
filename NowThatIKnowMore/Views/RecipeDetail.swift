@@ -261,7 +261,10 @@ struct RecipeDetail: View {
         }
         
         // MARK: - Ingredients Section (IMPROVED)
-        IngredientListView(ingredients: recipe.extendedIngredients ?? [])
+        IngredientListView(ingredients: recipe.extendedIngredients ?? []) { updatedIngredients in
+            recipe.extendedIngredients = updatedIngredients
+            try? modelContext.save()
+        }
             .padding(.vertical, 8)
         
         Divider()
@@ -496,17 +499,19 @@ private class RecipeShareProvider: NSObject, UIActivityItemSource {
 
 private struct IngredientListView: View {
     let ingredients: [ExtendedIngredient]
+    var onIngredientsUpdated: (([ExtendedIngredient]) -> Void)?
     
     @State private var showReminderPicker = false
     @State private var selectedIndices: Set<Int> = []
     @State private var reminderMessage: String?
+    @State private var editedIngredients: [ExtendedIngredient] = []
     
     // Added properties for reminder lists and selection
     @State private var availableReminderLists: [EKCalendar] = []
     @State private var selectedList: EKCalendar?
     
     private var validIngredients: [ExtendedIngredient] {
-        ingredients.filter { ($0.original ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false }
+        (editedIngredients.isEmpty ? ingredients : editedIngredients).filter { ($0.original ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false }
     }
     
     var body: some View {
@@ -550,7 +555,14 @@ private struct IngredientListView: View {
             } else {
                 VStack(alignment: .leading, spacing: 8) {
                     ForEach(validIngredients.indices, id: \.self) { index in
-                        IngredientRowView(ingredient: validIngredients[index])
+                        IngredientRowView(ingredient: validIngredients[index]) { originalIngredient, mappedSpoonacular in
+                            updateIngredientMapping(at: index, with: mappedSpoonacular)
+                        }
+                    }
+                }
+                .onAppear {
+                    if editedIngredients.isEmpty {
+                        editedIngredients = ingredients
                     }
                 }
                 
@@ -649,6 +661,35 @@ private struct IngredientListView: View {
                 }
             }
         }
+    }
+    
+    private func updateIngredientMapping(at index: Int, with spoonacularIngredient: SpoonacularIngredient) {
+        guard index < editedIngredients.count else { return }
+        
+        let original = editedIngredients[index]
+        
+        // Create updated ingredient with Spoonacular ID and image
+        let imageName = "\(spoonacularIngredient.name.lowercased().replacingOccurrences(of: " ", with: "-")).jpg"
+        
+        let updated = ExtendedIngredient(
+            id: spoonacularIngredient.id,
+            aisle: original.aisle,
+            image: imageName,
+            consistency: original.consistency,
+            name: original.name,
+            nameClean: spoonacularIngredient.name,
+            original: original.original,
+            originalName: original.originalName,
+            amount: original.amount,
+            unit: original.unit,
+            meta: original.meta,
+            measures: original.measures
+        )
+        
+        editedIngredients[index] = updated
+        
+        // Notify parent that ingredients have changed
+        onIngredientsUpdated?(editedIngredients)
     }
     
     private func addIngredientsToReminders() {
@@ -895,6 +936,9 @@ extension CNContact {
 // MARK: - Ingredient Row with Thumbnail
 private struct IngredientRowView: View {
     let ingredient: ExtendedIngredient
+    @State private var showingIngredientPicker = false
+    @State private var mappedIngredient: SpoonacularIngredient?
+    var onIngredientMapped: ((ExtendedIngredient, SpoonacularIngredient) -> Void)?
     
     /// Build the Spoonacular ingredient image URL
     /// Format: https://spoonacular.com/cdn/ingredients_100x100/{image}
@@ -902,6 +946,11 @@ private struct IngredientRowView: View {
         // First check if the ingredient has an image field
         if let imageName = ingredient.image, !imageName.isEmpty {
             return URL(string: "https://spoonacular.com/cdn/ingredients_100x100/\(imageName)")
+        }
+        
+        // If we have a mapped ingredient, use its ID to construct the image URL
+        if let mapped = mappedIngredient {
+            return URL(string: "https://spoonacular.com/cdn/ingredients_100x100/\(mapped.name.lowercased().replacingOccurrences(of: " ", with: "-")).jpg")
         }
         
         // Fallback: try to use the ingredient name to construct an image URL
@@ -916,59 +965,193 @@ private struct IngredientRowView: View {
         return nil
     }
     
+    private var needsMapping: Bool {
+        // Ingredient needs mapping if it has no ID or image
+        return ingredient.id == nil || ingredient.image == nil
+    }
+    
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             // Ingredient thumbnail
-            if let imageURL = ingredientImageURL {
-                AsyncImage(url: imageURL) { phase in
-                    switch phase {
-                    case .empty:
-                        placeholderView
-                    case .success(let image):
-                        image
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: 50, height: 50)
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
-                    case .failure:
-                        placeholderView
-                    @unknown default:
-                        placeholderView
+            Button(action: {
+                if needsMapping {
+                    showingIngredientPicker = true
+                }
+            }) {
+                ZStack(alignment: .bottomTrailing) {
+                    if let imageURL = ingredientImageURL {
+                        AsyncImage(url: imageURL) { phase in
+                            switch phase {
+                            case .empty:
+                                placeholderView()
+                            case .success(let image):
+                                image
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: 50, height: 50)
+                                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                            case .failure:
+                                placeholderView(showWarning: true)
+                            @unknown default:
+                                placeholderView()
+                            }
+                        }
+                        .frame(width: 50, height: 50)
+                    } else {
+                        placeholderView(showWarning: needsMapping)
+                    }
+                    
+                    // Show a badge if mapping is suggested
+                    if needsMapping {
+                        Image(systemName: "questionmark.circle.fill")
+                            .font(.caption)
+                            .foregroundColor(.orange)
+                            .background(Circle().fill(Color.white).frame(width: 14, height: 14))
+                            .offset(x: 4, y: 4)
                     }
                 }
-                .frame(width: 50, height: 50)
-            } else {
-                placeholderView
             }
+            .buttonStyle(.plain)
             
             // Ingredient text
             VStack(alignment: .leading, spacing: 4) {
-                if let name = ingredient.name {
-                    Text(name)
-                        .font(.subheadline)
-                        .fontWeight(.medium)
+                HStack {
+                    if let name = ingredient.name {
+                        Text(name)
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                    }
+                    if needsMapping {
+                        Button(action: { showingIngredientPicker = true }) {
+                            Image(systemName: "magnifyingglass")
+                                .font(.caption)
+                                .foregroundColor(.accentColor)
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
                 if let original = ingredient.original {
                     Text(original)
                         .font(.body)
                         .foregroundColor(.primary)
                 }
+                if let mapped = mappedIngredient {
+                    Text("Mapped to: \(mapped.name)")
+                        .font(.caption)
+                        .foregroundColor(.green)
+                }
             }
             
             Spacer()
         }
         .padding(.vertical, 4)
+        .sheet(isPresented: $showingIngredientPicker) {
+            NavigationStack {
+                IngredientSearchAndPickView(
+                    initialQuery: ingredient.nameClean ?? ingredient.name ?? "",
+                    onSelect: { selected in
+                        mappedIngredient = selected
+                        onIngredientMapped?(ingredient, selected)
+                        showingIngredientPicker = false
+                    }
+                )
+            }
+        }
     }
     
-    private var placeholderView: some View {
+    private func placeholderView(showWarning: Bool = false) -> some View {
         RoundedRectangle(cornerRadius: 8)
-            .fill(Color.gray.opacity(0.2))
+            .fill(showWarning ? Color.orange.opacity(0.2) : Color.gray.opacity(0.2))
             .frame(width: 50, height: 50)
             .overlay(
-                Image(systemName: "leaf.fill")
-                    .foregroundColor(.gray)
+                Image(systemName: showWarning ? "exclamationmark.triangle.fill" : "leaf.fill")
+                    .foregroundColor(showWarning ? .orange : .gray)
                     .font(.title3)
             )
+    }
+}
+
+// MARK: - Ingredient Search and Pick View
+private struct IngredientSearchAndPickView: View {
+    @StateObject private var manager = SpoonacularIngredientManager.shared
+    @State private var searchText: String
+    @Environment(\.dismiss) private var dismiss
+    
+    let onSelect: (SpoonacularIngredient) -> Void
+    
+    init(initialQuery: String = "", onSelect: @escaping (SpoonacularIngredient) -> Void) {
+        _searchText = State(initialValue: initialQuery)
+        self.onSelect = onSelect
+    }
+    
+    private var filteredIngredients: [SpoonacularIngredient] {
+        manager.searchIngredients(query: searchText)
+    }
+    
+    var body: some View {
+        Group {
+            if !manager.isLoaded {
+                ProgressView("Loading ingredients...")
+            } else {
+                List {
+                    ForEach(filteredIngredients.prefix(50)) { ingredient in
+                        Button {
+                            onSelect(ingredient)
+                        } label: {
+                            HStack {
+                                // Show thumbnail preview
+                                let imageURL = URL(string: "https://spoonacular.com/cdn/ingredients_100x100/\(ingredient.name.lowercased().replacingOccurrences(of: " ", with: "-")).jpg")
+                                
+                                AsyncImage(url: imageURL) { phase in
+                                    switch phase {
+                                    case .success(let image):
+                                        image
+                                            .resizable()
+                                            .scaledToFill()
+                                            .frame(width: 40, height: 40)
+                                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                                    default:
+                                        RoundedRectangle(cornerRadius: 6)
+                                            .fill(Color.gray.opacity(0.2))
+                                            .frame(width: 40, height: 40)
+                                            .overlay(
+                                                Image(systemName: "leaf.fill")
+                                                    .font(.caption)
+                                                    .foregroundColor(.gray)
+                                            )
+                                    }
+                                }
+                                
+                                VStack(alignment: .leading) {
+                                    Text(ingredient.name)
+                                        .font(.body)
+                                    Text("ID: \(ingredient.id)")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                                
+                                Spacer()
+                                
+                                Image(systemName: "checkmark.circle")
+                                    .foregroundColor(.accentColor)
+                                    .font(.title3)
+                            }
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .searchable(text: $searchText, prompt: "Search ingredients")
+            }
+        }
+        .navigationTitle("Match Ingredient")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("Cancel") {
+                    dismiss()
+                }
+            }
+        }
     }
 }
 

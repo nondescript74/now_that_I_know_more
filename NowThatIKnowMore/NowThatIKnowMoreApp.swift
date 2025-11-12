@@ -34,18 +34,18 @@ private struct MainTabView: View {
                         Label("OCR Import", systemImage: "camera")
                     }
                     .tag(2)
-                APIKeyTabView()
-                    .tabItem {
-                        Label("API Key", systemImage: "key.fill")
-                    }
-                    .tag(3)
                 NavigationStack {
                     RecipeEditorView(recipe: nil)
                 }
                 .tabItem {
                     Label("Edit Recipe", systemImage: "pencil")
                 }
-                .tag(4)
+                .tag(3)
+                APIKeyTabView()
+                    .tabItem {
+                        Label("API Key", systemImage: "key.fill")
+                    }
+                    .tag(4)
                 RecipeDiagnosticView()
                     .tabItem {
                         Label("Diagnostics", systemImage: "exclamationmark.circle")
