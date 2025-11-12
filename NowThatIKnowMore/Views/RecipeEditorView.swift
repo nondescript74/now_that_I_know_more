@@ -487,6 +487,142 @@ struct RecipeEditorView: View {
         }
     }
     
+    // MARK: - Ingredient Matching Helpers
+    
+    /// Finds a matching ingredient from existing ingredients using smart fuzzy matching
+    /// This preserves image data and other metadata when ingredients are edited
+    private func findMatchingIngredient(for line: String, in existingIngredients: [ExtendedIngredient]) -> ExtendedIngredient? {
+        let cleanedLine = line.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        
+        // Strategy 1: Exact match on original text (highest confidence)
+        if let exactMatch = existingIngredients.first(where: {
+            $0.original?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == cleanedLine
+        }) {
+            print("✅ [IngredientMatch] Exact match: '\(line)' -> '\(exactMatch.original ?? "")'")
+            return exactMatch
+        }
+        
+        // Strategy 2: Match by nameClean (core ingredient name)
+        let extractedName = extractIngredientName(from: line)
+        if let nameMatch = existingIngredients.first(where: {
+            guard let nameClean = $0.nameClean else { return false }
+            return nameClean.lowercased().contains(extractedName.lowercased()) ||
+                   extractedName.lowercased().contains(nameClean.lowercased())
+        }) {
+            print("✅ [IngredientMatch] Name match: '\(line)' -> '\(nameMatch.nameClean ?? "")'")
+            return nameMatch
+        }
+        
+        // Strategy 3: Match by ingredient name field
+        if let nameFieldMatch = existingIngredients.first(where: {
+            guard let name = $0.name else { return false }
+            return name.lowercased().contains(extractedName.lowercased()) ||
+                   extractedName.lowercased().contains(name.lowercased())
+        }) {
+            print("✅ [IngredientMatch] Name field match: '\(line)' -> '\(nameFieldMatch.name ?? "")'")
+            return nameFieldMatch
+        }
+        
+        // Strategy 4: Fuzzy match on key words (for ingredients with measurements changed)
+        let lineWords = extractKeyWords(from: cleanedLine)
+        if let fuzzyMatch = existingIngredients.first(where: { existing in
+            guard let originalText = existing.original?.lowercased() else { return false }
+            let existingWords = extractKeyWords(from: originalText)
+            
+            // Check if at least one significant word matches
+            let commonWords = Set(lineWords).intersection(Set(existingWords))
+            return !commonWords.isEmpty
+        }) {
+            print("✅ [IngredientMatch] Fuzzy match: '\(line)' -> '\(fuzzyMatch.original ?? "")'")
+            return fuzzyMatch
+        }
+        
+        print("⚠️ [IngredientMatch] No match found for: '\(line)'")
+        return nil
+    }
+    
+    /// Extracts the core ingredient name from a line of text
+    /// Removes quantities, measurements, and preparation methods
+    private func extractIngredientName(from line: String) -> String {
+        var cleaned = line.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        // Common measurement units to strip out
+        let measurements = [
+            "cup", "cups", "tablespoon", "tablespoons", "tbsp", "teaspoon", "teaspoons", "tsp",
+            "pound", "pounds", "lb", "lbs", "ounce", "ounces", "oz", "gram", "grams", "g",
+            "kilogram", "kilograms", "kg", "milliliter", "milliliters", "ml", "liter", "liters", "l",
+            "pinch", "dash", "handful", "piece", "pieces", "slice", "slices", "clove", "cloves",
+            "can", "cans", "package", "packages", "jar", "jars", "box", "boxes"
+        ]
+        
+        // Common preparation words to strip
+        let preparations = [
+            "chopped", "diced", "sliced", "minced", "grated", "shredded", "peeled", "crushed",
+            "fresh", "dried", "ground", "whole", "halved", "quartered", "finely", "coarsely",
+            "to taste", "optional", "or more", "approximately", "slightly"
+        ]
+        
+        // Common descriptive words to strip
+        let descriptors = [
+            "large", "medium", "small", "big", "tiny", "extra", "super",
+            "hot", "cold", "warm", "sweet", "spicy", "mild", "ripe", "unripe",
+            "red", "green", "yellow", "white", "black", "brown", "orange", "purple"
+        ]
+        
+        // Remove numbers, fractions, and special fraction characters at the start
+        cleaned = cleaned.replacingOccurrences(of: "^[0-9\\/\\.\\-\\s¼½¾⅓⅔⅛⅜⅝⅞]+", with: "", options: .regularExpression)
+        
+        // Remove measurement words (case insensitive)
+        for measurement in measurements {
+            cleaned = cleaned.replacingOccurrences(of: "\\b\(measurement)\\b", with: "", options: [.regularExpression, .caseInsensitive])
+        }
+        
+        // Remove preparation words
+        for prep in preparations {
+            cleaned = cleaned.replacingOccurrences(of: "\\b\(prep)\\b", with: "", options: [.regularExpression, .caseInsensitive])
+        }
+        
+        // Remove descriptive words
+        for descriptor in descriptors {
+            cleaned = cleaned.replacingOccurrences(of: "\\b\(descriptor)\\b", with: "", options: [.regularExpression, .caseInsensitive])
+        }
+        
+        // Remove parentheses and their contents
+        cleaned = cleaned.replacingOccurrences(of: "\\([^)]*\\)", with: "", options: .regularExpression)
+        
+        // Clean up extra whitespace
+        cleaned = cleaned.replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+        cleaned = cleaned.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        // Remove leading/trailing commas and 'of'
+        cleaned = cleaned.replacingOccurrences(of: "^[,\\s]*of\\s+", with: "", options: [.regularExpression, .caseInsensitive])
+        cleaned = cleaned.trimmingCharacters(in: CharacterSet(charactersIn: ", "))
+        
+        return cleaned.isEmpty ? line : cleaned
+    }
+    
+    /// Extracts key words from ingredient text for fuzzy matching
+    /// Filters out common stop words, measurements, and quantities
+    private func extractKeyWords(from text: String) -> [String] {
+        let stopWords = Set([
+            "a", "an", "the", "of", "to", "for", "with", "and", "or", "in", "on", "at", "by",
+            "fresh", "dried", "ground", "whole", "large", "small", "medium", "about", "approximately"
+        ])
+        
+        // Split into words and filter
+        let words = text.lowercased()
+            .replacingOccurrences(of: "[^a-z\\s]", with: " ", options: .regularExpression)
+            .split(separator: " ")
+            .map { String($0) }
+            .filter { word in
+                !stopWords.contains(word) &&
+                word.count > 2 && // Ignore very short words
+                !word.allSatisfy { $0.isNumber } // Ignore pure numbers
+            }
+        
+        return words
+    }
+    
     private func saveEdits() {
         let servingsValue: Int? = Int(servings) ?? recipe?.servings
         
@@ -520,21 +656,81 @@ struct RecipeEditorView: View {
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
         
-        // Convert to ExtendedIngredient array
+        // Get existing ingredients to preserve image data
+        let existingIngredients = recipe?.extendedIngredients ?? []
+        
+        // Pre-fetch Spoonacular matches for all ingredients that need them
+        // This is done outside the map to ensure main actor access
+        var spoonacularMatches: [String: SpoonacularIngredient] = [:]
+        let manager = SpoonacularIngredientManager.shared
+        
+        for line in ingredientLines {
+            let extractedName = extractIngredientName(from: line)
+            
+            // Check if we need to look up this ingredient
+            let existingMatch = existingIngredients.first { existing in
+                existing.original?.trimmingCharacters(in: .whitespacesAndNewlines) == line
+            }
+            
+            // Only lookup if no existing image
+            if existingMatch?.image == nil || existingMatch?.image?.isEmpty == true {
+                // Try exact name match
+                if let match = manager.ingredient(withName: extractedName) {
+                    spoonacularMatches[line] = match
+                    print("🔍 [Spoonacular] Found exact match for '\(extractedName)': '\(match.name)' (ID: \(match.id))")
+                } else {
+                    // Try search
+                    let searchResults = manager.searchIngredients(query: extractedName)
+                    if let match = searchResults.first {
+                        spoonacularMatches[line] = match
+                        print("🔍 [Spoonacular] Found search match for '\(extractedName)': '\(match.name)' (ID: \(match.id))")
+                    } else {
+                        print("⚠️ [Spoonacular] No match found for '\(extractedName)'")
+                    }
+                }
+            }
+        }
+        
+        // Convert to ExtendedIngredient array, preserving images where possible
         let extendedIngredients: [ExtendedIngredient] = ingredientLines.enumerated().map { index, line in
-            ExtendedIngredient(
-                id: index + 1,
-                aisle: nil,
-                image: nil,
-                consistency: nil,
-                name: line,
-                nameClean: nil,
+            // Try to find a matching existing ingredient using smart matching
+            let matchingExistingIngredient = findMatchingIngredient(for: line, in: existingIngredients)
+            
+            // Extract the ingredient name for this line
+            let extractedName = extractIngredientName(from: line)
+            
+            // Get pre-fetched Spoonacular match
+            let spoonacularMatch = spoonacularMatches[line]
+            var imageFilename: String?
+            
+            // Use existing image if available
+            if let existingImage = matchingExistingIngredient?.image, !existingImage.isEmpty {
+                imageFilename = existingImage
+                print("✅ [IngredientImage] Using existing image for '\(line)': \(existingImage)")
+            } else if let match = spoonacularMatch {
+                // Construct image filename from Spoonacular ingredient
+                let imageName = match.name.lowercased()
+                    .replacingOccurrences(of: " ", with: "-")
+                    .replacingOccurrences(of: ",", with: "")
+                imageFilename = "\(imageName).jpg"
+                print("🖼️ [IngredientImage] Using Spoonacular image for '\(line)': '\(match.name)' -> \(imageFilename ?? "none")")
+            } else {
+                print("⚠️ [IngredientImage] No image available for '\(line)'")
+            }
+            
+            return ExtendedIngredient(
+                id: spoonacularMatch?.id ?? matchingExistingIngredient?.id ?? (index + 1),
+                aisle: matchingExistingIngredient?.aisle,
+                image: imageFilename,
+                consistency: matchingExistingIngredient?.consistency,
+                name: spoonacularMatch?.name ?? matchingExistingIngredient?.name ?? extractedName,
+                nameClean: spoonacularMatch?.name ?? matchingExistingIngredient?.nameClean ?? extractedName,
                 original: line,
-                originalName: nil,
-                amount: nil,
-                unit: nil,
-                meta: nil,
-                measures: nil
+                originalName: matchingExistingIngredient?.originalName,
+                amount: matchingExistingIngredient?.amount,
+                unit: matchingExistingIngredient?.unit,
+                meta: matchingExistingIngredient?.meta,
+                measures: matchingExistingIngredient?.measures
             )
         }
         
