@@ -36,6 +36,8 @@ struct RecipeEditorView: View {
     @State private var ingredients: String = ""
     @State private var ingredientsSelectedRange: NSRange = NSRange(location: 0, length: 0)
     @State private var showingEmailComposer = false
+    @State private var showIngredientMatcher = false
+    @State private var unmatchedIngredients: [(line: String, matches: [SpoonacularIngredient])] = []
     
     // Media gallery state
     @State private var mediaItems: [RecipeMediaModel]
@@ -86,6 +88,21 @@ struct RecipeEditorView: View {
             actionSection
         }
         .navigationTitle(isEditingExisting ? "Edit Recipe" : "Create Recipe")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("Cancel") {
+                    dismiss()
+                }
+            }
+            
+            ToolbarItem(placement: .confirmationAction) {
+                Button("Save") {
+                    saveEdits()
+                }
+                .disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+        }
         .alert("Edit", isPresented: $showAlert, actions: { Button("OK", role: .cancel) { } }, message: { Text(alertMessage) })
         .sheet(isPresented: $showingEmailComposer) {
             if let recipe = recipe {
@@ -106,6 +123,18 @@ struct RecipeEditorView: View {
                     }
                 }
             }
+        }
+        .sheet(isPresented: $showIngredientMatcher) {
+            IngredientMatcherView(
+                unmatchedIngredients: $unmatchedIngredients,
+                onComplete: { matches in
+                    showIngredientMatcher = false
+                    finalizeSaveWithMatches(matches)
+                },
+                onCancel: {
+                    showIngredientMatcher = false
+                }
+            )
         }
     }
     
@@ -424,19 +453,15 @@ struct RecipeEditorView: View {
     
     private var actionSection: some View {
         Section {
-            Button("Save Changes") { saveEdits() }
-                .buttonStyle(.borderedProminent)
-            
             if isEditingExisting, let _ = recipe {
                 Button(action: {
                     showingEmailComposer = true
                 }) {
                     Label("Email Recipe", systemImage: "envelope")
+                        .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
             }
-            
-            Button("Cancel", role: .destructive) { dismiss() }
         }
     }
     
@@ -559,7 +584,16 @@ struct RecipeEditorView: View {
         let preparations = [
             "chopped", "diced", "sliced", "minced", "grated", "shredded", "peeled", "crushed",
             "fresh", "dried", "ground", "whole", "halved", "quartered", "finely", "coarsely",
-            "to taste", "optional", "or more", "approximately", "slightly"
+            "optional", "approximately", "slightly"
+        ]
+        
+        // Multi-word phrases to strip (handled separately to avoid regex issues)
+        let multiWordPhrases = [
+            "to taste",
+            "or more",
+            "or less",
+            "as needed",
+            "if needed"
         ]
         
         // Common descriptive words to strip
@@ -580,6 +614,11 @@ struct RecipeEditorView: View {
         // Remove preparation words
         for prep in preparations {
             cleaned = cleaned.replacingOccurrences(of: "\\b\(prep)\\b", with: "", options: [.regularExpression, .caseInsensitive])
+        }
+        
+        // Remove multi-word phrases (case insensitive, exact phrase match)
+        for phrase in multiWordPhrases {
+            cleaned = cleaned.replacingOccurrences(of: phrase, with: "", options: .caseInsensitive)
         }
         
         // Remove descriptive words
@@ -624,6 +663,69 @@ struct RecipeEditorView: View {
     }
     
     private func saveEdits() {
+        // First, check for ingredients that need manual matching
+        checkForUnmatchedIngredients()
+    }
+    
+    private func checkForUnmatchedIngredients() {
+        // Parse ingredients (one per line)
+        let ingredientLines = ingredients
+            .components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        
+        // Get existing ingredients to preserve image data
+        let existingIngredients = recipe?.extendedIngredients ?? []
+        let manager = SpoonacularIngredientManager.shared
+        
+        // Check each ingredient for matches
+        var unmatched: [(line: String, matches: [SpoonacularIngredient])] = []
+        
+        for line in ingredientLines {
+            let extractedName = extractIngredientName(from: line)
+            let existingMatch = findMatchingIngredient(for: line, in: existingIngredients)
+            
+            // Skip if already has an image
+            if existingMatch?.image != nil && !(existingMatch?.image?.isEmpty ?? true) {
+                continue
+            }
+            
+            // Try exact name match first
+            if let _ = manager.ingredient(withName: extractedName) {
+                continue // Exact match found, no user input needed
+            }
+            
+            // Check for partial matches
+            let searchResults = manager.searchIngredients(query: extractedName)
+            
+            if searchResults.isEmpty {
+                // No matches at all - user will have to skip this one
+                print("⚠️ [Spoonacular] No matches found for '\(extractedName)'")
+            } else if searchResults.count == 1 {
+                // Single match - we'll use it automatically
+                print("✅ [Spoonacular] Single match for '\(extractedName)': '\(searchResults[0].name)'")
+            } else {
+                // Multiple matches - need user input
+                unmatched.append((line: line, matches: Array(searchResults.prefix(10))))
+                print("🔍 [Spoonacular] Multiple matches for '\(extractedName)': \(searchResults.count) options")
+            }
+        }
+        
+        // If there are unmatched ingredients, show the matcher UI
+        if !unmatched.isEmpty {
+            unmatchedIngredients = unmatched
+            showIngredientMatcher = true
+        } else {
+            // No unmatched ingredients, proceed with save
+            performSave(with: [:])
+        }
+    }
+    
+    private func finalizeSaveWithMatches(_ matches: [String: SpoonacularIngredient]) {
+        performSave(with: matches)
+    }
+    
+    private func performSave(with userSelectedMatches: [String: SpoonacularIngredient]) {
         let servingsValue: Int? = Int(servings) ?? recipe?.servings
         
         // Determine image and imageType to save based on imageUrl validity
@@ -661,16 +763,19 @@ struct RecipeEditorView: View {
         
         // Pre-fetch Spoonacular matches for all ingredients that need them
         // This is done outside the map to ensure main actor access
-        var spoonacularMatches: [String: SpoonacularIngredient] = [:]
+        var spoonacularMatches: [String: SpoonacularIngredient] = userSelectedMatches
         let manager = SpoonacularIngredientManager.shared
         
         for line in ingredientLines {
+            // Skip if user already selected a match
+            if spoonacularMatches[line] != nil {
+                continue
+            }
+            
             let extractedName = extractIngredientName(from: line)
             
-            // Check if we need to look up this ingredient
-            let existingMatch = existingIngredients.first { existing in
-                existing.original?.trimmingCharacters(in: .whitespacesAndNewlines) == line
-            }
+            // Check if we need to look up this ingredient using smart matching
+            let existingMatch = findMatchingIngredient(for: line, in: existingIngredients)
             
             // Only lookup if no existing image
             if existingMatch?.image == nil || existingMatch?.image?.isEmpty == true {
@@ -679,15 +784,19 @@ struct RecipeEditorView: View {
                     spoonacularMatches[line] = match
                     print("🔍 [Spoonacular] Found exact match for '\(extractedName)': '\(match.name)' (ID: \(match.id))")
                 } else {
-                    // Try search
+                    // Try search - take first result if only one
                     let searchResults = manager.searchIngredients(query: extractedName)
-                    if let match = searchResults.first {
-                        spoonacularMatches[line] = match
-                        print("🔍 [Spoonacular] Found search match for '\(extractedName)': '\(match.name)' (ID: \(match.id))")
+                    if searchResults.count == 1 {
+                        spoonacularMatches[line] = searchResults[0]
+                        print("🔍 [Spoonacular] Found single search match for '\(extractedName)': '\(searchResults[0].name)' (ID: \(searchResults[0].id))")
+                    } else if !searchResults.isEmpty {
+                        print("⚠️ [Spoonacular] Multiple matches for '\(extractedName)', but no user selection")
                     } else {
                         print("⚠️ [Spoonacular] No match found for '\(extractedName)'")
                     }
                 }
+            } else {
+                print("ℹ️ [Spoonacular] Skipping lookup for '\(line)' - already has image: \(existingMatch?.image ?? "unknown")")
             }
         }
         
@@ -959,6 +1068,212 @@ private struct MailComposeView: UIViewControllerRepresentable {
         </html>
         """
         return html
+    }
+}
+
+// MARK: - Ingredient Matcher View
+
+private struct IngredientMatcherView: View {
+    @Binding var unmatchedIngredients: [(line: String, matches: [SpoonacularIngredient])]
+    let onComplete: ([String: SpoonacularIngredient]) -> Void
+    let onCancel: () -> Void
+    
+    @State private var selectedMatches: [String: SpoonacularIngredient?] = [:]
+    
+    var body: some View {
+        NavigationStack {
+            List {
+                if unmatchedIngredients.isEmpty {
+                    Text("No ingredients need matching")
+                        .foregroundColor(.secondary)
+                } else {
+                    ForEach(unmatchedIngredients.indices, id: \.self) { index in
+                        ingredientMatchSection(at: index)
+                    }
+                }
+            }
+            .navigationTitle("Match Ingredients")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        onCancel()
+                    }
+                }
+                
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Continue") {
+                        // Filter out skipped ingredients (where value is nil) and unwrap
+                        let confirmedMatches = selectedMatches.compactMapValues { $0 }
+                        onComplete(confirmedMatches)
+                    }
+                    .disabled(selectedMatches.count != unmatchedIngredients.count)
+                }
+            }
+            .safeAreaInset(edge: .bottom) {
+                bottomStatusBar
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private func ingredientMatchSection(at index: Int) -> some View {
+        let item = unmatchedIngredients[index]
+        
+        Section {
+            VStack(alignment: .leading, spacing: 12) {
+                // Original ingredient text
+                ingredientHeader(for: item)
+                
+                Text("Select the best match:")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                
+                // Possible matches
+                ForEach(item.matches) { match in
+                    matchButton(for: match, item: item)
+                }
+                
+                // Skip option
+                skipButton(for: item)
+            }
+            .padding(.vertical, 8)
+        } header: {
+            Text("Ingredient \(index + 1) of \(unmatchedIngredients.count)")
+        }
+    }
+    
+    @ViewBuilder
+    private func ingredientHeader(for item: (line: String, matches: [SpoonacularIngredient])) -> some View {
+        HStack {
+            Image(systemName: "leaf.fill")
+                .foregroundColor(.green)
+            Text(item.line)
+                .font(.headline)
+        }
+        .padding(.bottom, 4)
+    }
+    
+    @ViewBuilder
+    private func matchButton(for match: SpoonacularIngredient, item: (line: String, matches: [SpoonacularIngredient])) -> some View {
+        let isSelected = selectedMatches[item.line]??.id == match.id
+        
+        Button(action: {
+            selectedMatches[item.line] = match
+        }) {
+            HStack(spacing: 12) {
+                ingredientImageThumbnail(for: match)
+                
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(match.name)
+                        .font(.subheadline)
+                        .foregroundColor(.primary)
+                    
+                    Text("ID: \(match.id)")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+                
+                Spacer()
+                
+                if isSelected {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(.green)
+                        .font(.title3)
+                }
+            }
+            .padding(.vertical, 8)
+            .padding(.horizontal, 12)
+            .background(isSelected ? Color.green.opacity(0.1) : Color.clear)
+            .cornerRadius(8)
+        }
+        .buttonStyle(.plain)
+    }
+    
+    @ViewBuilder
+    private func ingredientImageThumbnail(for match: SpoonacularIngredient) -> some View {
+        let imageName = match.name.lowercased()
+            .replacingOccurrences(of: " ", with: "-")
+            .replacingOccurrences(of: ",", with: "")
+        let imageURL = URL(string: "https://spoonacular.com/cdn/ingredients_100x100/\(imageName).jpg")
+        
+        AsyncImage(url: imageURL) { phase in
+            switch phase {
+            case .success(let image):
+                image
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 40, height: 40)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+            case .empty, .failure:
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color.gray.opacity(0.2))
+                    .frame(width: 40, height: 40)
+                    .overlay(
+                        Image(systemName: "leaf.fill")
+                            .foregroundColor(.gray)
+                            .font(.caption)
+                    )
+            @unknown default:
+                EmptyView()
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private func skipButton(for item: (line: String, matches: [SpoonacularIngredient])) -> some View {
+        let isSkipped = selectedMatches[item.line] == nil && selectedMatches.keys.contains(item.line)
+        
+        Button(action: {
+            selectedMatches[item.line] = nil
+        }) {
+            HStack {
+                Image(systemName: "xmark.circle")
+                    .foregroundColor(.orange)
+                Text("Skip (no image)")
+                    .foregroundColor(.orange)
+                Spacer()
+                if isSkipped {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(.orange)
+                }
+            }
+            .padding(.vertical, 8)
+            .padding(.horizontal, 12)
+            .background(isSkipped ? Color.orange.opacity(0.1) : Color.clear)
+            .cornerRadius(8)
+        }
+        .buttonStyle(.plain)
+    }
+    
+    @ViewBuilder
+    private var bottomStatusBar: some View {
+        VStack(spacing: 8) {
+            if selectedMatches.count == unmatchedIngredients.count {
+                HStack {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(.green)
+                    Text("All ingredients reviewed!")
+                        .font(.subheadline)
+                        .foregroundColor(.green)
+                }
+                .padding()
+                .frame(maxWidth: .infinity)
+                .background(Color.green.opacity(0.1))
+            } else {
+                let remainingCount = unmatchedIngredients.count - selectedMatches.count
+                HStack {
+                    Image(systemName: "info.circle")
+                        .foregroundColor(.blue)
+                    Text("Review \(remainingCount) more ingredient\(remainingCount == 1 ? "" : "s")")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+                .padding()
+                .frame(maxWidth: .infinity)
+                .background(Color(.systemGroupedBackground))
+            }
+        }
     }
 }
 
