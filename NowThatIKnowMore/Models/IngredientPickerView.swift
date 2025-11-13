@@ -10,7 +10,7 @@ import Combine
 
 /// A searchable picker for selecting Spoonacular ingredients
 struct IngredientPickerView: View {
-    @StateObject private var manager = SpoonacularIngredientManager.shared
+    @State private var manager = SpoonacularIngredientManager.shared
     @State private var searchText = ""
     @State private var selectedIngredients: [SpoonacularIngredient] = []
     
@@ -78,7 +78,7 @@ struct IngredientPickerView: View {
 
 /// A compact ingredient search field
 struct IngredientSearchField: View {
-    @StateObject private var manager = SpoonacularIngredientManager.shared
+    @State private var manager = SpoonacularIngredientManager.shared
     @State private var searchText = ""
     @State private var showingResults = false
     

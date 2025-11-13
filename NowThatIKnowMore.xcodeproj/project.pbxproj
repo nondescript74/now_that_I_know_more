@@ -108,6 +108,13 @@
 			);
 			target = F8B44A262E4E254E00BD0920 /* NowThatIKnowMore */;
 		};
+		F83167B42EC659B1006852D7 /* Exceptions for "NowThatIKnowMore" folder in "NowThatIKnowMore" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = F8B44A262E4E254E00BD0920 /* NowThatIKnowMore */;
+		};
 		F8B253F82EBD0DC10091C8A0 /* Exceptions for "ImageParsing" folder in "NowThatIKnowMoreTests" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -116,6 +123,7 @@
 				ParsedRecipeAdapter.swift,
 				RecipeImageParser.swift,
 				RecipeImageParserView.swift,
+				RecipeOCRTypes.swift,
 			);
 			target = F82259C32E84605B00840803 /* NowThatIKnowMoreTests */;
 		};
@@ -163,6 +171,7 @@
 		F8B44A292E4E254E00BD0920 /* NowThatIKnowMore */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
+				F83167B42EC659B1006852D7 /* Exceptions for "NowThatIKnowMore" folder in "NowThatIKnowMore" target */,
 				F8211A802E848F8B00815127 /* Exceptions for "NowThatIKnowMore" folder in "NowThatIKnowMoreTests" target */,
 			);
 			path = NowThatIKnowMore;
@@ -521,7 +530,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 73;
+				CURRENT_PROJECT_VERSION = 74;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = YKHW2TJ32G;
 				ENABLE_APP_SANDBOX = YES;
@@ -539,9 +548,12 @@
 				ENABLE_RESOURCE_ACCESS_USB = NO;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = NowThatIKnowMore/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Recipes;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.food-and-drink";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "NowThatIKnowMore needs permission to save recipe photos to your photo library";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "NowThatIKnowMore needs access to your photo library to import recipe photos and add images to your recipes";
 				INFOPLIST_KEY_NSRemindersUsageDescription = "We need to see and add to the reminders to add items";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
@@ -582,7 +594,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 73;
+				CURRENT_PROJECT_VERSION = 74;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = YKHW2TJ32G;
 				ENABLE_APP_SANDBOX = YES;
@@ -600,9 +612,12 @@
 				ENABLE_RESOURCE_ACCESS_USB = NO;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = NowThatIKnowMore/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Recipes;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.food-and-drink";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "NowThatIKnowMore needs permission to save recipe photos to your photo library";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "NowThatIKnowMore needs access to your photo library to import recipe photos and add images to your recipes";
 				INFOPLIST_KEY_NSRemindersUsageDescription = "We need to see and add to the reminders to add items";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;

@@ -6,10 +6,11 @@
 //
 
 import SwiftUI
+import Photos
 
 /// Settings and About screen with license review option
 struct SettingsView: View {
-    @StateObject private var viewModel = LicenseAcceptanceViewModel()
+    @State private var viewModel = LicenseAcceptanceViewModel()
     @State private var showFullLicense = false
     @Environment(\.dismiss) private var dismiss
     
@@ -24,6 +25,9 @@ struct SettingsView: View {
                 
                 // License Section
                 licenseSection
+                
+                // Permissions Section
+                permissionsSection
                 
                 // Privacy Section
                 privacySection
@@ -130,6 +134,139 @@ struct SettingsView: View {
                 .padding(.vertical, 4)
             }
         }
+    }
+    
+    // MARK: - Permissions Section
+    
+    private var permissionsSection: some View {
+        Section("App Permissions") {
+            // Photo Library Permission
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: photoLibraryIcon)
+                    .font(.title3)
+                    .foregroundStyle(photoLibraryColor)
+                    .frame(width: 30)
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Text("Photo Library")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                        Spacer()
+                        Text(viewModel.photoStatusDescription)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    Text("Required to import recipe photos and add images to recipes")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    
+                    if viewModel.photoLibraryStatus == .denied || viewModel.photoLibraryStatus == .restricted {
+                        Button(action: {
+                            viewModel.openSettings()
+                        }) {
+                            Text("Open Settings")
+                                .font(.caption)
+                                .foregroundColor(.blue)
+                        }
+                        .padding(.top, 4)
+                    } else if viewModel.photoLibraryStatus == .notDetermined {
+                        Button(action: {
+                            Task {
+                                await viewModel.requestPhotoLibraryPermission()
+                            }
+                        }) {
+                            Text("Grant Permission")
+                                .font(.caption)
+                                .foregroundColor(.blue)
+                        }
+                        .padding(.top, 4)
+                    }
+                }
+            }
+            .padding(.vertical, 4)
+            
+            // Mail Permission
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: mailIcon)
+                    .font(.title3)
+                    .foregroundStyle(mailColor)
+                    .frame(width: 30)
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Text("Mail")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                        Spacer()
+                        Text(viewModel.mailStatusDescription)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    Text("Required to email recipes. Configure an email account in Settings > Mail")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    
+                    if !viewModel.isMailAvailable {
+                        Button(action: {
+                            if let url = URL(string: "App-prefs:MAIL") {
+                                UIApplication.shared.open(url)
+                            }
+                        }) {
+                            Text("Configure Mail")
+                                .font(.caption)
+                                .foregroundColor(.blue)
+                        }
+                        .padding(.top, 4)
+                    }
+                }
+            }
+            .padding(.vertical, 4)
+            
+            // App Version Info
+            VStack(alignment: .leading, spacing: 4) {
+                Text("App Version")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Text(viewModel.currentAppVersion)
+                    .font(.subheadline)
+            }
+            .padding(.vertical, 4)
+        }
+    }
+    
+    private var photoLibraryIcon: String {
+        switch viewModel.photoLibraryStatus {
+        case .authorized, .limited:
+            return "photo.fill"
+        case .denied, .restricted:
+            return "photo.fill.on.rectangle.fill"
+        case .notDetermined:
+            return "photo"
+        @unknown default:
+            return "photo"
+        }
+    }
+    
+    private var photoLibraryColor: Color {
+        switch viewModel.photoLibraryStatus {
+        case .authorized, .limited:
+            return .green
+        case .denied, .restricted:
+            return .red
+        case .notDetermined:
+            return .orange
+        @unknown default:
+            return .gray
+        }
+    }
+    
+    private var mailIcon: String {
+        return viewModel.isMailAvailable ? "envelope.fill" : "envelope.badge.fill"
+    }
+    
+    private var mailColor: Color {
+        return viewModel.isMailAvailable ? .green : .orange
     }
     
     // MARK: - Privacy Section

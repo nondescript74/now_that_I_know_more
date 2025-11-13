@@ -9,7 +9,7 @@ import SwiftUI
 
 /// A container view that conditionally shows the license or the main app content
 struct LicenseGateView<Content: View>: View {
-    @StateObject private var viewModel = LicenseAcceptanceViewModel()
+    @State private var viewModel = LicenseAcceptanceViewModel()
     @State private var hasAcceptedLicense = false
     
     let content: () -> Content
