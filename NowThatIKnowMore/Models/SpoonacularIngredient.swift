@@ -6,7 +6,8 @@
 //
 
 import Foundation
-import Combine
+import Observation
+
 /// Represents a Spoonacular ingredient from the ingredients_list.json reference data
 struct SpoonacularIngredient: Codable, Identifiable, Hashable, Sendable {
     let id: Int
@@ -22,40 +23,44 @@ struct SpoonacularIngredient: Codable, Identifiable, Hashable, Sendable {
 // MARK: - Ingredient Manager
 /// Manages the Spoonacular ingredients reference data
 @MainActor
-class SpoonacularIngredientManager: ObservableObject {
+@Observable
+final class SpoonacularIngredientManager {
     static let shared = SpoonacularIngredientManager()
     
-    @Published private(set) var ingredients: [SpoonacularIngredient] = []
-    @Published private(set) var isLoaded = false
+    private(set) var ingredients: [SpoonacularIngredient] = []
+    private(set) var isLoaded = false
     
-    private var ingredientsByID: [Int: SpoonacularIngredient] = [:]
-    private var ingredientsByName: [String: SpoonacularIngredient] = [:]
+    private let ingredientsByID: [Int: SpoonacularIngredient]
+    private let ingredientsByName: [String: SpoonacularIngredient]
     
     private init() {
-        loadIngredients()
-    }
-    
-    /// Load ingredients from the bundled JSON file
-    private func loadIngredients() {
-        guard let url = Bundle.main.url(forResource: "ingredients_list", withExtension: "json") else {
+        // Load ingredients synchronously during initialization
+        var loadedIngredients: [SpoonacularIngredient] = []
+        var byID: [Int: SpoonacularIngredient] = [:]
+        var byName: [String: SpoonacularIngredient] = [:]
+        
+        if let url = Bundle.main.url(forResource: "ingredients_list", withExtension: "json") {
+            do {
+                let data = try Data(contentsOf: url)
+                let decoder = JSONDecoder()
+                loadedIngredients = try decoder.decode([SpoonacularIngredient].self, from: data)
+                
+                // Build lookup dictionaries for fast access
+                byID = Dictionary(uniqueKeysWithValues: loadedIngredients.map { ($0.id, $0) })
+                byName = Dictionary(uniqueKeysWithValues: loadedIngredients.map { ($0.name.lowercased(), $0) })
+                
+                print("✅ Loaded \(loadedIngredients.count) Spoonacular ingredients")
+            } catch {
+                print("❌ Failed to load ingredients: \(error)")
+            }
+        } else {
             print("❌ Could not find ingredients_list.json in bundle")
-            return
         }
         
-        do {
-            let data = try Data(contentsOf: url)
-            let decoder = JSONDecoder()
-            ingredients = try decoder.decode([SpoonacularIngredient].self, from: data)
-            
-            // Build lookup dictionaries for fast access
-            ingredientsByID = Dictionary(uniqueKeysWithValues: ingredients.map { ($0.id, $0) })
-            ingredientsByName = Dictionary(uniqueKeysWithValues: ingredients.map { ($0.name.lowercased(), $0) })
-            
-            isLoaded = true
-            print("✅ Loaded \(ingredients.count) Spoonacular ingredients")
-        } catch {
-            print("❌ Failed to load ingredients: \(error)")
-        }
+        self.ingredientsByID = byID
+        self.ingredientsByName = byName
+        self.ingredients = loadedIngredients
+        self.isLoaded = !loadedIngredients.isEmpty
     }
     
     /// Find an ingredient by its Spoonacular ID

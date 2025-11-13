@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Photos
 
 /// Preference key for tracking scroll offset
 struct ScrollOffsetPreferenceKey: PreferenceKey {
@@ -17,7 +18,7 @@ struct ScrollOffsetPreferenceKey: PreferenceKey {
 
 /// View presenting the license agreement for user acceptance
 struct LicenseAcceptanceView: View {
-    @StateObject private var viewModel = LicenseAcceptanceViewModel()
+    @State private var viewModel = LicenseAcceptanceViewModel()
     
     let onAccept: () -> Void
     let onDecline: () -> Void
@@ -36,6 +37,12 @@ struct LicenseAcceptanceView: View {
                 licenseScrollView
                 
                 Divider()
+                
+                // Permission Request Section (if needed)
+                if viewModel.needsPermissionCheck && viewModel.hasScrolledToBottom {
+                    permissionsSection
+                    Divider()
+                }
                 
                 // Agreement Section
                 agreementSection
@@ -194,6 +201,109 @@ struct LicenseAcceptanceView: View {
             .padding()
             .background(Color(.systemBackground))
         }
+    }
+    
+    // MARK: - Permissions Section
+    
+    private var permissionsSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Image(systemName: "hand.raised.fill")
+                        .foregroundStyle(.blue)
+                        .font(.title2)
+                    Text("App Permissions")
+                        .font(.headline)
+                }
+                
+                Text("This app needs access to certain features. You can review or change these permissions anytime in Settings.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            
+            // Photo Library Permission
+            HStack(spacing: 12) {
+                Image(systemName: "photo.fill")
+                    .font(.title3)
+                    .foregroundStyle(photoPermissionColor)
+                    .frame(width: 30)
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Photo Library")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                    Text("Import recipe photos from your library")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    
+                    if viewModel.photoLibraryStatus == .notDetermined {
+                        Button("Grant Access") {
+                            Task {
+                                await viewModel.requestPhotoLibraryPermission()
+                            }
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        .padding(.top, 4)
+                    } else {
+                        Text("Status: \(viewModel.photoStatusDescription)")
+                            .font(.caption)
+                            .foregroundColor(photoPermissionColor)
+                    }
+                }
+                
+                Spacer()
+            }
+            .padding(.vertical, 8)
+            
+            // Mail Status
+            HStack(spacing: 12) {
+                Image(systemName: "envelope.fill")
+                    .font(.title3)
+                    .foregroundStyle(mailPermissionColor)
+                    .frame(width: 30)
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Mail")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                    Text("Share recipes via email")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Text("Status: \(viewModel.mailStatusDescription)")
+                        .font(.caption)
+                        .foregroundColor(mailPermissionColor)
+                    
+                    if !viewModel.isMailAvailable {
+                        Text("Configure an email account in Settings > Mail")
+                            .font(.caption2)
+                            .foregroundColor(.orange)
+                    }
+                }
+                
+                Spacer()
+            }
+            .padding(.vertical, 8)
+        }
+        .padding()
+        .background(Color(.secondarySystemBackground))
+    }
+    
+    private var photoPermissionColor: Color {
+        switch viewModel.photoLibraryStatus {
+        case .authorized, .limited:
+            return .green
+        case .denied, .restricted:
+            return .red
+        case .notDetermined:
+            return .orange
+        @unknown default:
+            return .gray
+        }
+    }
+    
+    private var mailPermissionColor: Color {
+        return viewModel.isMailAvailable ? .green : .orange
     }
     
     // MARK: - Action Buttons

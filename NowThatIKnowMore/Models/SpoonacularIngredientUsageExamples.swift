@@ -86,6 +86,7 @@ func addIngredientsToRecipe(recipe: RecipeModel) {
 }
 
 /// Example 5: Validate ExtendedIngredient IDs
+@MainActor
 func validateIngredientIDs(extendedIngredients: [ExtendedIngredient]) {
     let manager = SpoonacularIngredientManager.shared
     

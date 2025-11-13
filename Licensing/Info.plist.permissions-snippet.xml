@@ -1,0 +1,35 @@
+<!-- 
+    Copy these keys into your Info.plist to fix photo library permission crash
+    Location: In your Xcode project, find Info.plist in the Project Navigator
+    
+    Method 1: Use Xcode's Info tab
+    1. Select your app target
+    2. Go to Info tab
+    3. Click + button
+    4. Add each key with its description
+    
+    Method 2: Edit as source code
+    1. Right-click Info.plist
+    2. Open As > Source Code
+    3. Paste these entries inside the main <dict> tag
+-->
+
+<!-- REQUIRED: Photo Library Access -->
+<key>NSPhotoLibraryUsageDescription</key>
+<string>NowThatIKnowMore needs access to your photo library to import recipe photos and add images to your recipes.</string>
+
+<!-- REQUIRED: Photo Library Additions -->
+<key>NSPhotoLibraryAddUsageDescription</key>
+<string>NowThatIKnowMore needs permission to save recipe photos to your photo library.</string>
+
+<!-- OPTIONAL: Camera (for future features) -->
+<key>NSCameraUsageDescription</key>
+<string>NowThatIKnowMore needs access to your camera to take photos of recipes directly.</string>
+
+<!-- ALREADY IN USE: Reminders -->
+<key>NSRemindersFullAccessUsageDescription</key>
+<string>NowThatIKnowMore needs access to Reminders to add recipe ingredients to your shopping lists.</string>
+
+<!-- OPTIONAL: Contacts (for sharing recipes) -->
+<key>NSContactsUsageDescription</key>
+<string>NowThatIKnowMore needs access to your contacts to share recipes with friends and family.</string>

@@ -1073,7 +1073,7 @@ private struct IngredientRowView: View {
 
 // MARK: - Ingredient Search and Pick View
 private struct IngredientSearchAndPickView: View {
-    @StateObject private var manager = SpoonacularIngredientManager.shared
+    @State private var manager = SpoonacularIngredientManager.shared
     @State private var searchText: String
     @Environment(\.dismiss) private var dismiss
     
