@@ -152,6 +152,7 @@ struct RecipeImportView: View {
                 
                 // Try to decode as RecipeModel
                 let decoder = JSONDecoder()
+                decoder.dateDecodingStrategy = .iso8601
                 let recipe = try decoder.decode(RecipeModel.self, from: data)
                 importedRecipe = recipe
             } catch {
