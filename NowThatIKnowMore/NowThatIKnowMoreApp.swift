@@ -29,18 +29,18 @@ private struct MainTabView: View {
                         Label("Books", systemImage: "books.vertical")
                     }
                     .tag(1)
-                RecipeImageParserView()
+                RecipeImportTabView()
                     .tabItem {
-                        Label("OCR Import", systemImage: "camera")
+                        Label("Import", systemImage: "square.and.arrow.down")
                     }
                     .tag(2)
                 NavigationStack {
                     RecipeEditorView(recipe: nil)
                 }
-                .tabItem {
-                    Label("Edit Recipe", systemImage: "pencil")
+                    .tabItem {
+                        Label("Edit Recipe", systemImage: "pencil")
                 }
-                .tag(3)
+                    .tag(3)
                 APIKeyTabView()
                     .tabItem {
                         Label("API Key", systemImage: "key.fill")
@@ -241,6 +241,6 @@ struct NowThatIKnowMoreApp: App {
 
 #Preview {
     MainTabView()
-        
+    
 }
 
