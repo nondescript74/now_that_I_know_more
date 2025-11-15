@@ -28,9 +28,8 @@ struct RecipePDFParserView: View {
     @State private var selectedStrategy: RecipePDFParser.ColumnStrategy = .columnAware
     
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(spacing: 20) {
+        ScrollView {
+            VStack(spacing: 20) {
                     // Header
                     VStack(spacing: 12) {
                         Image(systemName: "doc.text.magnifyingglass")
@@ -167,32 +166,23 @@ struct RecipePDFParserView: View {
                         )
                         .padding(.horizontal)
                     }
-                }
-                .padding(.vertical)
             }
-            .navigationTitle("PDF Recipe Parser")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Close") {
-                        dismiss()
-                    }
-                }
+            .padding(.vertical)
+        }
+        .scrollDismissesKeyboard(.interactively)
+        .fileImporter(
+            isPresented: $isImporting,
+            allowedContentTypes: [.pdf],
+            allowsMultipleSelection: false
+        ) { result in
+            handleFileSelection(result)
+        }
+        .alert("Recipe Saved", isPresented: $showSaveSuccess) {
+            Button("OK") {
+                dismiss()
             }
-            .fileImporter(
-                isPresented: $isImporting,
-                allowedContentTypes: [.pdf],
-                allowsMultipleSelection: false
-            ) { result in
-                handleFileSelection(result)
-            }
-            .alert("Recipe Saved", isPresented: $showSaveSuccess) {
-                Button("OK") {
-                    dismiss()
-                }
-            } message: {
-                Text("Recipe has been saved to your collection.")
-            }
+        } message: {
+            Text("Recipe has been saved to your collection.")
         }
     }
     
