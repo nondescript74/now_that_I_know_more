@@ -558,6 +558,7 @@ private struct IngredientListView: View {
                         IngredientRowView(ingredient: validIngredients[index]) { originalIngredient, mappedSpoonacular in
                             updateIngredientMapping(at: index, with: mappedSpoonacular)
                         }
+                        .id("\(index)-\(validIngredients[index].id ?? 0)-\(validIngredients[index].image ?? "")")
                     }
                 }
                 .onAppear {
@@ -669,7 +670,8 @@ private struct IngredientListView: View {
         let original = editedIngredients[index]
         
         // Create updated ingredient with Spoonacular ID and image
-        let imageName = "\(spoonacularIngredient.name.lowercased().replacingOccurrences(of: " ", with: "-")).jpg"
+        // Use the same normalization as IngredientRowView to ensure consistency
+        let imageName = IngredientRowView.normalizeIngredientName(spoonacularIngredient.name)
         
         let updated = ExtendedIngredient(
             id: spoonacularIngredient.id,
@@ -686,10 +688,16 @@ private struct IngredientListView: View {
             measures: original.measures
         )
         
+        // Update the local state - this will trigger a view refresh
         editedIngredients[index] = updated
         
-        // Notify parent that ingredients have changed
+        // Force SwiftUI to detect the change by creating a new array
+        editedIngredients = editedIngredients
+        
+        // Notify parent that ingredients have changed so the recipe model gets updated
         onIngredientsUpdated?(editedIngredients)
+        
+        print("✅ [IngredientMapping] Mapped '\(original.name ?? "unknown")' to Spoonacular: \(spoonacularIngredient.name) (ID: \(spoonacularIngredient.id)) -> \(imageName)")
     }
     
     private func addIngredientsToReminders() {
@@ -940,28 +948,45 @@ private struct IngredientRowView: View {
     @State private var mappedIngredient: SpoonacularIngredient?
     var onIngredientMapped: ((ExtendedIngredient, SpoonacularIngredient) -> Void)?
     
+    /// Normalize an ingredient name to match Spoonacular's image filename format
+    fileprivate static func normalizeIngredientName(_ name: String) -> String {
+        return name
+            .lowercased()
+            .replacingOccurrences(of: " ", with: "-")
+            .replacingOccurrences(of: "&", with: "and")
+            .replacingOccurrences(of: "'", with: "")
+            .replacingOccurrences(of: ",", with: "")
+            .appending(".jpg")
+    }
+    
     /// Build the Spoonacular ingredient image URL
     /// Format: https://spoonacular.com/cdn/ingredients_100x100/{image}
     private var ingredientImageURL: URL? {
         // First check if the ingredient has an image field
         if let imageName = ingredient.image, !imageName.isEmpty {
-            return URL(string: "https://spoonacular.com/cdn/ingredients_100x100/\(imageName)")
+            let url = URL(string: "https://spoonacular.com/cdn/ingredients_100x100/\(imageName)")
+            print("🖼️ [IngredientImage] Using ingredient.image: \(imageName) → \(url?.absoluteString ?? "nil")")
+            return url
         }
         
-        // If we have a mapped ingredient, use its ID to construct the image URL
+        // If we have a mapped ingredient, construct URL using the same normalization
         if let mapped = mappedIngredient {
-            return URL(string: "https://spoonacular.com/cdn/ingredients_100x100/\(mapped.name.lowercased().replacingOccurrences(of: " ", with: "-")).jpg")
+            let imageName = Self.normalizeIngredientName(mapped.name)
+            let url = URL(string: "https://spoonacular.com/cdn/ingredients_100x100/\(imageName)")
+            print("🖼️ [IngredientImage] Using mapped ingredient '\(mapped.name)': \(imageName) → \(url?.absoluteString ?? "nil")")
+            return url
         }
         
         // Fallback: try to use the ingredient name to construct an image URL
         // This is less reliable but may work for common ingredients
         if let name = ingredient.nameClean ?? ingredient.name {
-            let cleanName = name.lowercased()
-                .replacingOccurrences(of: " ", with: "-")
-                .replacingOccurrences(of: ",", with: "")
-            return URL(string: "https://spoonacular.com/cdn/ingredients_100x100/\(cleanName).jpg")
+            let imageName = Self.normalizeIngredientName(name)
+            let url = URL(string: "https://spoonacular.com/cdn/ingredients_100x100/\(imageName)")
+            print("🖼️ [IngredientImage] Using fallback for '\(name)': \(imageName) → \(url?.absoluteString ?? "nil")")
+            return url
         }
         
+        print("⚠️ [IngredientImage] No image source available for ingredient: \(ingredient.name ?? "unknown")")
         return nil
     }
     
@@ -972,34 +997,15 @@ private struct IngredientRowView: View {
     
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            // Ingredient thumbnail
+            // Ingredient thumbnail with smart caching
             Button(action: {
                 if needsMapping {
                     showingIngredientPicker = true
                 }
             }) {
                 ZStack(alignment: .bottomTrailing) {
-                    if let imageURL = ingredientImageURL {
-                        AsyncImage(url: imageURL) { phase in
-                            switch phase {
-                            case .empty:
-                                placeholderView()
-                            case .success(let image):
-                                image
-                                    .resizable()
-                                    .scaledToFill()
-                                    .frame(width: 50, height: 50)
-                                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                            case .failure:
-                                placeholderView(showWarning: true)
-                            @unknown default:
-                                placeholderView()
-                            }
-                        }
-                        .frame(width: 50, height: 50)
-                    } else {
-                        placeholderView(showWarning: needsMapping)
-                    }
+                    // Use the new IngredientImageView with SwiftData caching
+                    IngredientImageView(ingredient: ingredient, size: 50)
                     
                     // Show a badge if mapping is suggested
                     if needsMapping {

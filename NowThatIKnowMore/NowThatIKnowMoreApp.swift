@@ -51,6 +51,11 @@ private struct MainTabView: View {
                         Label("Diagnostics", systemImage: "exclamationmark.circle")
                     }
                     .tag(5)
+                IngredientImageTest()
+                    .tabItem {
+                        Label("Img Test", systemImage: "text.badge.plus")
+                    }
+                    .tag(6)
             }
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -96,7 +101,8 @@ struct NowThatIKnowMoreApp: App {
                 RecipeModel.self,
                 RecipeMediaModel.self,
                 RecipeNoteModel.self,
-                RecipeBookModel.self
+                RecipeBookModel.self,
+                IngredientImageMappingModel.self
             ])
             
             let modelConfiguration = ModelConfiguration(

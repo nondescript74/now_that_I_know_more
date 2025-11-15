@@ -17,6 +17,7 @@ extension ModelContainer {
             RecipeMediaModel.self,
             RecipeNoteModel.self,
             RecipeBookModel.self,
+            IngredientImageMappingModel.self,
             configurations: config
         )
     }
@@ -30,6 +31,7 @@ extension ModelContainer {
             RecipeMediaModel.self,
             RecipeNoteModel.self,
             RecipeBookModel.self,
+            IngredientImageMappingModel.self,
             configurations: config
         )
         
