@@ -40,6 +40,7 @@
 		F80B9FE52EC2988800424919 /* Exceptions for "SomeDocs" folder in "NowThatIKnowMoreTests" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				DUPLICATE_PARSER_FIX.md,
 				PARSER_IMPROVEMENTS_COMPLETE.md,
 			);
 			target = F82259C32E84605B00840803 /* NowThatIKnowMoreTests */;
@@ -119,7 +120,7 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				AdvancedRecipeImageParser.swift,
-				DUPLICATE_PARSER_FIX.md,
+				IPAD_LAYOUT_FIX.md,
 				ParsedRecipeAdapter.swift,
 				RecipeImageParser.swift,
 				RecipeImageParserView.swift,
@@ -530,7 +531,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 76;
+				CURRENT_PROJECT_VERSION = 77;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = YKHW2TJ32G;
 				ENABLE_APP_SANDBOX = YES;
@@ -594,7 +595,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 76;
+				CURRENT_PROJECT_VERSION = 77;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = YKHW2TJ32G;
 				ENABLE_APP_SANDBOX = YES;

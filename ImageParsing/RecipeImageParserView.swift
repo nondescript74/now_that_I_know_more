@@ -25,8 +25,7 @@ struct RecipeImageParserView: View {
     @State private var definedRegions: [OCRRegion] = []
     
     var body: some View {
-        NavigationView {
-            ScrollView {
+        ScrollView {
                 VStack(spacing: 20) {
                     // Image Display Section
                     if let image = selectedImage {
@@ -169,7 +168,6 @@ struct RecipeImageParserView: View {
                 }
                 .padding(.vertical)
             }
-            .navigationTitle("Recipe Parser")
             .scrollDismissesKeyboard(.interactively)
             .sheet(isPresented: $showImagePicker) {
                 RecipeImagePicker(image: $selectedImage, sourceType: .photoLibrary)
@@ -197,7 +195,6 @@ struct RecipeImageParserView: View {
                     )
                 }
             }
-        }
     }
     
     private var placeholderView: some View {
