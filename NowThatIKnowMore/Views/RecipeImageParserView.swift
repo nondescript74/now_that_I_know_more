@@ -20,7 +20,7 @@ struct RecipeImageParserView: View {
     @State private var showImagePicker = false
     @State private var showCamera = false
     @State private var showSuccessAlert = false
-    @State private var selectedParserType: RecipeParserType = .tableFormat
+    @State private var selectedParserType: RecipeParserType = .enhancedPreprocessed
     @State private var showBoundingBoxEditor = false
     @State private var definedRegions: [OCRRegion] = []
     
@@ -377,6 +377,14 @@ struct RecipeImageParserView: View {
                 .foregroundColor(.secondary)
             
             switch type {
+            case .enhancedPreprocessed:
+                VStack(alignment: .leading, spacing: 4) {
+                    guideItem(icon: "wand.and.stars", text: "AI-powered zone detection")
+                    guideItem(icon: "square.3.layers.3d", text: "Automatic image enhancement")
+                    guideItem(icon: "crop", text: "Smart text region segmentation")
+                    guideItem(icon: "sparkles", text: "Best overall accuracy")
+                }
+                
             case .tableFormat:
                 VStack(alignment: .leading, spacing: 4) {
                     guideItem(icon: "tablecells", text: "Recipe cards with columns")

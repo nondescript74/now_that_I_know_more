@@ -65,6 +65,7 @@
 				"Views/Recipe+Decoding.swift",
 				Views/RecipeDetail.swift,
 				Views/RecipeEditorView.swift,
+				Views/RecipeImageParserView.swift,
 				Views/RecipeImportPreviewView.swift,
 				Views/RecipeMedia.swift,
 			);
@@ -122,8 +123,8 @@
 				AdvancedRecipeImageParser.swift,
 				IPAD_LAYOUT_FIX.md,
 				ParsedRecipeAdapter.swift,
+				RECIPE_IMAGE_PREPROCESSING.md,
 				RecipeImageParser.swift,
-				RecipeImageParserView.swift,
 				RecipeOCRTypes.swift,
 			);
 			target = F82259C32E84605B00840803 /* NowThatIKnowMoreTests */;
@@ -531,7 +532,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 77;
+				CURRENT_PROJECT_VERSION = 78;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = YKHW2TJ32G;
 				ENABLE_APP_SANDBOX = YES;
@@ -595,7 +596,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 77;
+				CURRENT_PROJECT_VERSION = 78;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = YKHW2TJ32G;
 				ENABLE_APP_SANDBOX = YES;
