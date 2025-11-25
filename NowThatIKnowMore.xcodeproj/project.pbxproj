@@ -9,6 +9,8 @@
 /* Begin PBXBuildFile section */
 		F82656472EC151DA008D91F8 /* Info-Recipe-DocumentType.plist in Resources */ = {isa = PBXBuildFile; fileRef = F826560D2EC151DA008D91F8 /* Info-Recipe-DocumentType.plist */; };
 		F85E69E22EBABF9200F187AB /* Testing.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F85E69E12EBABF9200F187AB /* Testing.framework */; };
+		F8B587C92ECF783D005F8FD5 /* license.md in Resources */ = {isa = PBXBuildFile; fileRef = F8B587C82ECF783D005F8FD5 /* license.md */; };
+		F8B587CA2ECF783D005F8FD5 /* license.md in Resources */ = {isa = PBXBuildFile; fileRef = F8B587C82ECF783D005F8FD5 /* license.md */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -26,6 +28,7 @@
 		F826560D2EC151DA008D91F8 /* Info-Recipe-DocumentType.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Info-Recipe-DocumentType.plist"; sourceTree = "<group>"; };
 		F85E69E12EBABF9200F187AB /* Testing.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Testing.framework; path = Platforms/iPhoneOS.platform/Developer/Library/Frameworks/Testing.framework; sourceTree = DEVELOPER_DIR; };
 		F8B44A272E4E254E00BD0920 /* NowThatIKnowMore.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NowThatIKnowMore.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		F8B587C82ECF783D005F8FD5 /* license.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = license.md; sourceTree = "<group>"; };
 		F8EC9FF02E63AAD600211F03 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = Info.plist; path = NowThatIKnowMore.xcodeproj/Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -41,7 +44,9 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				DUPLICATE_PARSER_FIX.md,
+				IPAD_LAYOUT_FIX.md,
 				PARSER_IMPROVEMENTS_COMPLETE.md,
+				RECIPE_IMAGE_PREPROCESSING.md,
 			);
 			target = F82259C32E84605B00840803 /* NowThatIKnowMoreTests */;
 		};
@@ -49,17 +54,21 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				JSON/ingredients_list.json,
+				Models/AdvancedRecipeImageParser.swift,
 				Models/IngredientPickerView.swift,
 				"Models/ModelsModelContainer+Configuration.swift",
 				Models/ModelsRecipeBookModel.swift,
 				Models/ModelsRecipeMediaModel.swift,
 				Models/ModelsRecipeModel.swift,
 				Models/ModelsRecipeNoteModel.swift,
+				Models/ParsedRecipeAdapter.swift,
+				Models/RecipeImageParser.swift,
+				Models/RecipeOCRTypes.swift,
+				Models/ServicesRecipeService.swift,
 				Models/SpoonacularIngredient.swift,
 				Models/SpoonacularIngredientUsageExamples.swift,
 				"Models/String+HTMLStripping.swift",
 				Models/Welcome.swift,
-				ServicesRecipeService.swift,
 				Views/GlossaryView.swift,
 				Views/MediaGalleryView.swift,
 				"Views/Recipe+Decoding.swift",
@@ -117,25 +126,6 @@
 			);
 			target = F8B44A262E4E254E00BD0920 /* NowThatIKnowMore */;
 		};
-		F8B253F82EBD0DC10091C8A0 /* Exceptions for "ImageParsing" folder in "NowThatIKnowMoreTests" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				AdvancedRecipeImageParser.swift,
-				IPAD_LAYOUT_FIX.md,
-				ParsedRecipeAdapter.swift,
-				RECIPE_IMAGE_PREPROCESSING.md,
-				RecipeImageParser.swift,
-				RecipeOCRTypes.swift,
-			);
-			target = F82259C32E84605B00840803 /* NowThatIKnowMoreTests */;
-		};
-		F8B2540E2EBD29E70091C8A0 /* Exceptions for "Licensing" folder in "NowThatIKnowMoreTests" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				license.md,
-			);
-			target = F82259C32E84605B00840803 /* NowThatIKnowMoreTests */;
-		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -148,7 +138,6 @@
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				F8048F7B2EBE9A5A0019D76C /* Exceptions for "Licensing" folder in "NowThatIKnowMore" target */,
-				F8B2540E2EBD29E70091C8A0 /* Exceptions for "Licensing" folder in "NowThatIKnowMoreTests" target */,
 			);
 			path = Licensing;
 			sourceTree = "<group>";
@@ -160,14 +149,6 @@
 				F80B9FE52EC2988800424919 /* Exceptions for "SomeDocs" folder in "NowThatIKnowMoreTests" target */,
 			);
 			path = SomeDocs;
-			sourceTree = "<group>";
-		};
-		F8B253E22EBD0DA70091C8A0 /* ImageParsing */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				F8B253F82EBD0DC10091C8A0 /* Exceptions for "ImageParsing" folder in "NowThatIKnowMoreTests" target */,
-			);
-			path = ImageParsing;
 			sourceTree = "<group>";
 		};
 		F8B44A292E4E254E00BD0920 /* NowThatIKnowMore */ = {
@@ -207,8 +188,8 @@
 		F8B44A1E2E4E254E00BD0920 = {
 			isa = PBXGroup;
 			children = (
+				F8B587C82ECF783D005F8FD5 /* license.md */,
 				F828BF162EBFC0B400BD3BFE /* SomeDocs */,
-				F8B253E22EBD0DA70091C8A0 /* ImageParsing */,
 				F827E8062EBC192A00353174 /* Licensing */,
 				F8EC9FF02E63AAD600211F03 /* Info.plist */,
 				F826560D2EC151DA008D91F8 /* Info-Recipe-DocumentType.plist */,
@@ -265,7 +246,6 @@
 			fileSystemSynchronizedGroups = (
 				F827E8062EBC192A00353174 /* Licensing */,
 				F828BF162EBFC0B400BD3BFE /* SomeDocs */,
-				F8B253E22EBD0DA70091C8A0 /* ImageParsing */,
 				F8B44A292E4E254E00BD0920 /* NowThatIKnowMore */,
 			);
 			name = NowThatIKnowMore;
@@ -316,11 +296,13 @@
 		F82259C22E84605B00840803 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			files = (
+				F8B587CA2ECF783D005F8FD5 /* license.md in Resources */,
 			);
 		};
 		F8B44A252E4E254E00BD0920 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			files = (
+				F8B587C92ECF783D005F8FD5 /* license.md in Resources */,
 				F82656472EC151DA008D91F8 /* Info-Recipe-DocumentType.plist in Resources */,
 			);
 		};
@@ -532,7 +514,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 78;
+				CURRENT_PROJECT_VERSION = 79;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = YKHW2TJ32G;
 				ENABLE_APP_SANDBOX = YES;
@@ -596,7 +578,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 78;
+				CURRENT_PROJECT_VERSION = 79;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = YKHW2TJ32G;
 				ENABLE_APP_SANDBOX = YES;
