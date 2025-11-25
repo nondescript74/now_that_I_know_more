@@ -16,6 +16,11 @@ private struct MainTabView: View {
     @State private var showSettings = false
     @State private var recipeService: RecipeService?
     
+    init() {
+        // Suppress UIKit navigation bar constraint warnings
+        UserDefaults.standard.setValue(false, forKey: "_UIConstraintBasedLayoutLogUnsatisfiable")
+    }
+    
     var body: some View {
         NavigationView {
             TabView(selection: $selectedTab) {
